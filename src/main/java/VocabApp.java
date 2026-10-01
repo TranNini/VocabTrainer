@@ -67,7 +67,7 @@ public class VocabApp {
             boolean askInSpanish = random.nextBoolean();
             String prompt = askInSpanish ? v.getEnglish() : v.getSpanish();
             String expected = askInSpanish ? v.getSpanish() : v.getEnglish();
-            System.out.println("\n " + prompt + " -> ");
+            System.out.println("\n" + prompt + " -> ");
             String answer = scanner.nextLine().trim();
             if (answer.equalsIgnoreCase("stop")) {
                 break;
@@ -76,9 +76,12 @@ public class VocabApp {
             boolean solved = answer.equalsIgnoreCase(expected);
             int attempt = 1;
             while (!solved && attempt < 3) {
-                if (attempt == 1) {
+                String articleHint = missingArticleHint(answer, expected);
+                if (articleHint != null) {
+                    System.out.println(articleHint);
+                } else if (attempt == 1)
                     System.out.println("Not quite.");
-                } else if (isClose(answer, expected)) {
+                else if (isClose(answer, expected)) {
                     System.out.println("Almost correct!");
                 } else {
                     System.out.println("Not quite. Hint: it starts with '" + getHint(expected) + "'");
@@ -137,5 +140,27 @@ public class VocabApp {
         int distance = dp[a.length()][b.length()];
         int allowed = b.length() <= 4 ? 1 : 2;
         return distance <= allowed;
+    }
+
+
+    private static String missingArticleHint(String answer, String expected) {
+        String[] words = expected.split(" ", 2);
+        if (words.length < 2) {
+            return null;
+        }
+        String first = words[0].toLowerCase();
+        if (!answer.equalsIgnoreCase(words[1])) {
+            return null;
+        }
+        if (first.equals("to")) {
+            return "What comes in front of an infinitive verb?";
+        }
+        String[] articles = {"el", "la", "los", "las", "un", "una", "unos", "unas", "the", "a", "an"};
+        for (String article : articles) {
+            if (first.equals(article)) {
+                return "Don't forget the article!";
+            }
+        }
+        return null;
     }
 }
