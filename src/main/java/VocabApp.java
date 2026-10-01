@@ -60,20 +60,82 @@ public class VocabApp {
         }
         List<Vocab> shuffled = new ArrayList<>(all);
         Collections.shuffle(shuffled);
+        System.out.println("Type 'stop' to end the quiz.");
         int correct = 0;
+        int asked = 0;
         for (Vocab v : shuffled) {
             boolean askInSpanish = random.nextBoolean();
             String prompt = askInSpanish ? v.getEnglish() : v.getSpanish();
             String expected = askInSpanish ? v.getSpanish() : v.getEnglish();
             System.out.println("\n " + prompt + " -> ");
             String answer = scanner.nextLine().trim();
-            if (answer.equalsIgnoreCase(expected)) {
-                System.out.println("Correct :D");
+            if (answer.equalsIgnoreCase("stop")) {
+                break;
+            }
+            asked++;
+            boolean solved = answer.equalsIgnoreCase(expected);
+            int attempt = 1;
+            while (!solved && attempt < 3) {
+                if (attempt == 1) {
+                    System.out.println("Not quite.");
+                } else if (isClose(answer, expected)) {
+                    System.out.println("Almost correct!");
+                } else {
+                    System.out.println("Not quite. Hint: it starts with '" + getHint(expected) + "'");
+                }
+                System.out.print("Try again -> ");
+                answer = scanner.nextLine().trim();
+                solved = answer.equalsIgnoreCase(expected);
+                attempt++;
+            }
+            if (solved) {
+                System.out.println("Correct!");
                 correct++;
             } else {
-                System.out.println("Not quite. Correct answer: " + expected);
+                System.out.println("Not quite. The correct answer is: " + expected);
             }
         }
-        System.out.println("\nScore: " + correct + "/" + shuffled.size());
+        System.out.println("\nScore: " + correct + "/" + asked);
+    }
+
+    private static String getHint(String expected) {
+        String[] articles = {"el", "la", "los", "las", "un", "una", "unos", "unas", "to", "the", "a", "an"};
+        String[] words = expected.split(" ");
+        for (String word : words) {
+            if (word.isEmpty()) {
+                continue;
+            }
+            boolean isArticle = false;
+            for (String article : articles) {
+                if (word.equalsIgnoreCase(article)) {
+                    isArticle = true;
+                }
+            }
+            if (!isArticle) {
+                return word.substring(0, 1);
+            }
+        }
+        return expected.substring(0, 1);
+    }
+
+    private static boolean isClose(String answer, String expected) {
+        String a = answer.toLowerCase();
+        String b = expected.toLowerCase();
+        int[][] dp = new int[a.length() + 1][b.length() + 1];
+        for (int i = 0; i <= a.length(); i++) {
+            dp[i][0] = i;
+        }
+        for (int j = 0; j <= b.length(); j++) {
+            dp[0][j] = j;
+        }
+        for (int i = 1; i <= a.length(); i++) {
+            for (int j = 1; j <= b.length(); j++) {
+                int cost = a.charAt(i - 1) == b.charAt(j - 1) ? 0 : 1;
+                dp[i][j] = Math.min(Math.min(dp[i - 1][j] + 1, dp[i][j - 1] + 1), dp[i - 1][j - 1] + cost);
+            }
+        }
+        int distance = dp[a.length()][b.length()];
+        int allowed = b.length() <= 4 ? 1 : 2;
+        return distance <= allowed;
     }
 }
