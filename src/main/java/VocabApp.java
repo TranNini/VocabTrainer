@@ -65,13 +65,13 @@ public class VocabApp {
             boolean askInSpanish = random.nextBoolean();
             String prompt = askInSpanish ? v.getEnglish() : v.getSpanish();
             String expected = askInSpanish ? v.getSpanish() : v.getEnglish();
-            System.out.println("\n1 " + prompt + " -> ");
+            System.out.println("\n " + prompt + " -> ");
             String answer = scanner.nextLine().trim();
             if (answer.equalsIgnoreCase(expected)) {
                 System.out.println("Correct :D");
                 correct++;
             } else {
-                System.out.println("Not quite. Correct answer:" + expected);
+                System.out.println("Not quite. Correct answer: " + expected);
             }
         }
         System.out.println("\nScore: " + correct + "/" + shuffled.size());
