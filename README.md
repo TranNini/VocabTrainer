@@ -11,7 +11,7 @@ Quiz saved vocabulary
 Randomized vocabulary order
 Practice both Spanish → English and English → Spanish
 Score at the end of the quiz
-
+Add multiple answer choices using '/'
 
 How it works:
 
