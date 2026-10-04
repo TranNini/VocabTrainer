@@ -65,7 +65,7 @@ public class VocabApp {
         int asked = 0;
         for (Vocab v : shuffled) {
             boolean askInSpanish = random.nextBoolean();
-            String prompt = askInSpanish ? v.getEnglish() : v.getSpanish();
+            String prompt = askInSpanish ? pickOne(v.getEnglish()) : pickOne(v.getSpanish());
             String expected = askInSpanish ? v.getSpanish() : v.getEnglish();
             System.out.println("\n" + prompt + " -> ");
             String answer = scanner.nextLine().trim();
@@ -73,22 +73,24 @@ public class VocabApp {
                 break;
             }
             asked++;
-            boolean solved = answer.equalsIgnoreCase(expected);
+            boolean solved = isCorrect(answer, expected);
             int attempt = 1;
             while (!solved && attempt < 3) {
-                String articleHint = missingArticleHint(answer, expected);
+                String target = closestAlternative(answer, expected);
+                String cleaned = normalize(answer);
+                String articleHint = missingArticleHint(cleaned, target);
                 if (articleHint != null) {
                     System.out.println(articleHint);
                 } else if (attempt == 1)
                     System.out.println("Not quite.");
-                else if (isClose(answer, expected)) {
+                else if (isClose(cleaned, target)) {
                     System.out.println("Almost correct!");
                 } else {
-                    System.out.println("Not quite. Hint: it starts with '" + getHint(expected) + "'");
+                    System.out.println("Not quite. Hint: it starts with '" + getHint(target) + "'");
                 }
                 System.out.print("Try again -> ");
                 answer = scanner.nextLine().trim();
-                solved = answer.equalsIgnoreCase(expected);
+                solved = isCorrect(answer, expected);
                 attempt++;
             }
             if (solved) {
@@ -163,4 +165,49 @@ public class VocabApp {
         }
         return null;
     }
+
+
+    private static String normalize(String text) {
+        return text.replace("...", "")
+                .replace("…", "")
+                .replace("?", "")
+                .replace("¿", "")
+                .replace("!", "")
+                .replace("¡", "")
+                .replace(".", "")
+                .replaceAll(" +", " ")
+                .trim();
+    }
+
+    private static boolean isCorrect(String answer, String expected) {
+        String cleaned = normalize(answer);
+        for (String option : expected.split("/")) {
+            if (cleaned.equalsIgnoreCase(normalize(option)))
+            {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private static String pickOne(String text) {
+        String[] options = text.split("/");
+        return options[random.nextInt(options.length)].trim();
+    }
+
+    private static String closestAlternative(String answer, String expected) {
+        String cleaned = normalize(answer);
+        String[] options = expected.split("/");
+        for (String option : options)
+        {
+            String target = normalize(option);
+            if (missingArticleHint(cleaned, target)!=null ||
+                    isClose(cleaned, target))
+            {
+                return target;
+            }
+        }
+        return normalize(options[0]);
+    }
+
 }
