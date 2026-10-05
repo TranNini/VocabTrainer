@@ -1,6 +1,8 @@
+import java.text.Collator;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Scanner;
 import java.util.Random;
@@ -11,6 +13,13 @@ public class VocabApp {
     Scanner scanner = new Scanner(System.in);
     private static final VocabStore store = new VocabStore();
     private static final Random random = new Random();
+    private static final Collator spanishOrder = Collator.getInstance(new Locale("es"));
+    private static final String[] SPANISH_ARTICLES = {"el", "la", "los", "las", "un", "una", "unos", "unas"};
+
+    static {
+        // PRIMARY ignores case and accents, so "árbol" sorts with "arbol"
+        spanishOrder.setStrength(Collator.PRIMARY);
+    }
 
     public static void main(String[] args) {
         System.out.println("===Spanish Vocab Trainer===");
@@ -21,12 +30,13 @@ public class VocabApp {
             switch (choice) {
                 case "1" -> addVocab();
                 case "2" -> quiz();
-                case "3" -> {
+                case "3" -> editVocab();
+                case "4" -> {
                     running = false;
                     System.out.println("Vocab saved in vocab.txt");
                 }
                 default -> System.out.println(
-                        "Please choose 1,2 or 3."
+                        "Please choose 1, 2, 3 or 4."
                 );
             }
         }
@@ -35,7 +45,8 @@ public class VocabApp {
     private static void printMenu() {
         System.out.println("\n1) Add new vocab");
         System.out.println("2) Quiz");
-        System.out.println("3) Exit");
+        System.out.println("3) Edit vocab");
+        System.out.println("4) Exit");
         System.out.println(">");
     }
 
@@ -49,12 +60,152 @@ public class VocabApp {
             }
             System.out.println("English:");
             String english = scanner.nextLine().trim();
-            System.out.println("Category (leave empty for '" + Vocab.DEFAULT_CATEGORY + "'):");
-            String category = scanner.nextLine().trim();
+            System.out.println("Category (v = verbs, s = sentences, Enter = " + Vocab.DEFAULT_CATEGORY + ", or type a name):");
+            String category = readCategory(Vocab.DEFAULT_CATEGORY);
             Vocab vocab = new Vocab(spanish, english, category);
             store.add(vocab);
             System.out.println("Added " + spanish + " = " + english + " [" + vocab.getCategory() + "]");
         }
+    }
+
+    private static void editVocab() {
+        if (store.getAll().isEmpty()) {
+            System.out.println("No vocab saved yet. Add some first.");
+            return;
+        }
+        String selectedCategory = chooseCategoryName(store.getAll());
+        while (true) {
+            List<Vocab> inCategory = filterByCategory(store.getAll(), selectedCategory);
+            if (inCategory.isEmpty()) {
+                System.out.println("No vocab left in this category.");
+                return;
+            }
+            System.out.println("\nType a letter for that section, a word to search, Enter = show all, 'done' to stop:");
+            String query = scanner.nextLine().trim();
+            if (query.equalsIgnoreCase("done")) {
+                return;
+            }
+            List<Vocab> matches = new ArrayList<>();
+            for (Vocab v : inCategory) {
+                boolean match;
+                if (query.length() == 1) {
+                    match = spanishOrder.equals(sectionLetter(v), query);
+                } else {
+                    match = v.getSpanish().toLowerCase().contains(query.toLowerCase())
+                            || v.getEnglish().toLowerCase().contains(query.toLowerCase());
+                }
+                if (match) {
+                    matches.add(v);
+                }
+            }
+            if (matches.isEmpty()) {
+                System.out.println("No vocab found for '" + query + "'.");
+                continue;
+            }
+            matches.sort((a, b) -> spanishOrder.compare(sortKey(a), sortKey(b)));
+            String currentSection = null;
+            for (int i = 0; i < matches.size(); i++) {
+                Vocab v = matches.get(i);
+                String section = sectionLetter(v);
+                if (currentSection == null || !spanishOrder.equals(section, currentSection)) {
+                    System.out.println("--- " + section + " ---");
+                    currentSection = section;
+                }
+                System.out.println((i + 1) + ") " + v.getSpanish() + " = " + v.getEnglish() + " [" + v.getCategory() + "]");
+            }
+            System.out.println("Number to edit (Enter = new search):");
+            String input = scanner.nextLine().trim();
+            if (input.isEmpty()) {
+                continue;
+            }
+            int index;
+            try {
+                index = Integer.parseInt(input);
+            } catch (NumberFormatException e) {
+                index = -1;
+            }
+            if (index < 1 || index > matches.size()) {
+                System.out.println("Please choose a number from the list.");
+                continue;
+            }
+            Vocab selected = matches.get(index - 1);
+            System.out.println("e = edit, d = delete, Enter = cancel");
+            String action = scanner.nextLine().trim().toLowerCase();
+            if (action.equals("d")) {
+                System.out.println("Delete " + selected.getSpanish() + " = " + selected.getEnglish() + "? (y/n)");
+                if (scanner.nextLine().trim().equalsIgnoreCase("y")) {
+                    store.remove(selected);
+                    System.out.println("Deleted.");
+                }
+            } else if (action.equals("e")) {
+                System.out.println("Press Enter to keep the current value.");
+                System.out.println("Spanish [" + selected.getSpanish() + "]:");
+                String spanish = keepIfEmpty(scanner.nextLine().trim(), selected.getSpanish());
+                System.out.println("English [" + selected.getEnglish() + "]:");
+                String english = keepIfEmpty(scanner.nextLine().trim(), selected.getEnglish());
+                System.out.println("Category [" + selected.getCategory() + "] (v = verbs, s = sentences, g = " + Vocab.DEFAULT_CATEGORY + ", or type a name):");
+                String category = readCategory(selected.getCategory());
+                Vocab updated = new Vocab(spanish, english, category);
+                store.replace(selected, updated);
+                System.out.println("Saved " + spanish + " = " + english + " [" + updated.getCategory() + "]");
+            }
+        }
+    }
+
+    // "la abuela" -> "abuela", "¡Hola!" -> "Hola"
+    private static String sortKey(Vocab v) {
+        String spanish = normalize(v.getSpanish());
+        String[] words = spanish.split(" ", 2);
+        if (words.length == 2) {
+            for (String article : SPANISH_ARTICLES) {
+                if (words[0].equalsIgnoreCase(article)) {
+                    return words[1];
+                }
+            }
+        }
+        return spanish;
+    }
+
+    private static String sectionLetter(Vocab v) {
+        String key = sortKey(v);
+        return key.isEmpty() ? "#" : key.substring(0, 1).toUpperCase();
+    }
+
+    private static String keepIfEmpty(String input, String current) {
+        return input.isEmpty() ? current : input;
+    }
+
+    // Asks before creating a category that doesn't exist yet, so typos don't become new categories
+    private static String readCategory(String defaultCategory) {
+        while (true) {
+            String input = scanner.nextLine().trim();
+            if (input.isEmpty()) {
+                return defaultCategory;
+            }
+            String category = expandCategory(input);
+            if (!category.equals(input)) {
+                return category;
+            }
+            for (Vocab v : store.getAll()) {
+                if (v.getCategory().equalsIgnoreCase(category)) {
+                    return v.getCategory();
+                }
+            }
+            System.out.println("New category '" + category + "'? (y/n)");
+            if (scanner.nextLine().trim().equalsIgnoreCase("y")) {
+                return category;
+            }
+            System.out.println("Category:");
+        }
+    }
+
+    private static String expandCategory(String input) {
+        return switch (input.toLowerCase()) {
+            case "v" -> "verbs";
+            case "s" -> "sentences";
+            case "g" -> Vocab.DEFAULT_CATEGORY;
+            default -> input;
+        };
     }
 
     private static void quiz() {
@@ -109,12 +260,30 @@ public class VocabApp {
     }
 
     private static List<Vocab> chooseCategory(List<Vocab> all) {
+        return filterByCategory(all, chooseCategoryName(all));
+    }
+
+    private static List<Vocab> filterByCategory(List<Vocab> all, String category) {
+        if (category == null) {
+            return all;
+        }
+        List<Vocab> filtered = new ArrayList<>();
+        for (Vocab v : all) {
+            if (v.getCategory().equalsIgnoreCase(category)) {
+                filtered.add(v);
+            }
+        }
+        return filtered;
+    }
+
+    // Returns null for "all categories"
+    private static String chooseCategoryName(List<Vocab> all) {
         Map<String, Integer> counts = new TreeMap<>(String.CASE_INSENSITIVE_ORDER);
         for (Vocab v : all) {
             counts.merge(v.getCategory(), 1, Integer::sum);
         }
         if (counts.size() < 2) {
-            return all;
+            return null;
         }
         List<String> categories = new ArrayList<>(counts.keySet());
         System.out.println("Choose a category:");
@@ -127,7 +296,7 @@ public class VocabApp {
             System.out.println(">");
             String input = scanner.nextLine().trim();
             if (input.isEmpty() || input.equals("0") || input.equalsIgnoreCase("all")) {
-                return all;
+                return null;
             }
             String selected = null;
             try {
@@ -144,13 +313,7 @@ public class VocabApp {
                 System.out.println("Please choose a number from the list or type a category name.");
                 continue;
             }
-            List<Vocab> filtered = new ArrayList<>();
-            for (Vocab v : all) {
-                if (v.getCategory().equalsIgnoreCase(selected)) {
-                    filtered.add(v);
-                }
-            }
-            return filtered;
+            return selected;
         }
     }
 

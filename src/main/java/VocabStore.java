@@ -23,6 +23,20 @@ public class VocabStore {
         save();
     }
 
+    public void replace(Vocab oldVocab, Vocab newVocab) {
+        int index = vocabList.indexOf(oldVocab);
+        if (index >= 0) {
+            vocabList.set(index, newVocab);
+            save();
+        }
+    }
+
+    public void remove(Vocab vocab) {
+        if (vocabList.remove(vocab)) {
+            save();
+        }
+    }
+
     private void load() {
         Path path = Paths.get(FILE_NAME);
         if (!Files.exists(path)) {
