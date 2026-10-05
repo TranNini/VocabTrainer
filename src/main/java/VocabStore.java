@@ -8,9 +8,15 @@ import java.util.List;
 
 public class VocabStore {
     private static final String FILE_NAME = "vocab.txt";
+    private final Path path;
     private final List<Vocab> vocabList = new ArrayList<>();
 
     public VocabStore() {
+        this(Paths.get(FILE_NAME));
+    }
+
+    public VocabStore(Path path) {
+        this.path = path;
         load();
     }
 
@@ -38,7 +44,6 @@ public class VocabStore {
     }
 
     private void load() {
-        Path path = Paths.get(FILE_NAME);
         if (!Files.exists(path)) {
             return;
         }
@@ -61,7 +66,7 @@ public class VocabStore {
     }
 
     private void save() {
-        try (BufferedWriter writer = Files.newBufferedWriter(Paths.get(FILE_NAME))) {
+        try (BufferedWriter writer = Files.newBufferedWriter(path)) {
             for (Vocab v : vocabList) {
                 writer.write(v.getSpanish() + ";" + v.getEnglish() + ";" + v.getCategory());
                 writer.newLine();
