@@ -236,6 +236,9 @@ form > button.primary, .card > button.primary {
 }
 
 .word {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    align-items: center;
     background: var(--card);
     border: 1px solid var(--border);
     border-radius: 10px;
@@ -269,6 +272,54 @@ form > button.primary, .card > button.primary {
 /* Conjugations: only the Spanish side moves in, the English column stays straight */
 .word.conjugation .es {
     padding-left: 18px;
+}
+
+.word .speak {
+    margin-right: 6px;
+}
+
+.word .edit {
+    grid-column: 1 / -1;
+}
+
+/* Pronunciation */
+.speak {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 8px;
+    background: none;
+    color: var(--muted);
+    border-radius: 50%;
+}
+
+.speak:hover, .speak:active {
+    color: var(--accent);
+    background: var(--soft);
+}
+
+.prompt-row {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-bottom: 12px;
+}
+
+.prompt-row .prompt {
+    margin-bottom: 4px;
+}
+
+.extras {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-top: 6px;
+}
+
+.dict-link {
+    color: var(--accent);
+    font-weight: 600;
+    text-decoration: none;
 }
 
 .edit {
