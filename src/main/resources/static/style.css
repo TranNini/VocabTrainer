@@ -242,13 +242,12 @@ form > button.primary, .card > button.primary {
     margin-bottom: 6px;
 }
 
-.word.conjugation {
-    margin-left: 22px;
-}
-
+/* Spanish on the left, English at the right edge, so every row lines up */
 .word-line {
-    display: flex;
-    gap: 10px;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+    align-items: baseline;
     width: 100%;
     padding: 10px 12px;
     background: none;
@@ -258,11 +257,18 @@ form > button.primary, .card > button.primary {
 
 .word-line .es {
     font-weight: 600;
+    overflow-wrap: anywhere;
 }
 
 .word-line .en {
     color: var(--muted);
-    flex: 1;
+    text-align: right;
+    overflow-wrap: anywhere;
+}
+
+/* Conjugations: only the Spanish side moves in, the English column stays straight */
+.word.conjugation .es {
+    padding-left: 18px;
 }
 
 .edit {
