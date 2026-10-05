@@ -59,8 +59,24 @@ class AnswerCheckerTest {
     }
 
     @Test
-    void secondTryRecognisesTypos() {
-        assertEquals("Almost correct!", AnswerChecker.feedback("gatto", "gato", 2));
+    void secondTryShowsWhichLettersAreRight() {
+        assertEquals("Almost! These letters are right: o_o", AnswerChecker.feedback("oro", "oso", 2));
+        assertEquals("Almost! These letters are right: _ato", AnswerChecker.feedback("pato", "gato", 2));
+        assertEquals("Almost! These letters are right: g_to", AnswerChecker.feedback("gto", "gato", 2));
+        assertEquals("Almost! These letters are right: el o_o", AnswerChecker.feedback("el oro", "el oso", 2));
+        assertEquals("Almost! These letters are right: Good n__ht", AnswerChecker.feedback("good nacht", "Good evening / Good night", 2));
+    }
+
+    @Test
+    void secondTryPointsAtTheAccent() {
+        assertEquals("Almost! Check the accent: tambi_n", AnswerChecker.feedback("tambien", "también", 2));
+        assertEquals("Almost! Check the accent: ni_o", AnswerChecker.feedback("nino", "el niño / niño", 2));
+    }
+
+    @Test
+    void secondTryNamesExtraLettersInsteadOfGivingTheAnswerAway() {
+        assertEquals("Almost! There's one letter too many.", AnswerChecker.feedback("gatto", "gato", 2));
+        assertEquals("Almost! There are a few letters too many.", AnswerChecker.feedback("elefantee", "elefant", 2));
     }
 
     @Test
