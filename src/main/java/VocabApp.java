@@ -1,8 +1,10 @@
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 import java.util.Scanner;
 import java.util.Random;
+import java.util.TreeMap;
 
 public class VocabApp {
     private static final
@@ -47,8 +49,11 @@ public class VocabApp {
             }
             System.out.println("English:");
             String english = scanner.nextLine().trim();
-            store.add(new Vocab(spanish, english));
-            System.out.println("Added " + spanish + " = " + english);
+            System.out.println("Category (leave empty for '" + Vocab.DEFAULT_CATEGORY + "'):");
+            String category = scanner.nextLine().trim();
+            Vocab vocab = new Vocab(spanish, english, category);
+            store.add(vocab);
+            System.out.println("Added " + spanish + " = " + english + " [" + vocab.getCategory() + "]");
         }
     }
 
@@ -58,7 +63,7 @@ public class VocabApp {
             System.out.println("No vocab saved yet. Add some first.");
             return;
         }
-        List<Vocab> shuffled = new ArrayList<>(all);
+        List<Vocab> shuffled = new ArrayList<>(chooseCategory(all));
         Collections.shuffle(shuffled);
         System.out.println("Type 'stop' to end the quiz.");
         int correct = 0;
@@ -101,6 +106,52 @@ public class VocabApp {
             }
         }
         System.out.println("\nScore: " + correct + "/" + asked);
+    }
+
+    private static List<Vocab> chooseCategory(List<Vocab> all) {
+        Map<String, Integer> counts = new TreeMap<>(String.CASE_INSENSITIVE_ORDER);
+        for (Vocab v : all) {
+            counts.merge(v.getCategory(), 1, Integer::sum);
+        }
+        if (counts.size() < 2) {
+            return all;
+        }
+        List<String> categories = new ArrayList<>(counts.keySet());
+        System.out.println("Choose a category:");
+        System.out.println("0) All (" + all.size() + ")");
+        for (int i = 0; i < categories.size(); i++) {
+            String category = categories.get(i);
+            System.out.println((i + 1) + ") " + category + " (" + counts.get(category) + ")");
+        }
+        while (true) {
+            System.out.println(">");
+            String input = scanner.nextLine().trim();
+            if (input.isEmpty() || input.equals("0") || input.equalsIgnoreCase("all")) {
+                return all;
+            }
+            String selected = null;
+            try {
+                int index = Integer.parseInt(input);
+                if (index >= 1 && index <= categories.size()) {
+                    selected = categories.get(index - 1);
+                }
+            } catch (NumberFormatException e) {
+                if (counts.containsKey(input)) {
+                    selected = input;
+                }
+            }
+            if (selected == null) {
+                System.out.println("Please choose a number from the list or type a category name.");
+                continue;
+            }
+            List<Vocab> filtered = new ArrayList<>();
+            for (Vocab v : all) {
+                if (v.getCategory().equalsIgnoreCase(selected)) {
+                    filtered.add(v);
+                }
+            }
+            return filtered;
+        }
     }
 
     private static String getHint(String expected) {

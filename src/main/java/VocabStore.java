@@ -34,26 +34,27 @@ public class VocabStore {
                 if (line.isBlank()) {
                     continue;
                 }
-                String[] parts = line.split(";", 2);
-                if (parts.length == 2) {
-                    vocabList.add(new Vocab(parts[0].trim(), parts[1].trim()));
+                // Older files have no category column: "spanish;english"
+                String[] parts = line.split(";", 3);
+                if (parts.length >= 2) {
+                    String category = parts.length == 3 ? parts[2].trim() : Vocab.DEFAULT_CATEGORY;
+                    vocabList.add(new Vocab(parts[0].trim(), parts[1].trim(), category));
                 }
             }
         } catch (IOException e) {
-
-            System.out.println("Could not save vocab file" + e.getMessage());
+            System.out.println("Could not load vocab file: " + e.getMessage());
         }
     }
 
     private void save() {
         try (BufferedWriter writer = Files.newBufferedWriter(Paths.get(FILE_NAME))) {
             for (Vocab v : vocabList) {
-                writer.write(v.getSpanish() + ";" + v.getEnglish());
+                writer.write(v.getSpanish() + ";" + v.getEnglish() + ";" + v.getCategory());
                 writer.newLine();
             }
         }
         catch (IOException e) {
-            System.out.println("Could not save vocab file" + e.getMessage());
+            System.out.println("Could not save vocab file: " + e.getMessage());
         }
     }
 }
