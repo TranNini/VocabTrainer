@@ -3,7 +3,6 @@
 
 const ACCENTS = ["á", "é", "í", "ó", "ú", "ñ", "ü", "¿", "¡"];
 const NEW_CATEGORY = "__new__";
-const SPEAKER_ICON = '<svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 5 6 9H2v6h4l5 4V5z"/><path d="M15.5 8.5a5 5 0 0 1 0 7"/><path d="M19 5a10 10 0 0 1 0 14"/></svg>';
 
 let categories = [];
 
@@ -65,51 +64,22 @@ function addAccentButtons(container, input) {
 
 // ---------- pronunciation ----------
 
-// Uses the voices built into the browser (Safari/Chrome on Mac and iPhone), Spanish from Spain
-const canSpeak = "speechSynthesis" in window;
-
-// Apple's playful voices (Eddy, Grandma, …) sound robotic, so they are only used if nothing else exists
-const NOVELTY_VOICES = /^(eddy|flo|grandma|grandpa|reed|rocko|sandy|shelley)\b/i;
-
-function voiceScore(voice) {
-    if (/premium|enhanced|mejorad/i.test(voice.name)) {
-        return 3; // downloaded high quality voices sound the most natural
-    }
-    if (/m[oó]nica|jorge|marisol/i.test(voice.name)) {
-        return 2;
-    }
-    return NOVELTY_VOICES.test(voice.name) ? 0 : 1;
-}
-
-function spanishVoice() {
-    const voices = speechSynthesis.getVoices().filter((v) => v.lang.replace("_", "-").startsWith("es"));
-    const fromSpain = voices.filter((v) => v.lang.replace("_", "-") === "es-ES");
-    const candidates = fromSpain.length ? fromSpain : voices;
-    return candidates.reduce((best, v) => (!best || voiceScore(v) > voiceScore(best) ? v : best), null);
-}
-
-function speak(spanish) {
-    speechSynthesis.cancel();
-    // "el niño / niño" -> read both with a short pause
-    const utterance = new SpeechSynthesisUtterance(spanish.split("/").map((s) => s.trim()).join(", "));
-    utterance.lang = "es-ES";
-    utterance.voice = spanishVoice();
-    utterance.rate = 0.9;
-    speechSynthesis.speak(utterance);
-}
-
-function speakButton(getText, label = "Listen") {
-    const button = el("button", {type: "button", className: "speak", title: label, ariaLabel: label});
-    button.innerHTML = SPEAKER_ICON;
-    button.hidden = !canSpeak;
+// Button that shows the IPA (worked out in SpanishIpa.java) in the given element, and hides it again
+function ipaButton(ipa, target) {
+    const button = el("button", {type: "button", className: "ipa-toggle", textContent: "IPA", title: "Show pronunciation"});
+    button.setAttribute("aria-expanded", "false");
     button.addEventListener("click", (event) => {
         event.stopPropagation();
-        speak(getText());
+        const show = target.hidden;
+        target.textContent = ipa;
+        target.hidden = !show;
+        button.classList.toggle("active", show);
+        button.setAttribute("aria-expanded", String(show));
     });
     return button;
 }
 
-// SpanishDict's own page for the word, where their recording, examples and conjugations are
+// SpanishDict's own page for the word, with their recording, examples and conjugations
 function spanishDictLink(spanish) {
     const word = spanish.split("/")[0].replace(/[¡!¿?.…]/g, "").trim();
     return el("a", {
@@ -222,10 +192,12 @@ function showQuestion() {
     $("quiz-score").textContent = `${quiz.correct} correct`;
     $("quiz-direction").textContent = question.askInSpanish ? "In Spanish:" : "In English:";
     $("quiz-prompt").textContent = question.prompt;
-    // the prompt is Spanish when the answer has to be English
-    $("quiz-prompt-speak").replaceChildren(
-        ...(question.askInSpanish ? [] : [speakButton(() => question.prompt)]));
+    // promptIpa only comes with Spanish prompts
+    $("quiz-prompt-ipa").hidden = true;
+    $("quiz-prompt-ipa-toggle").replaceChildren(
+        ...(question.promptIpa ? [ipaButton(question.promptIpa, $("quiz-prompt-ipa"))] : []));
     $("quiz-extras").hidden = true;
+    $("quiz-answer-ipa").hidden = true;
     $("quiz-accents").hidden = !question.askInSpanish;
     $("quiz-feedback").textContent = "";
     $("quiz-feedback").className = "feedback";
@@ -264,7 +236,7 @@ async function checkAnswer() {
         $("quiz-full-answer").hidden = false;
         const spanish = question.askInSpanish ? result.answer : question.prompt;
         $("quiz-extras").replaceChildren(
-            speakButton(() => spanish, "Listen to " + spanish), spanishDictLink(spanish));
+            ipaButton(result.spanishIpa, $("quiz-answer-ipa")), spanishDictLink(spanish));
         $("quiz-extras").hidden = false;
         $("quiz-answer").disabled = true;
         $("quiz-check").hidden = true;
@@ -358,7 +330,8 @@ function wordRow(word) {
             row.append(editForm(word));
         }
     });
-    row.append(line, speakButton(() => word.spanish, "Listen to " + word.spanish));
+    const ipa = el("p", {className: "ipa", hidden: true});
+    row.append(line, ipaButton(word.ipa, ipa), ipa);
     return row;
 }
 

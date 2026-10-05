@@ -274,28 +274,42 @@ form > button.primary, .card > button.primary {
     padding-left: 18px;
 }
 
-.word .speak {
-    margin-right: 6px;
+.word .ipa-toggle {
+    margin-right: 8px;
 }
 
-.word .edit {
+.word .ipa, .word .edit {
     grid-column: 1 / -1;
 }
 
-/* Pronunciation */
-.speak {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    padding: 8px;
-    background: none;
-    color: var(--muted);
-    border-radius: 50%;
+.word .ipa {
+    margin: -4px 12px 10px;
 }
 
-.speak:hover, .speak:active {
+/* Pronunciation */
+.ipa-toggle {
+    padding: 4px 8px;
+    background: none;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    color: var(--muted);
+    font-size: 0.8rem;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+}
+
+.ipa-toggle.active, .ipa-toggle:hover {
     color: var(--accent);
-    background: var(--soft);
+    border-color: var(--accent);
+}
+
+/* fonts that have all IPA symbols (ʝ ɲ θ ɾ ˈ i̯) */
+.ipa {
+    margin: 4px 0 0;
+    color: var(--accent);
+    font-family: "Charis SIL", "Doulos SIL", "Gentium Plus", "Lucida Grande", "Segoe UI", sans-serif;
+    font-size: 1.05rem;
+    overflow-wrap: anywhere;
 }
 
 .prompt-row {
@@ -303,6 +317,10 @@ form > button.primary, .card > button.primary {
     align-items: center;
     gap: 6px;
     margin-bottom: 12px;
+}
+
+#quiz-prompt-ipa {
+    margin: -8px 0 12px;
 }
 
 .prompt-row .prompt {

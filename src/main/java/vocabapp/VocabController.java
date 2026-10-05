@@ -33,21 +33,24 @@ public class VocabController {
     record CategoryDto(String name, int count) {
     }
 
-    record VocabDto(int id, String spanish, String english, String category, String section, boolean conjugation) {
+    record VocabDto(int id, String spanish, String english, String category, String section, boolean conjugation,
+                    String ipa) {
     }
 
     // newCategory = true confirms that a category which doesn't exist yet should be created
     record VocabRequest(String spanish, String english, String category, boolean newCategory) {
     }
 
-    record QuestionDto(int id, boolean askInSpanish, String prompt) {
+    // promptIpa is only filled in when the prompt is Spanish, so it never gives the answer away
+    record QuestionDto(int id, boolean askInSpanish, String prompt, String promptIpa) {
     }
 
     record CheckRequest(int id, boolean askInSpanish, String answer, int attempt) {
     }
 
-    // finished = no more tries for this question; answer = the full answer with all alternatives, once finished
-    record CheckResult(boolean correct, String feedback, String answer, boolean finished) {
+    // finished = no more tries for this question; once finished, answer = the full answer with all
+    // alternatives and spanishIpa = the pronunciation of the Spanish side
+    record CheckResult(boolean correct, String feedback, String answer, boolean finished, String spanishIpa) {
     }
 
     static class ApiException extends RuntimeException {
@@ -120,22 +123,25 @@ public class VocabController {
         List<QuestionDto> questions = new ArrayList<>();
         for (Vocab v : vocab) {
             Question question = Question.from(v, random);
-            questions.add(new QuestionDto(store.idOf(v), question.askInSpanish(), question.prompt()));
+            String promptIpa = question.askInSpanish() ? null : SpanishIpa.transcribe(question.prompt());
+            questions.add(new QuestionDto(store.idOf(v), question.askInSpanish(), question.prompt(), promptIpa));
         }
         return questions;
     }
 
     @PostMapping("/quiz/check")
     public CheckResult check(@RequestBody CheckRequest request) {
-        String expected = Question.expectedAnswer(find(request.id()), request.askInSpanish());
+        Vocab vocab = find(request.id());
+        String expected = Question.expectedAnswer(vocab, request.askInSpanish());
         String answer = request.answer() == null ? "" : request.answer().trim();
+        String spanishIpa = SpanishIpa.transcribe(vocab.getSpanish());
         if (AnswerChecker.isCorrect(answer, expected)) {
-            return new CheckResult(true, "Correct!", AnswerChecker.allOptions(expected), true);
+            return new CheckResult(true, "Correct!", AnswerChecker.allOptions(expected), true, spanishIpa);
         }
         if (request.attempt() < AnswerChecker.MAX_ATTEMPTS) {
-            return new CheckResult(false, AnswerChecker.feedback(answer, expected, request.attempt()), null, false);
+            return new CheckResult(false, AnswerChecker.feedback(answer, expected, request.attempt()), null, false, null);
         }
-        return new CheckResult(false, "Not quite.", AnswerChecker.allOptions(expected), true);
+        return new CheckResult(false, "Not quite.", AnswerChecker.allOptions(expected), true, spanishIpa);
     }
 
     private Vocab find(int id) {
@@ -173,7 +179,7 @@ public class VocabController {
 
     private VocabDto toDto(Vocab v, VocabIndex index) {
         return new VocabDto(store.idOf(v), v.getSpanish(), v.getEnglish(), v.getCategory(),
-                index.sectionLetter(v), index.isConjugation(v));
+                index.sectionLetter(v), index.isConjugation(v), SpanishIpa.transcribe(v.getSpanish()));
     }
 
     private static String blankToNull(String text) {

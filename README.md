@@ -17,6 +17,7 @@ Add multiple answer choices using '/'
 Categories (general, verbs, sentences, or your own) and a category filter for the quiz
 Edit and delete saved vocabulary
 Alphabetical list that ignores articles, with verb conjugations grouped under their infinitive
+Pronunciation in IPA (Spain Spanish) on demand, worked out from the spelling, plus a link to SpanishDict
 
 How to run:
 
@@ -63,6 +64,7 @@ VocabStore.java - handles storing and loading vocabulary in vocab.txt
 AnswerChecker.java - checks quiz answers and gives hints
 Question.java - one quiz question (which side is asked)
 VocabIndex.java - sorting, sections, search, verb grouping and categories
+SpanishIpa.java - works out the IPA pronunciation from the Spanish spelling
 VocabApp.java - the command-line version
 WebApp.java - starts the web version
 AccessCode.java, AccessFilter.java, LoginController.java - the access code for other devices
