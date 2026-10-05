@@ -1,6 +1,7 @@
 import java.text.Collator;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -15,6 +16,16 @@ public class VocabApp {
     private static final Random random = new Random();
     private static final Collator spanishOrder = Collator.getInstance(new Locale("es"));
     private static final String[] SPANISH_ARTICLES = {"el", "la", "los", "las", "un", "una", "unos", "unas"};
+    private static final String VERBS_CATEGORY = "verbs";
+    // Index + 1 is the order conjugations are listed in under their infinitive
+    private static final String[][] SUBJECT_PRONOUNS = {
+            {"yo"},
+            {"tú"},
+            {"él", "ella", "usted"},
+            {"nosotros", "nosotras"},
+            {"vosotros", "vosotras"},
+            {"ellos", "ellas", "ustedes"}
+    };
 
     static {
         // PRIMARY ignores case and accents, so "árbol" sorts with "arbol"
@@ -85,11 +96,12 @@ public class VocabApp {
             if (query.equalsIgnoreCase("done")) {
                 return;
             }
+            Map<Vocab, Vocab> infinitives = findInfinitives();
             List<Vocab> matches = new ArrayList<>();
             for (Vocab v : inCategory) {
                 boolean match;
                 if (query.length() == 1) {
-                    match = spanishOrder.equals(sectionLetter(v), query);
+                    match = spanishOrder.equals(sectionLetter(v, infinitives), query);
                 } else {
                     match = v.getSpanish().toLowerCase().contains(query.toLowerCase())
                             || v.getEnglish().toLowerCase().contains(query.toLowerCase());
@@ -102,16 +114,25 @@ public class VocabApp {
                 System.out.println("No vocab found for '" + query + "'.");
                 continue;
             }
-            matches.sort((a, b) -> spanishOrder.compare(sortKey(a), sortKey(b)));
+            matches.sort((a, b) -> {
+                Vocab infinitiveA = infinitives.getOrDefault(a, a);
+                Vocab infinitiveB = infinitives.getOrDefault(b, b);
+                int byInfinitive = spanishOrder.compare(sortKey(infinitiveA), sortKey(infinitiveB));
+                if (byInfinitive != 0) {
+                    return byInfinitive;
+                }
+                return Integer.compare(pronounRank(a), pronounRank(b));
+            });
             String currentSection = null;
             for (int i = 0; i < matches.size(); i++) {
                 Vocab v = matches.get(i);
-                String section = sectionLetter(v);
+                String section = sectionLetter(v, infinitives);
                 if (currentSection == null || !spanishOrder.equals(section, currentSection)) {
                     System.out.println("--- " + section + " ---");
                     currentSection = section;
                 }
-                System.out.println((i + 1) + ") " + v.getSpanish() + " = " + v.getEnglish() + " [" + v.getCategory() + "]");
+                String indent = infinitives.containsKey(v) ? "    " : "";
+                System.out.println(indent + (i + 1) + ") " + v.getSpanish() + " = " + v.getEnglish() + " [" + v.getCategory() + "]");
             }
             System.out.println("Number to edit (Enter = new search):");
             String input = scanner.nextLine().trim();
@@ -166,9 +187,43 @@ public class VocabApp {
         return spanish;
     }
 
-    private static String sectionLetter(Vocab v) {
-        String key = sortKey(v);
+    private static String sectionLetter(Vocab v, Map<Vocab, Vocab> infinitives) {
+        String key = sortKey(infinitives.getOrDefault(v, v));
         return key.isEmpty() ? "#" : key.substring(0, 1).toUpperCase();
+    }
+
+    // Maps each conjugated verb ("yo tengo") to the infinitive saved before it ("tener"),
+    // since irregular forms can't be matched to their infinitive by spelling
+    private static Map<Vocab, Vocab> findInfinitives() {
+        Map<Vocab, Vocab> infinitives = new HashMap<>();
+        Vocab currentInfinitive = null;
+        for (Vocab v : store.getAll()) {
+            if (!v.getCategory().equalsIgnoreCase(VERBS_CATEGORY)) {
+                continue;
+            }
+            if (pronounRank(v) == 0) {
+                currentInfinitive = v;
+            } else if (currentInfinitive != null) {
+                infinitives.put(v, currentInfinitive);
+            }
+        }
+        return infinitives;
+    }
+
+    // 0 = not a conjugation, 1 = yo ... 6 = ellos
+    private static int pronounRank(Vocab v) {
+        if (!v.getCategory().equalsIgnoreCase(VERBS_CATEGORY)) {
+            return 0;
+        }
+        String firstWord = normalize(v.getSpanish()).split("[ /,]", 2)[0];
+        for (int i = 0; i < SUBJECT_PRONOUNS.length; i++) {
+            for (String pronoun : SUBJECT_PRONOUNS[i]) {
+                if (spanishOrder.equals(firstWord, pronoun)) {
+                    return i + 1;
+                }
+            }
+        }
+        return 0;
     }
 
     private static String keepIfEmpty(String input, String current) {
