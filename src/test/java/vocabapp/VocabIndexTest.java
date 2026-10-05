@@ -1,3 +1,5 @@
+package vocabapp;
+
 import org.junit.jupiter.api.Test;
 
 import java.util.ArrayList;
@@ -90,6 +92,15 @@ class VocabIndexTest {
     void countsCategoriesIgnoringCase() {
         VocabIndex index = new VocabIndex(List.of(verb("hablar"), new Vocab("ir", "to go", "Verbs"), general("bien")));
         assertEquals(Map.of("general", 1, "verbs", 2), Map.copyOf(index.categoryCounts()));
+    }
+
+    @Test
+    void resolvesCategoryInput() {
+        VocabIndex index = new VocabIndex(List.of(new Vocab("hola", "hi", "Sentences")));
+        assertEquals("general", index.resolveCategory(""));
+        assertEquals("verbs", index.resolveCategory("v"));
+        assertEquals("Sentences", index.resolveCategory("sentences"));
+        assertNull(index.resolveCategory("verb"));
     }
 
     @Test

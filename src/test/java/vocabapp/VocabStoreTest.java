@@ -1,3 +1,5 @@
+package vocabapp;
+
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
@@ -37,6 +39,24 @@ class VocabStoreTest {
 
         assertEquals(List.of("hablar;to talk/to speak;verbs"), Files.readAllLines(file));
         assertEquals("to talk/to speak", new VocabStore(file).getAll().get(0).getEnglish());
+    }
+
+    @Test
+    void editedVocabKeepsItsId() {
+        VocabStore store = new VocabStore(dir.resolve("vocab.txt"));
+        Vocab hablar = new Vocab("hablar", "to talk", "verbs");
+        Vocab ir = new Vocab("ir", "to go", "verbs");
+        store.add(hablar);
+        store.add(ir);
+        int id = store.idOf(ir);
+        Vocab updated = new Vocab("ir", "to go/to leave", "verbs");
+        store.replace(ir, updated);
+
+        assertEquals(id, store.idOf(updated));
+        assertEquals(updated, store.findById(id));
+        assertTrue(store.idOf(hablar) != id);
+        store.remove(updated);
+        assertEquals(null, store.findById(id));
     }
 
     @Test

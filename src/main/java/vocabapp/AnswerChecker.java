@@ -1,3 +1,5 @@
+package vocabapp;
+
 import java.util.Random;
 
 public class AnswerChecker {

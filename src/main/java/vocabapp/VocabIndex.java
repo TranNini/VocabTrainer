@@ -1,3 +1,5 @@
+package vocabapp;
+
 import java.text.Collator;
 import java.text.Normalizer;
 import java.util.ArrayList;
@@ -50,6 +52,20 @@ public class VocabIndex {
             }
         }
         return null;
+    }
+
+    // Turns typed category input into a saved category name: blank = general, v/s/g shortcuts,
+    // any spelling of an existing category. Returns null if it would be a new category.
+    public String resolveCategory(String input) {
+        String trimmed = input == null ? "" : input.trim();
+        if (trimmed.isEmpty()) {
+            return Vocab.DEFAULT_CATEGORY;
+        }
+        String expanded = Vocab.expandCategoryShortcut(trimmed);
+        if (!expanded.equals(trimmed)) {
+            return expanded;
+        }
+        return findCategory(trimmed);
     }
 
     // category null = all categories

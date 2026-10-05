@@ -1,0 +1,309 @@
+:root {
+    --bg: #f4f2ee;
+    --card: #ffffff;
+    --text: #1f1d1a;
+    --muted: #716c64;
+    --border: #e2ddd5;
+    --accent: #c2410c;
+    --accent-text: #ffffff;
+    --good: #15803d;
+    --bad: #b91c1c;
+    --soft: #f7ede6;
+    --radius: 14px;
+}
+
+@media (prefers-color-scheme: dark) {
+    :root {
+        --bg: #161514;
+        --card: #222120;
+        --text: #f1eee9;
+        --muted: #a39e96;
+        --border: #3a3836;
+        --accent: #f97316;
+        --accent-text: #1a1008;
+        --good: #4ade80;
+        --bad: #f87171;
+        --soft: #33261d;
+    }
+}
+
+* {
+    box-sizing: border-box;
+}
+
+body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font: 16px/1.45 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    /* room for the tab bar */
+    padding-bottom: calc(72px + env(safe-area-inset-bottom));
+}
+
+.top {
+    padding: calc(14px + env(safe-area-inset-top)) 16px 6px;
+    text-align: center;
+}
+
+.top h1 {
+    margin: 0;
+    font-size: 1.15rem;
+    letter-spacing: 0.02em;
+}
+
+main {
+    max-width: 560px;
+    margin: 0 auto;
+    padding: 8px 16px;
+}
+
+h2 {
+    margin: 0 0 12px;
+    font-size: 1.25rem;
+}
+
+h3 {
+    margin: 0 0 8px;
+    font-size: 1rem;
+}
+
+.card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 16px;
+    margin-bottom: 14px;
+}
+
+label {
+    display: block;
+    margin: 10px 0 4px;
+    font-size: 0.9rem;
+    color: var(--muted);
+}
+
+/* 16px font stops iOS from zooming into inputs */
+input, select, button {
+    font: inherit;
+    font-size: 16px;
+    color: inherit;
+}
+
+input, select {
+    width: 100%;
+    padding: 10px 12px;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    background: var(--bg);
+}
+
+input:focus, select:focus {
+    outline: 2px solid var(--accent);
+    outline-offset: 1px;
+}
+
+button {
+    border: none;
+    border-radius: 10px;
+    padding: 10px 16px;
+    cursor: pointer;
+}
+
+button.primary {
+    background: var(--accent);
+    color: var(--accent-text);
+    font-weight: 600;
+}
+
+button.secondary {
+    background: transparent;
+    border: 1px solid var(--border);
+}
+
+button.danger {
+    background: transparent;
+    color: var(--bad);
+    border: 1px solid var(--border);
+    margin-left: auto;
+}
+
+form > button.primary, .card > button.primary {
+    width: 100%;
+    margin-top: 16px;
+}
+
+.row {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    margin-top: 12px;
+}
+
+.row:first-of-type {
+    margin-top: 0;
+}
+
+.muted {
+    color: var(--muted);
+}
+
+.message {
+    padding: 10px 14px;
+    border-radius: 10px;
+    background: var(--soft);
+    margin: 0 0 14px;
+}
+
+.message.error {
+    color: var(--bad);
+}
+
+/* Quiz */
+.quiz-meta {
+    display: flex;
+    justify-content: space-between;
+    color: var(--muted);
+    font-size: 0.9rem;
+}
+
+.prompt {
+    font-size: 1.7rem;
+    font-weight: 600;
+    margin: 4px 0 16px;
+    overflow-wrap: anywhere;
+}
+
+#quiz-direction {
+    margin: 12px 0 0;
+    font-size: 0.9rem;
+}
+
+.feedback {
+    min-height: 1.5em;
+    margin: 10px 0 0;
+    font-weight: 500;
+}
+
+.feedback.good {
+    color: var(--good);
+}
+
+.feedback.bad {
+    color: var(--bad);
+}
+
+.accents {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-top: 8px;
+}
+
+.accents button {
+    min-width: 40px;
+    padding: 6px 8px;
+    background: var(--soft);
+    border-radius: 8px;
+}
+
+/* Words */
+.letters {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+    margin-top: 12px;
+}
+
+.letters button {
+    min-width: 34px;
+    padding: 6px;
+    background: var(--soft);
+    border-radius: 8px;
+    font-weight: 600;
+}
+
+.section-header {
+    margin: 18px 4px 6px;
+    font-weight: 700;
+    color: var(--accent);
+    scroll-margin-top: 12px;
+}
+
+.word {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    margin-bottom: 6px;
+}
+
+.word.conjugation {
+    margin-left: 22px;
+}
+
+.word-line {
+    display: flex;
+    gap: 10px;
+    width: 100%;
+    padding: 10px 12px;
+    background: none;
+    text-align: left;
+    border-radius: 10px;
+}
+
+.word-line .es {
+    font-weight: 600;
+}
+
+.word-line .en {
+    color: var(--muted);
+    flex: 1;
+}
+
+.word-line .cat {
+    color: var(--muted);
+    font-size: 0.8rem;
+    align-self: center;
+}
+
+.edit {
+    padding: 0 12px 12px;
+}
+
+ul.plain {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+
+ul.plain li {
+    padding: 4px 0;
+}
+
+/* Tab bar */
+.tabs {
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    display: flex;
+    background: var(--card);
+    border-top: 1px solid var(--border);
+    padding-bottom: env(safe-area-inset-bottom);
+}
+
+.tabs button {
+    flex: 1;
+    padding: 16px 0;
+    background: none;
+    border-radius: 0;
+    color: var(--muted);
+    font-weight: 600;
+}
+
+.tabs button.active {
+    color: var(--accent);
+}
+
+[hidden] {
+    display: none !important;
+}

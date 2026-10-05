@@ -1,3 +1,5 @@
+package vocabapp;
+
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -140,17 +142,13 @@ public class VocabApp {
             if (input.isEmpty()) {
                 return defaultCategory;
             }
-            String category = Vocab.expandCategoryShortcut(input);
-            if (!category.equals(input)) {
-                return category;
-            }
-            String existing = new VocabIndex(store.getAll()).findCategory(category);
+            String existing = new VocabIndex(store.getAll()).resolveCategory(input);
             if (existing != null) {
                 return existing;
             }
-            System.out.println("New category '" + category + "'? (y/n)");
+            System.out.println("New category '" + input + "'? (y/n)");
             if (scanner.nextLine().trim().equalsIgnoreCase("y")) {
-                return category;
+                return input;
             }
             System.out.println("Category:");
         }

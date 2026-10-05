@@ -1,0 +1,112 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+    <meta name="color-scheme" content="light dark">
+    <title>Vocab Trainer</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header class="top">
+    <h1>Vocab Trainer</h1>
+</header>
+
+<main>
+    <p id="message" class="message" hidden></p>
+
+    <!-- Quiz -->
+    <section id="view-quiz" class="view">
+        <div id="quiz-setup" class="card">
+            <h2>Quiz</h2>
+            <label for="quiz-category">Category</label>
+            <select id="quiz-category"></select>
+            <button id="quiz-start" class="primary">Start</button>
+        </div>
+
+        <div id="quiz-question" class="card" hidden>
+            <div class="quiz-meta">
+                <span id="quiz-progress"></span>
+                <span id="quiz-score"></span>
+            </div>
+            <p id="quiz-direction" class="muted"></p>
+            <p id="quiz-prompt" class="prompt"></p>
+            <form id="quiz-form" autocomplete="off">
+                <input id="quiz-answer" type="text" autocapitalize="off" autocorrect="off" spellcheck="false"
+                       aria-label="Your answer">
+                <div id="quiz-accents" class="accents" data-for="quiz-answer"></div>
+                <p id="quiz-feedback" class="feedback" aria-live="polite"></p>
+                <div class="row">
+                    <button id="quiz-check" type="submit" class="primary">Check</button>
+                    <button id="quiz-next" type="button" class="primary" hidden>Next</button>
+                    <button id="quiz-stop" type="button" class="secondary">Stop</button>
+                </div>
+            </form>
+        </div>
+
+        <div id="quiz-summary" class="card" hidden>
+            <h2>Done!</h2>
+            <p id="quiz-result" class="prompt"></p>
+            <button id="quiz-again" class="primary">New quiz</button>
+        </div>
+    </section>
+
+    <!-- Add -->
+    <section id="view-add" class="view" hidden>
+        <form id="add-form" class="card" autocomplete="off">
+            <h2>Add vocab</h2>
+            <label for="add-spanish">Spanish</label>
+            <input id="add-spanish" type="text" autocapitalize="off" autocorrect="off" spellcheck="false">
+            <div class="accents" data-for="add-spanish"></div>
+            <label for="add-english">English <span class="muted">(use / for alternatives)</span></label>
+            <input id="add-english" type="text" autocapitalize="off" autocorrect="off" spellcheck="false">
+            <label for="add-category">Category</label>
+            <select id="add-category" class="category-select"></select>
+            <input id="add-new-category" type="text" placeholder="New category name" hidden>
+            <button type="submit" class="primary">Add</button>
+        </form>
+        <div id="add-recent" class="card" hidden>
+            <h3>Just added</h3>
+            <ul id="add-recent-list" class="plain"></ul>
+        </div>
+    </section>
+
+    <!-- Words -->
+    <section id="view-words" class="view" hidden>
+        <div class="card">
+            <h2>Your vocab</h2>
+            <div class="row">
+                <select id="words-category" aria-label="Category"></select>
+                <input id="words-search" type="search" placeholder="Search" autocapitalize="off"
+                       autocorrect="off" spellcheck="false" aria-label="Search">
+            </div>
+            <nav id="words-letters" class="letters" aria-label="Jump to letter"></nav>
+        </div>
+        <div id="words-list"></div>
+    </section>
+</main>
+
+<nav class="tabs" aria-label="Sections">
+    <button data-view="quiz" class="active">Quiz</button>
+    <button data-view="add">Add</button>
+    <button data-view="words">Words</button>
+</nav>
+
+<template id="edit-template">
+    <form class="edit" autocomplete="off">
+        <label>Spanish <input name="spanish" type="text" autocapitalize="off" autocorrect="off" spellcheck="false"></label>
+        <div class="accents"></div>
+        <label>English <input name="english" type="text" autocapitalize="off" autocorrect="off" spellcheck="false"></label>
+        <label>Category <select name="category" class="category-select"></select></label>
+        <input name="newCategory" type="text" placeholder="New category name" hidden>
+        <div class="row">
+            <button type="submit" class="primary">Save</button>
+            <button type="button" data-action="cancel" class="secondary">Cancel</button>
+            <button type="button" data-action="delete" class="danger">Delete</button>
+        </div>
+    </form>
+</template>
+
+<script src="app.js"></script>
+</body>
+</html>

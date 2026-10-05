@@ -1,3 +1,5 @@
+package vocabapp;
+
 public class Vocab {
     public static final String DEFAULT_CATEGORY = "general";
     public static final String VERBS_CATEGORY = "verbs";
