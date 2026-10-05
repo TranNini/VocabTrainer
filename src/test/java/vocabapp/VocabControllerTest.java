@@ -32,6 +32,7 @@ class VocabControllerTest {
     @DynamicPropertySource
     static void vocabFile(DynamicPropertyRegistry registry) {
         registry.add("vocab.file", () -> dir.resolve("vocab.txt").toString());
+        registry.add("vocab.access-code-file", () -> dir.resolve("access-code.txt").toString());
     }
 
     @Autowired

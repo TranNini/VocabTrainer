@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+    <meta name="color-scheme" content="light dark">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-title" content="Vocab">
+    <link rel="manifest" href="manifest.webmanifest">
+    <link rel="icon" href="icon.svg" type="image/svg+xml">
+    <link rel="apple-touch-icon" href="apple-touch-icon.png">
+    <title>Vocab Trainer</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header class="top">
+    <h1>Vocab Trainer</h1>
+</header>
+<main>
+    <form class="card" method="post" action="/login" autocomplete="off">
+        <h2>Access code</h2>
+        <p class="muted">Enter the code shown on your Mac when the app started. You only need to do this once on this device.</p>
+        <p id="wrong" class="message error" hidden>That code didn't work. Please check it and try again.</p>
+        <label for="code">Code</label>
+        <input id="code" name="code" type="text" autocapitalize="off" autocorrect="off" spellcheck="false" autofocus>
+        <button type="submit" class="primary">Continue</button>
+    </form>
+</main>
+<script>
+    document.getElementById("wrong").hidden = !location.search.includes("wrong");
+</script>
+</body>
+</html>

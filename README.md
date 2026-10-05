@@ -26,6 +26,18 @@ Web app
     Then open http://localhost:8080
     Tabs: Quiz, Add, Words (browse, search, edit, delete)
 
+iPhone (same Wi-Fi as the Mac, Mac must be awake with the app running)
+    1. Start the web app. The Run window shows the iPhone address and the access code, e.g.
+           On your iPhone: http://192.168.178.188:8080  (same Wi-Fi)
+           Access code:   abcd2345
+    2. The first time, macOS may ask whether Java may accept incoming connections: click Allow.
+    3. Open the address in Safari on the iPhone and enter the access code (only needed once).
+    4. Share button → Add to Home Screen (keep "Open as Web App" on). It now opens like an app.
+    The code is saved in access-code.txt (not in git). Delete that file to get a new code;
+    devices then have to enter the new one.
+    If the iPhone can't connect anymore, the Mac's address may have changed: check the Run window
+    for the new one and add it to the Home Screen again.
+
 Command line
     Run vocabapp.VocabApp
     1. Add new vocab
@@ -53,5 +65,7 @@ Question.java - one quiz question (which side is asked)
 VocabIndex.java - sorting, sections, search, verb grouping and categories
 VocabApp.java - the command-line version
 WebApp.java - starts the web version
+AccessCode.java, AccessFilter.java, LoginController.java - the access code for other devices
+StartupInfo.java - prints the iPhone address and access code on start
 VocabController.java - the web API the page talks to (/api/...)
 src/main/resources/static - the web page (index.html, style.css, app.js)

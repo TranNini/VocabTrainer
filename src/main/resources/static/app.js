@@ -23,6 +23,11 @@ async function api(method, url, body) {
         headers: body ? {"Content-Type": "application/json"} : {},
         body: body ? JSON.stringify(body) : undefined,
     });
+    if (response.status === 401) {
+        // another device without the access code yet
+        location.href = "/login.html";
+        throw new Error("Please enter the access code.");
+    }
     const data = response.status === 204 ? null : await response.json();
     if (!response.ok) {
         const error = new Error(data?.error || "Something went wrong.");

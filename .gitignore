@@ -38,3 +38,5 @@ build/
 
 ### Mac OS ###
 .DS_Store
+### Web app access code ###
+access-code.txt
