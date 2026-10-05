@@ -81,7 +81,7 @@ public class VocabStore {
                 if (line.isBlank()) {
                     continue;
                 }
-                // Older files have no category column: "spanish;english"
+                // Older files have no category column: "word;english"
                 String[] parts = line.split(";", 3);
                 if (parts.length >= 2) {
                     String category = parts.length == 3 ? parts[2].trim() : Vocab.DEFAULT_CATEGORY;
@@ -96,7 +96,7 @@ public class VocabStore {
     private void save() {
         try (BufferedWriter writer = Files.newBufferedWriter(path)) {
             for (Vocab v : vocabList) {
-                writer.write(v.getSpanish() + ";" + v.getEnglish() + ";" + v.getCategory());
+                writer.write(v.getWord() + ";" + v.getEnglish() + ";" + v.getCategory());
                 writer.newLine();
             }
         }

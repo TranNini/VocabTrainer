@@ -7,7 +7,6 @@ import java.util.Random;
 
 public class AnswerChecker {
     public static final int MAX_ATTEMPTS = 3;
-    private static final String[] ARTICLES = {"el", "la", "los", "las", "un", "una", "unos", "unas", "the", "a", "an"};
 
     private AnswerChecker() {
     }
@@ -22,11 +21,14 @@ public class AnswerChecker {
         return false;
     }
 
-    // Hint after a wrong answer; attempt is 1 after the first try
-    public static String feedback(String answer, String expected, int attempt) {
-        String target = closestAlternative(answer, expected);
+    // Hint after a wrong answer; attempt is 1 after the first try. The language gives its articles
+    // (for "Don't forget the article!"); English ones are always known.
+    public static String feedback(String answer, String expected, int attempt, Language language) {
+        List<String> articles = new ArrayList<>(language.getArticles());
+        articles.addAll(Language.ENGLISH_ARTICLES);
+        String target = closestAlternative(answer, expected, articles);
         String cleaned = normalize(answer);
-        String articleHint = missingArticleHint(cleaned, target);
+        String articleHint = missingArticleHint(cleaned, target, articles);
         if (articleHint != null) {
             return articleHint;
         }
@@ -36,7 +38,7 @@ public class AnswerChecker {
         if (isClose(cleaned, target)) {
             return closeHint(cleaned, target);
         }
-        return "Not quite. Hint: it starts with '" + getHint(target) + "'";
+        return "Not quite. Hint: it starts with '" + getHint(target, articles) + "'";
     }
 
     // For answers that are nearly right: shows the letters that already fit, "_" for the rest,
@@ -116,19 +118,19 @@ public class AnswerChecker {
                 .trim();
     }
 
-    private static String closestAlternative(String answer, String expected) {
+    private static String closestAlternative(String answer, String expected, List<String> articles) {
         String cleaned = normalize(answer);
         String[] options = expected.split("/");
         for (String option : options) {
             String target = normalize(option);
-            if (missingArticleHint(cleaned, target) != null || isClose(cleaned, target)) {
+            if (missingArticleHint(cleaned, target, articles) != null || isClose(cleaned, target)) {
                 return target;
             }
         }
         return normalize(options[0]);
     }
 
-    private static String missingArticleHint(String answer, String expected) {
+    private static String missingArticleHint(String answer, String expected, List<String> articles) {
         String[] words = expected.split(" ", 2);
         if (words.length < 2) {
             return null;
@@ -140,7 +142,7 @@ public class AnswerChecker {
         if (first.equals("to")) {
             return "What comes in front of an infinitive verb?";
         }
-        for (String article : ARTICLES) {
+        for (String article : articles) {
             if (first.equals(article)) {
                 return "Don't forget the article!";
             }
@@ -175,13 +177,13 @@ public class AnswerChecker {
         return dp;
     }
 
-    private static String getHint(String expected) {
+    private static String getHint(String expected, List<String> articles) {
         for (String word : expected.split(" ")) {
             if (word.isEmpty()) {
                 continue;
             }
             boolean isArticle = word.equalsIgnoreCase("to");
-            for (String article : ARTICLES) {
+            for (String article : articles) {
                 if (word.equalsIgnoreCase(article)) {
                     isArticle = true;
                 }

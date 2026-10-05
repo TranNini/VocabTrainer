@@ -1,9 +1,11 @@
 // All quiz checking, sorting and saving happens in Java (see VocabController);
 // this file only shows the screens and talks to /api.
 
-const ACCENTS = ["á", "é", "í", "ó", "ú", "ñ", "ü", "¿", "¡"];
 const NEW_CATEGORY = "__new__";
+const ADD_LANGUAGE = "__add__";
 
+let languages = [];
+let language = null; // the one being learned right now: {name, count, ipa, specialLetters, dictionaryName}
 let categories = [];
 
 // ---------- helpers ----------
@@ -47,8 +49,16 @@ function showMessage(text, isError = false) {
     showMessage.timer = setTimeout(() => (message.hidden = true), 4000);
 }
 
+// URL of something in the current language, e.g. /api/languages/Spanish/vocab
+function langUrl(path) {
+    return `/api/languages/${encodeURIComponent(language.name)}${path}`;
+}
+
+// Buttons for the language's letters that a normal keyboard lacks (á, ñ, ¿ …)
 function addAccentButtons(container, input) {
-    container.replaceChildren(...ACCENTS.map((letter) => {
+    const letters = language?.specialLetters ?? [];
+    container.hidden = letters.length === 0;
+    container.replaceChildren(...letters.map((letter) => {
         const button = el("button", {type: "button", textContent: letter});
         // keep the keyboard open on the phone
         button.addEventListener("mousedown", (e) => e.preventDefault());
@@ -64,7 +74,12 @@ function addAccentButtons(container, input) {
 
 // ---------- pronunciation ----------
 
-// Button that shows the IPA (worked out in SpanishIpa.java) in the given element, and hides it again
+// Button that shows the IPA (worked out in Java, e.g. SpanishIpa) in the given element, and hides it again.
+// Languages without IPA rules get no button.
+function ipaButtons(ipa, target) {
+    return ipa ? [ipaButton(ipa, target)] : [];
+}
+
 function ipaButton(ipa, target) {
     const button = el("button", {type: "button", className: "ipa-toggle", textContent: "IPA", title: "Show pronunciation"});
     button.setAttribute("aria-expanded", "false");
@@ -79,22 +94,95 @@ function ipaButton(ipa, target) {
     return button;
 }
 
-// SpanishDict's own page for the word, with their recording, examples and conjugations
-function spanishDictLink(spanish) {
-    const word = spanish.split("/")[0].replace(/[¡!¿?.…]/g, "").trim();
+// The word in a dictionary (SpanishDict for Spanish, Wiktionary for others); the server builds the URL
+function dictionaryLink(url) {
     return el("a", {
-        href: "https://www.spanishdict.com/translate/" + encodeURIComponent(word),
+        href: url,
         target: "_blank",
         rel: "noopener",
         className: "dict-link",
-        textContent: "SpanishDict ↗",
+        textContent: language.dictionaryName + " ↗",
     });
+}
+
+// ---------- languages ----------
+
+function savedLanguageName() {
+    try {
+        return localStorage.getItem("language");
+    } catch {
+        return null; // private browsing: just start with the first language
+    }
+}
+
+async function loadLanguages(selectName) {
+    languages = await api("GET", "/api/languages");
+    const select = $("language");
+    select.replaceChildren(
+        ...languages.map((l) => el("option", {value: l.name, textContent: l.name})),
+        el("option", {value: ADD_LANGUAGE, textContent: "Add language…"}));
+    const wanted = languages.find((l) => l.name === selectName) || languages.find((l) => l.name === savedLanguageName())
+        || languages[0];
+    if (!wanted) {
+        select.value = ADD_LANGUAGE;
+        showMessage("Add the first language you want to learn.");
+        return;
+    }
+    select.value = wanted.name;
+    await switchLanguage(wanted.name);
+}
+
+async function switchLanguage(name) {
+    language = languages.find((l) => l.name === name);
+    try {
+        localStorage.setItem("language", name);
+    } catch {
+        // only a convenience
+    }
+    for (const label of document.querySelectorAll(".lang-name")) {
+        label.textContent = name;
+    }
+    addAccentButtons($("quiz-accents"), $("quiz-answer"));
+    addAccentButtons(document.querySelector("#add-form .accents"), $("add-word"));
+    $("add-recent").hidden = true;
+    $("add-recent-list").replaceChildren();
+    $("quiz-question").hidden = true;
+    $("quiz-summary").hidden = true;
+    $("quiz-setup").hidden = false;
+    await loadCategories();
+    if (!$("view-words").hidden) {
+        await loadWords();
+    }
+}
+
+// Word count and special letters change when words are added, so fetch the language again
+async function refreshLanguage() {
+    languages = await api("GET", "/api/languages");
+    language = languages.find((l) => l.name === language.name) || language;
+    addAccentButtons($("quiz-accents"), $("quiz-answer"));
+    addAccentButtons(document.querySelector("#add-form .accents"), $("add-word"));
+}
+
+async function addLanguage() {
+    const name = prompt("Which language do you want to learn? (its English name, e.g. Italian)");
+    if (!name) {
+        $("language").value = language?.name ?? ADD_LANGUAGE;
+        return;
+    }
+    try {
+        const added = await api("POST", "/api/languages", {name});
+        await loadLanguages(added.name);
+        showMessage(`${added.name} added. Start by adding some vocab.`);
+    } catch (error) {
+        $("language").value = language?.name ?? ADD_LANGUAGE;
+        showMessage(error.message, true);
+    }
 }
 
 // ---------- categories ----------
 
 async function loadCategories() {
-    categories = await api("GET", "/api/categories");
+    categories = await api("GET", langUrl("/categories"));
     const total = categories.reduce((sum, c) => sum + c.count, 0);
     for (const id of ["quiz-category", "words-category"]) {
         const select = $(id);
@@ -164,7 +252,7 @@ function showView(name) {
         loadWords();
     }
     if (name === "add") {
-        $("add-spanish").focus();
+        $("add-word").focus();
     }
 }
 
@@ -173,7 +261,7 @@ function showView(name) {
 const quiz = {questions: [], index: 0, attempt: 1, correct: 0, asked: 0};
 
 async function startQuiz() {
-    quiz.questions = await api("GET", "/api/quiz?category=" + encodeURIComponent($("quiz-category").value));
+    quiz.questions = await api("GET", langUrl("/quiz?category=" + encodeURIComponent($("quiz-category").value)));
     if (quiz.questions.length === 0) {
         showMessage("No vocab saved yet. Add some first.");
         return;
@@ -190,15 +278,14 @@ function showQuestion() {
     quiz.attempt = 1;
     $("quiz-progress").textContent = `${quiz.index + 1} / ${quiz.questions.length}`;
     $("quiz-score").textContent = `${quiz.correct} correct`;
-    $("quiz-direction").textContent = question.askInSpanish ? "In Spanish:" : "In English:";
+    $("quiz-direction").textContent = question.answerInLanguage ? `In ${language.name}:` : "In English:";
     $("quiz-prompt").textContent = question.prompt;
-    // promptIpa only comes with Spanish prompts
+    // promptIpa only comes with prompts in the language
     $("quiz-prompt-ipa").hidden = true;
-    $("quiz-prompt-ipa-toggle").replaceChildren(
-        ...(question.promptIpa ? [ipaButton(question.promptIpa, $("quiz-prompt-ipa"))] : []));
+    $("quiz-prompt-ipa-toggle").replaceChildren(...ipaButtons(question.promptIpa, $("quiz-prompt-ipa")));
     $("quiz-extras").hidden = true;
     $("quiz-answer-ipa").hidden = true;
-    $("quiz-accents").hidden = !question.askInSpanish;
+    $("quiz-accents").hidden = !question.answerInLanguage || language.specialLetters.length === 0;
     $("quiz-feedback").textContent = "";
     $("quiz-feedback").className = "feedback";
     $("quiz-full-answer").hidden = true;
@@ -218,8 +305,8 @@ async function checkAnswer() {
     if (quiz.attempt === 1) {
         quiz.asked++;
     }
-    const result = await api("POST", "/api/quiz/check", {
-        id: question.id, askInSpanish: question.askInSpanish, answer, attempt: quiz.attempt,
+    const result = await api("POST", langUrl("/quiz/check"), {
+        id: question.id, answerInLanguage: question.answerInLanguage, answer, attempt: quiz.attempt,
     });
     const feedback = $("quiz-feedback");
     feedback.textContent = result.feedback;
@@ -234,9 +321,8 @@ async function checkAnswer() {
             el("span", {className: "muted", textContent: "Answer: "}),
             el("strong", {textContent: result.answer}));
         $("quiz-full-answer").hidden = false;
-        const spanish = question.askInSpanish ? result.answer : question.prompt;
         $("quiz-extras").replaceChildren(
-            ipaButton(result.spanishIpa, $("quiz-answer-ipa")), spanishDictLink(spanish));
+            ...ipaButtons(result.ipa, $("quiz-answer-ipa")), dictionaryLink(result.dictionaryUrl));
         $("quiz-extras").hidden = false;
         $("quiz-answer").disabled = true;
         $("quiz-check").hidden = true;
@@ -268,22 +354,23 @@ function stopQuiz() {
 async function addVocab(event) {
     event.preventDefault();
     const vocab = {
-        spanish: $("add-spanish").value,
+        word: $("add-word").value,
         english: $("add-english").value,
         ...readCategory($("add-category"), $("add-new-category")),
     };
     try {
-        const saved = await saveVocab("POST", "/api/vocab", vocab);
+        const saved = await saveVocab("POST", langUrl("/vocab"), vocab);
         $("add-recent").hidden = false;
-        $("add-recent-list").prepend(el("li", {textContent: `${saved.spanish} = ${saved.english} [${saved.category}]`}));
+        $("add-recent-list").prepend(el("li", {textContent: `${saved.word} = ${saved.english} [${saved.category}]`}));
         // keep the category, so a whole verb can be added in a row
-        $("add-spanish").value = "";
+        $("add-word").value = "";
         $("add-english").value = "";
         $("add-new-category").value = "";
         $("add-new-category").hidden = true;
         await loadCategories();
+        await refreshLanguage();
         fillCategorySelect($("add-category"), saved.category);
-        $("add-spanish").focus();
+        $("add-word").focus();
     } catch (error) {
         showMessage(error.message, true);
     }
@@ -296,7 +383,7 @@ let searchTimer;
 async function loadWords() {
     const category = $("words-category").value;
     const query = $("words-search").value.trim();
-    const words = await api("GET", `/api/vocab?category=${encodeURIComponent(category)}&q=${encodeURIComponent(query)}`);
+    const words = await api("GET", langUrl(`/vocab?category=${encodeURIComponent(category)}&q=${encodeURIComponent(query)}`));
     const list = $("words-list");
     const letters = [];
     list.replaceChildren();
@@ -320,7 +407,7 @@ async function loadWords() {
 function wordRow(word) {
     const row = el("div", {className: "word" + (word.conjugation ? " conjugation" : "")});
     const line = el("button", {type: "button", className: "word-line"},
-        el("span", {className: "es", textContent: word.spanish}),
+        el("span", {className: "es", textContent: word.word}),
         el("span", {className: "en", textContent: word.english}));
     line.addEventListener("click", () => {
         const open = row.querySelector("form");
@@ -331,30 +418,33 @@ function wordRow(word) {
         }
     });
     const ipa = el("p", {className: "ipa", hidden: true});
-    row.append(line, ipaButton(word.ipa, ipa), ipa);
+    row.append(line, ...ipaButtons(word.ipa, ipa), ipa);
     return row;
 }
 
 function editForm(word) {
     const form = $("edit-template").content.firstElementChild.cloneNode(true);
-    const {spanish, english, category, newCategory} = form.elements;
-    spanish.value = word.spanish;
+    const wordInput = form.elements.word;
+    const {english, category, newCategory} = form.elements;
+    form.querySelector(".lang-name").textContent = language.name;
+    wordInput.value = word.word;
     english.value = word.english;
     fillCategorySelect(category, word.category);
     wireCategorySelect(category, newCategory);
-    addAccentButtons(form.querySelector(".accents"), spanish);
-    form.querySelector(".extras").append(spanishDictLink(word.spanish));
+    addAccentButtons(form.querySelector(".accents"), wordInput);
+    form.querySelector(".extras").append(dictionaryLink(word.dictionaryUrl));
 
     form.addEventListener("submit", async (event) => {
         event.preventDefault();
         try {
-            await saveVocab("PUT", "/api/vocab/" + word.id, {
-                spanish: spanish.value,
+            await saveVocab("PUT", langUrl("/vocab/" + word.id), {
+                word: wordInput.value,
                 english: english.value,
                 ...readCategory(category, newCategory),
             });
-            showMessage(`Saved ${spanish.value.trim()}.`);
+            showMessage(`Saved ${wordInput.value.trim()}.`);
             await loadCategories();
+            await refreshLanguage();
             await loadWords();
         } catch (error) {
             showMessage(error.message, true);
@@ -362,13 +452,14 @@ function editForm(word) {
     });
     form.querySelector("[data-action=cancel]").addEventListener("click", () => form.remove());
     form.querySelector("[data-action=delete]").addEventListener("click", async () => {
-        if (!confirm(`Delete ${word.spanish} = ${word.english}?`)) {
+        if (!confirm(`Delete ${word.word} = ${word.english}?`)) {
             return;
         }
         try {
-            await api("DELETE", "/api/vocab/" + word.id);
-            showMessage(`Deleted ${word.spanish}.`);
+            await api("DELETE", langUrl("/vocab/" + word.id));
+            showMessage(`Deleted ${word.word}.`);
             await loadCategories();
+            await refreshLanguage();
             await loadWords();
         } catch (error) {
             showMessage(error.message, true);
@@ -396,11 +487,14 @@ $("quiz-form").addEventListener("submit", (event) => {
 });
 $("quiz-next").addEventListener("click", nextQuestion);
 $("quiz-stop").addEventListener("click", stopQuiz);
-addAccentButtons($("quiz-accents"), $("quiz-answer"));
 
 $("add-form").addEventListener("submit", addVocab);
 wireCategorySelect($("add-category"), $("add-new-category"));
-addAccentButtons(document.querySelector("#add-form .accents"), $("add-spanish"));
+
+$("language").addEventListener("change", () => {
+    const name = $("language").value;
+    (name === ADD_LANGUAGE ? addLanguage() : switchLanguage(name)).catch((error) => showMessage(error.message, true));
+});
 
 $("words-category").addEventListener("change", loadWords);
 $("words-search").addEventListener("input", () => {
@@ -410,6 +504,6 @@ $("words-search").addEventListener("input", () => {
 
 window.addEventListener("hashchange", () => showView(location.hash.slice(1)));
 
-loadCategories()
+loadLanguages()
     .then(() => showView(location.hash.slice(1)))
     .catch((error) => showMessage(error.message, true));

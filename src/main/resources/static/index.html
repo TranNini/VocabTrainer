@@ -15,6 +15,7 @@
 <body>
 <header class="top">
     <h1>Vocab Trainer</h1>
+    <select id="language" class="language-select" aria-label="Language"></select>
 </header>
 
 <main>
@@ -67,9 +68,9 @@
     <section id="view-add" class="view" hidden>
         <form id="add-form" class="card" autocomplete="off">
             <h2>Add vocab</h2>
-            <label for="add-spanish">Spanish</label>
-            <input id="add-spanish" type="text" autocapitalize="off" autocorrect="off" spellcheck="false">
-            <div class="accents" data-for="add-spanish"></div>
+            <label for="add-word" class="lang-name"></label>
+            <input id="add-word" type="text" autocapitalize="off" autocorrect="off" spellcheck="false">
+            <div class="accents" data-for="add-word"></div>
             <label for="add-english">English <span class="muted">(use / for alternatives)</span></label>
             <input id="add-english" type="text" autocapitalize="off" autocorrect="off" spellcheck="false">
             <label for="add-category">Category</label>
@@ -107,7 +108,7 @@
 <template id="edit-template">
     <form class="edit" autocomplete="off">
         <div class="extras"></div>
-        <label>Spanish <input name="spanish" type="text" autocapitalize="off" autocorrect="off" spellcheck="false"></label>
+        <label><span class="lang-name"></span> <input name="word" type="text" autocapitalize="off" autocorrect="off" spellcheck="false"></label>
         <div class="accents"></div>
         <label>English <input name="english" type="text" autocapitalize="off" autocorrect="off" spellcheck="false"></label>
         <label>Category <select name="category" class="category-select"></select></label>

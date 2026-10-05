@@ -31,7 +31,8 @@ class AccessFilterTest {
 
     @DynamicPropertySource
     static void files(DynamicPropertyRegistry registry) {
-        registry.add("vocab.file", () -> dir.resolve("vocab.txt").toString());
+        registry.add("vocab.dir", () -> dir.resolve("vocab").toString());
+        registry.add("vocab.old-file", () -> dir.resolve("vocab.txt").toString());
         registry.add("vocab.access-code-file", () -> dir.resolve("access-code.txt").toString());
     }
 
@@ -57,12 +58,12 @@ class AccessFilterTest {
 
     @Test
     void thisMacNeedsNoCode() throws Exception {
-        mvc.perform(get("/api/categories")).andExpect(status().isOk());
+        mvc.perform(get("/api/languages")).andExpect(status().isOk());
     }
 
     @Test
     void otherDevicesAreSentToTheLoginPage() throws Exception {
-        mvc.perform(get("/api/categories").with(fromIPhone())).andExpect(status().isUnauthorized());
+        mvc.perform(get("/api/languages").with(fromIPhone())).andExpect(status().isUnauthorized());
         mvc.perform(get("/").with(fromIPhone())).andExpect(redirectedUrl("/login.html"));
         mvc.perform(get("/login.html").with(fromIPhone())).andExpect(status().isOk());
         mvc.perform(get("/apple-touch-icon.png").with(fromIPhone())).andExpect(status().isOk());
@@ -73,7 +74,7 @@ class AccessFilterTest {
         mvc.perform(post("/login").param("code", "nope").with(fromIPhone()))
                 .andExpect(redirectedUrl("/login.html?wrong"))
                 .andExpect(cookie().doesNotExist(AccessFilter.COOKIE));
-        mvc.perform(get("/api/categories").with(fromIPhone()).cookie(new Cookie(AccessFilter.COOKIE, "nope")))
+        mvc.perform(get("/api/languages").with(fromIPhone()).cookie(new Cookie(AccessFilter.COOKIE, "nope")))
                 .andExpect(status().isUnauthorized());
     }
 
@@ -83,7 +84,7 @@ class AccessFilterTest {
                 .andExpect(redirectedUrl("/"))
                 .andExpect(cookie().value(AccessFilter.COOKIE, accessCode.getCode()))
                 .andExpect(cookie().httpOnly(AccessFilter.COOKIE, true));
-        mvc.perform(get("/api/categories").with(fromIPhone()).cookie(new Cookie(AccessFilter.COOKIE, accessCode.getCode())))
+        mvc.perform(get("/api/languages").with(fromIPhone()).cookie(new Cookie(AccessFilter.COOKIE, accessCode.getCode())))
                 .andExpect(status().isOk());
     }
 

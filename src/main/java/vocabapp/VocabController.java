@@ -19,38 +19,47 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Random;
+import java.util.TreeSet;
 
 @RestController
-@RequestMapping("/api")
+@RequestMapping("/api/languages")
 public class VocabController {
-    private final VocabStore store;
+    private final VocabLibrary library;
     private final Random random = new Random();
 
-    public VocabController(VocabStore store) {
-        this.store = store;
+    public VocabController(VocabLibrary library) {
+        this.library = library;
+    }
+
+    // ipa = whether IPA can be shown; specialLetters = buttons for letters a normal keyboard lacks
+    record LanguageDto(String name, int count, boolean ipa, List<String> specialLetters, String dictionaryName) {
+    }
+
+    record NewLanguageRequest(String name) {
     }
 
     record CategoryDto(String name, int count) {
     }
 
-    record VocabDto(int id, String spanish, String english, String category, String section, boolean conjugation,
-                    String ipa) {
+    record VocabDto(int id, String word, String english, String category, String section, boolean conjugation,
+                    String ipa, String dictionaryUrl) {
     }
 
     // newCategory = true confirms that a category which doesn't exist yet should be created
-    record VocabRequest(String spanish, String english, String category, boolean newCategory) {
+    record VocabRequest(String word, String english, String category, boolean newCategory) {
     }
 
-    // promptIpa is only filled in when the prompt is Spanish, so it never gives the answer away
-    record QuestionDto(int id, boolean askInSpanish, String prompt, String promptIpa) {
+    // promptIpa is only filled in when the prompt is in the language, so it never gives the answer away
+    record QuestionDto(int id, boolean answerInLanguage, String prompt, String promptIpa) {
     }
 
-    record CheckRequest(int id, boolean askInSpanish, String answer, int attempt) {
+    record CheckRequest(int id, boolean answerInLanguage, String answer, int attempt) {
     }
 
     // finished = no more tries for this question; once finished, answer = the full answer with all
-    // alternatives and spanishIpa = the pronunciation of the Spanish side
-    record CheckResult(boolean correct, String feedback, String answer, boolean finished, String spanishIpa) {
+    // alternatives, and ipa / dictionaryUrl are for the word in the language
+    record CheckResult(boolean correct, String feedback, String answer, boolean finished, String ipa,
+                       String dictionaryUrl) {
     }
 
     static class ApiException extends RuntimeException {
@@ -73,99 +82,141 @@ public class VocabController {
         return ResponseEntity.status(e.status).body(e.body);
     }
 
-    @GetMapping("/categories")
-    public List<CategoryDto> categories() {
-        List<CategoryDto> categories = new ArrayList<>();
-        new VocabIndex(store.getAll()).categoryCounts()
-                .forEach((name, count) -> categories.add(new CategoryDto(name, count)));
-        return categories;
-    }
-
-    // Empty category = all; q works like the console search (one letter = that section)
-    @GetMapping("/vocab")
-    public List<VocabDto> vocab(@RequestParam(defaultValue = "") String category,
-                                @RequestParam(defaultValue = "") String q) {
-        VocabIndex index = new VocabIndex(store.getAll());
-        List<VocabDto> result = new ArrayList<>();
-        for (Vocab v : index.search(blankToNull(category), q.trim())) {
-            result.add(toDto(v, index));
+    @GetMapping
+    public List<LanguageDto> languages() {
+        List<LanguageDto> result = new ArrayList<>();
+        for (String name : library.languageNames()) {
+            result.add(toDto(name));
         }
         return result;
     }
 
-    @PostMapping("/vocab")
+    @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
-    public VocabDto add(@RequestBody VocabRequest request) {
-        Vocab vocab = toVocab(request);
-        store.add(vocab);
-        return toDto(vocab, new VocabIndex(store.getAll()));
+    public LanguageDto addLanguage(@RequestBody NewLanguageRequest request) {
+        try {
+            return toDto(library.addLanguage(request.name()));
+        } catch (IllegalArgumentException e) {
+            throw new ApiException(HttpStatus.BAD_REQUEST, e.getMessage());
+        } catch (IllegalStateException e) {
+            throw new ApiException(HttpStatus.CONFLICT, e.getMessage());
+        }
     }
 
-    @PutMapping("/vocab/{id}")
-    public VocabDto update(@PathVariable int id, @RequestBody VocabRequest request) {
-        Vocab existing = find(id);
-        Vocab updated = toVocab(request);
-        store.replace(existing, updated);
-        return toDto(updated, new VocabIndex(store.getAll()));
+    @GetMapping("/{language}/categories")
+    public List<CategoryDto> categories(@PathVariable String language) {
+        List<CategoryDto> categories = new ArrayList<>();
+        index(language).categoryCounts().forEach((name, count) -> categories.add(new CategoryDto(name, count)));
+        return categories;
     }
 
-    @DeleteMapping("/vocab/{id}")
+    // Empty category = all; q: one letter = that section, longer = search both sides
+    @GetMapping("/{language}/vocab")
+    public List<VocabDto> vocab(@PathVariable String language,
+                                @RequestParam(defaultValue = "") String category,
+                                @RequestParam(defaultValue = "") String q) {
+        VocabIndex index = index(language);
+        List<VocabDto> result = new ArrayList<>();
+        for (Vocab v : index.search(blankToNull(category), q.trim())) {
+            result.add(toDto(language, v, index));
+        }
+        return result;
+    }
+
+    @PostMapping("/{language}/vocab")
+    @ResponseStatus(HttpStatus.CREATED)
+    public VocabDto add(@PathVariable String language, @RequestBody VocabRequest request) {
+        Vocab vocab = toVocab(language, request);
+        store(language).add(vocab);
+        return toDto(language, vocab, index(language));
+    }
+
+    @PutMapping("/{language}/vocab/{id}")
+    public VocabDto update(@PathVariable String language, @PathVariable int id, @RequestBody VocabRequest request) {
+        Vocab existing = find(language, id);
+        Vocab updated = toVocab(language, request);
+        store(language).replace(existing, updated);
+        return toDto(language, updated, index(language));
+    }
+
+    @DeleteMapping("/{language}/vocab/{id}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
-    public void delete(@PathVariable int id) {
-        store.remove(find(id));
+    public void delete(@PathVariable String language, @PathVariable int id) {
+        store(language).remove(find(language, id));
     }
 
     // All vocab in the category, shuffled, each asked in a random direction
-    @GetMapping("/quiz")
-    public List<QuestionDto> quiz(@RequestParam(defaultValue = "") String category) {
-        List<Vocab> vocab = new ArrayList<>(new VocabIndex(store.getAll()).inCategory(blankToNull(category)));
+    @GetMapping("/{language}/quiz")
+    public List<QuestionDto> quiz(@PathVariable String language, @RequestParam(defaultValue = "") String category) {
+        Language rules = rules(language);
+        List<Vocab> vocab = new ArrayList<>(index(language).inCategory(blankToNull(category)));
         Collections.shuffle(vocab, random);
         List<QuestionDto> questions = new ArrayList<>();
         for (Vocab v : vocab) {
             Question question = Question.from(v, random);
-            String promptIpa = question.askInSpanish() ? null : SpanishIpa.transcribe(question.prompt());
-            questions.add(new QuestionDto(store.idOf(v), question.askInSpanish(), question.prompt(), promptIpa));
+            String promptIpa = question.answerInLanguage() ? null : rules.ipa(question.prompt());
+            questions.add(new QuestionDto(store(language).idOf(v), question.answerInLanguage(), question.prompt(), promptIpa));
         }
         return questions;
     }
 
-    @PostMapping("/quiz/check")
-    public CheckResult check(@RequestBody CheckRequest request) {
-        Vocab vocab = find(request.id());
-        String expected = Question.expectedAnswer(vocab, request.askInSpanish());
+    @PostMapping("/{language}/quiz/check")
+    public CheckResult check(@PathVariable String language, @RequestBody CheckRequest request) {
+        Language rules = rules(language);
+        Vocab vocab = find(language, request.id());
+        String expected = Question.expectedAnswer(vocab, request.answerInLanguage());
         String answer = request.answer() == null ? "" : request.answer().trim();
-        String spanishIpa = SpanishIpa.transcribe(vocab.getSpanish());
+        String ipa = rules.ipa(vocab.getWord());
+        String dictionaryUrl = rules.dictionaryUrl(vocab.getWord());
         if (AnswerChecker.isCorrect(answer, expected)) {
-            return new CheckResult(true, "Correct!", AnswerChecker.allOptions(expected), true, spanishIpa);
+            return new CheckResult(true, "Correct!", AnswerChecker.allOptions(expected), true, ipa, dictionaryUrl);
         }
         if (request.attempt() < AnswerChecker.MAX_ATTEMPTS) {
-            return new CheckResult(false, AnswerChecker.feedback(answer, expected, request.attempt()), null, false, null);
+            return new CheckResult(false, AnswerChecker.feedback(answer, expected, request.attempt(), rules),
+                    null, false, null, null);
         }
-        return new CheckResult(false, "Not quite.", AnswerChecker.allOptions(expected), true, spanishIpa);
+        return new CheckResult(false, "Not quite.", AnswerChecker.allOptions(expected), true, ipa, dictionaryUrl);
     }
 
-    private Vocab find(int id) {
-        Vocab vocab = store.findById(id);
+    private VocabStore store(String language) {
+        VocabStore store = library.store(language);
+        if (store == null) {
+            throw new ApiException(HttpStatus.NOT_FOUND, "There is no language called '" + language + "'.");
+        }
+        return store;
+    }
+
+    private Language rules(String language) {
+        store(language); // 404 for unknown languages
+        return library.language(language);
+    }
+
+    private VocabIndex index(String language) {
+        return new VocabIndex(store(language).getAll(), rules(language));
+    }
+
+    private Vocab find(String language, int id) {
+        Vocab vocab = store(language).findById(id);
         if (vocab == null) {
             throw new ApiException(HttpStatus.NOT_FOUND, "This vocab doesn't exist anymore.");
         }
         return vocab;
     }
 
-    private Vocab toVocab(VocabRequest request) {
-        String spanish = request.spanish() == null ? "" : request.spanish().trim();
+    private Vocab toVocab(String language, VocabRequest request) {
+        String word = request.word() == null ? "" : request.word().trim();
         String english = request.english() == null ? "" : request.english().trim();
-        if (spanish.isEmpty() || english.isEmpty()) {
-            throw new ApiException(HttpStatus.BAD_REQUEST, "Please fill in both Spanish and English.");
+        if (word.isEmpty() || english.isEmpty()) {
+            throw new ApiException(HttpStatus.BAD_REQUEST, "Please fill in both the word and the English translation.");
         }
-        if (spanish.contains(";") || english.contains(";")) {
-            throw new ApiException(HttpStatus.BAD_REQUEST, "Please don't use ';' — it separates the columns in vocab.txt.");
+        if (word.contains(";") || english.contains(";")) {
+            throw new ApiException(HttpStatus.BAD_REQUEST, "Please don't use ';' — it separates the columns in the vocab file.");
         }
         String typed = request.category() == null ? "" : request.category().trim();
         if (typed.contains(";")) {
             throw new ApiException(HttpStatus.BAD_REQUEST, "Please don't use ';' in a category name.");
         }
-        String category = new VocabIndex(store.getAll()).resolveCategory(typed);
+        String category = index(language).resolveCategory(typed);
         if (category == null) {
             if (!request.newCategory()) {
                 throw new ApiException(HttpStatus.CONFLICT, Map.of(
@@ -174,12 +225,34 @@ public class VocabController {
             }
             category = typed;
         }
-        return new Vocab(spanish, english, category);
+        return new Vocab(word, english, category);
     }
 
-    private VocabDto toDto(Vocab v, VocabIndex index) {
-        return new VocabDto(store.idOf(v), v.getSpanish(), v.getEnglish(), v.getCategory(),
-                index.sectionLetter(v), index.isConjugation(v), SpanishIpa.transcribe(v.getSpanish()));
+    private LanguageDto toDto(String name) {
+        Language rules = library.language(name);
+        List<Vocab> all = library.store(name).getAll();
+        List<String> letters = rules.getSpecialLetters();
+        if (letters.isEmpty()) {
+            letters = specialLettersIn(all);
+        }
+        return new LanguageDto(rules.getName(), all.size(), rules.hasIpa(), letters, rules.getDictionaryName());
+    }
+
+    // Letters beyond a–z used in the saved words, e.g. "à", "è", "ç" for a new language
+    private static List<String> specialLettersIn(List<Vocab> all) {
+        TreeSet<String> letters = new TreeSet<>();
+        for (Vocab v : all) {
+            v.getWord().toLowerCase().codePoints()
+                    .filter(c -> Character.isLetter(c) && c > 127)
+                    .forEach(c -> letters.add(Character.toString(c)));
+        }
+        return new ArrayList<>(letters);
+    }
+
+    private VocabDto toDto(String language, Vocab v, VocabIndex index) {
+        Language rules = library.language(language);
+        return new VocabDto(store(language).idOf(v), v.getWord(), v.getEnglish(), v.getCategory(),
+                index.sectionLetter(v), index.isConjugation(v), rules.ipa(v.getWord()), rules.dictionaryUrl(v.getWord()));
     }
 
     private static String blankToNull(String text) {

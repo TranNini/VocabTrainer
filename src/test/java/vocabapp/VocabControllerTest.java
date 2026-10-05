@@ -15,6 +15,7 @@ import org.springframework.test.web.servlet.ResultActions;
 import java.nio.file.Path;
 
 import static org.hamcrest.Matchers.hasSize;
+import static org.hamcrest.Matchers.nullValue;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -25,13 +26,15 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @SpringBootTest
 @AutoConfigureMockMvc
 class VocabControllerTest {
+    private static final String SPANISH = "/api/languages/Spanish";
 
     @TempDir
     static Path dir;
 
     @DynamicPropertySource
-    static void vocabFile(DynamicPropertyRegistry registry) {
-        registry.add("vocab.file", () -> dir.resolve("vocab.txt").toString());
+    static void files(DynamicPropertyRegistry registry) {
+        registry.add("vocab.dir", () -> dir.resolve("vocab").toString());
+        registry.add("vocab.old-file", () -> dir.resolve("vocab.txt").toString());
         registry.add("vocab.access-code-file", () -> dir.resolve("access-code.txt").toString());
     }
 
@@ -39,10 +42,14 @@ class VocabControllerTest {
     MockMvc mvc;
 
     @Autowired
-    VocabStore store;
+    VocabLibrary library;
 
     @BeforeEach
-    void emptyStore() {
+    void emptySpanish() {
+        if (library.store("Spanish") == null) {
+            library.addLanguage("Spanish");
+        }
+        VocabStore store = library.store("Spanish");
         for (Vocab v : store.getAll()) {
             store.remove(v);
         }
@@ -57,10 +64,11 @@ class VocabControllerTest {
         return mvc.perform(request.contentType(MediaType.APPLICATION_JSON).content(json));
     }
 
-    private int add(String spanish, String english, String category) throws Exception {
-        send("POST", "/api/vocab", """
-                {"spanish": "%s", "english": "%s", "category": "%s", "newCategory": true}
-                """.formatted(spanish, english, category)).andExpect(status().isCreated());
+    private int add(String word, String english, String category) throws Exception {
+        send("POST", SPANISH + "/vocab", """
+                {"word": "%s", "english": "%s", "category": "%s", "newCategory": true}
+                """.formatted(word, english, category)).andExpect(status().isCreated());
+        VocabStore store = library.store("Spanish");
         return store.idOf(store.getAll().get(store.getAll().size() - 1));
     }
 
@@ -70,16 +78,18 @@ class VocabControllerTest {
         add("yo tengo", "I have", "verbs");
         add("el agua", "water", "general");
 
-        mvc.perform(get("/api/vocab"))
+        mvc.perform(get(SPANISH + "/vocab"))
                 .andExpect(jsonPath("$", hasSize(3)))
-                .andExpect(jsonPath("$[0].spanish").value("el agua"))
+                .andExpect(jsonPath("$[0].word").value("el agua"))
                 .andExpect(jsonPath("$[0].section").value("A"))
-                .andExpect(jsonPath("$[2].spanish").value("yo tengo"))
+                .andExpect(jsonPath("$[0].ipa").value("/el ˈa.ɡwa/"))
+                .andExpect(jsonPath("$[0].dictionaryUrl").value("https://www.spanishdict.com/translate/el%20agua"))
+                .andExpect(jsonPath("$[2].word").value("yo tengo"))
                 .andExpect(jsonPath("$[2].section").value("T"))
                 .andExpect(jsonPath("$[2].conjugation").value(true));
-        mvc.perform(get("/api/vocab").param("category", "verbs").param("q", "t"))
+        mvc.perform(get(SPANISH + "/vocab").param("category", "verbs").param("q", "t"))
                 .andExpect(jsonPath("$", hasSize(2)));
-        mvc.perform(get("/api/categories"))
+        mvc.perform(get(SPANISH + "/categories"))
                 .andExpect(jsonPath("$[0].name").value("general"))
                 .andExpect(jsonPath("$[1].count").value(2));
     }
@@ -87,75 +97,104 @@ class VocabControllerTest {
     @Test
     void asksBeforeCreatingANewCategory() throws Exception {
         add("hablar", "to talk", "verbs");
-        send("POST", "/api/vocab", """
-                {"spanish": "ir", "english": "to go", "category": "verb"}
+        send("POST", SPANISH + "/vocab", """
+                {"word": "ir", "english": "to go", "category": "verb"}
                 """)
                 .andExpect(status().isConflict())
                 .andExpect(jsonPath("$.newCategory").value("verb"));
-        send("POST", "/api/vocab", """
-                {"spanish": "ir", "english": "to go", "category": "VERBS"}
+        send("POST", SPANISH + "/vocab", """
+                {"word": "ir", "english": "to go", "category": "VERBS"}
                 """)
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.category").value("verbs"));
-        send("POST", "/api/vocab", """
-                {"spanish": "la mesa", "english": "table", "category": ""}
+        send("POST", SPANISH + "/vocab", """
+                {"word": "la mesa", "english": "table", "category": ""}
                 """)
                 .andExpect(jsonPath("$.category").value("general"));
     }
 
     @Test
     void rejectsMissingWordsAndSemicolons() throws Exception {
-        send("POST", "/api/vocab", """
-                {"spanish": "", "english": "to go", "category": "verbs"}
+        send("POST", SPANISH + "/vocab", """
+                {"word": "", "english": "to go", "category": "verbs"}
                 """).andExpect(status().isBadRequest());
-        send("POST", "/api/vocab", """
-                {"spanish": "ir;x", "english": "to go", "category": "verbs"}
+        send("POST", SPANISH + "/vocab", """
+                {"word": "ir;x", "english": "to go", "category": "verbs"}
                 """).andExpect(status().isBadRequest());
     }
 
     @Test
     void updatesAndDeletes() throws Exception {
         int id = add("hablar", "to talk", "verbs");
-        send("PUT", "/api/vocab/" + id, """
-                {"spanish": "hablar", "english": "to talk/to speak", "category": "v"}
+        send("PUT", SPANISH + "/vocab/" + id, """
+                {"word": "hablar", "english": "to talk/to speak", "category": "verbs"}
                 """)
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.id").value(id))
                 .andExpect(jsonPath("$.english").value("to talk/to speak"));
 
-        mvc.perform(delete("/api/vocab/" + id)).andExpect(status().isNoContent());
-        mvc.perform(delete("/api/vocab/" + id)).andExpect(status().isNotFound());
+        mvc.perform(delete(SPANISH + "/vocab/" + id)).andExpect(status().isNoContent());
+        mvc.perform(delete(SPANISH + "/vocab/" + id)).andExpect(status().isNotFound());
     }
 
     @Test
     void quizGivesHintsThenTheAnswer() throws Exception {
         int id = add("el perro", "dog", "general");
-        mvc.perform(get("/api/quiz"))
+        mvc.perform(get(SPANISH + "/quiz"))
                 .andExpect(jsonPath("$", hasSize(1)))
                 .andExpect(jsonPath("$[0].id").value(id));
 
         String check = """
-                {"id": %d, "askInSpanish": true, "answer": "%s", "attempt": %d}
+                {"id": %d, "answerInLanguage": true, "answer": "%s", "attempt": %d}
                 """;
-        send("POST", "/api/quiz/check", check.formatted(id, "perro", 1))
+        send("POST", SPANISH + "/quiz/check", check.formatted(id, "perro", 1))
                 .andExpect(jsonPath("$.correct").value(false))
                 .andExpect(jsonPath("$.finished").value(false))
-                .andExpect(jsonPath("$.feedback").value("Don't forget the article!"));
-        send("POST", "/api/quiz/check", check.formatted(id, "gato", 3))
+                .andExpect(jsonPath("$.feedback").value("Don't forget the article!"))
+                .andExpect(jsonPath("$.ipa").value(nullValue()));
+        send("POST", SPANISH + "/quiz/check", check.formatted(id, "gato", 3))
                 .andExpect(jsonPath("$.finished").value(true))
-                .andExpect(jsonPath("$.answer").value("el perro"));
-        send("POST", "/api/quiz/check", check.formatted(id, "el perro", 2))
+                .andExpect(jsonPath("$.answer").value("el perro"))
+                .andExpect(jsonPath("$.ipa").value("/el ˈpe.ro/"));
+        send("POST", SPANISH + "/quiz/check", check.formatted(id, "el perro", 2))
                 .andExpect(jsonPath("$.correct").value(true));
 
         int night = add("¡Buenas noches!", "Good evening/Good night", "sentences");
-        send("POST", "/api/quiz/check", """
-                {"id": %d, "askInSpanish": false, "answer": "good night", "attempt": 1}
+        send("POST", SPANISH + "/quiz/check", """
+                {"id": %d, "answerInLanguage": false, "answer": "good night", "attempt": 1}
                 """.formatted(night))
                 .andExpect(jsonPath("$.correct").value(true))
                 .andExpect(jsonPath("$.answer").value("Good evening / Good night"));
-        send("POST", "/api/quiz/check", """
-                {"id": %d, "askInSpanish": true, "answer": "buenas noches", "attempt": 1}
-                """.formatted(night))
-                .andExpect(jsonPath("$.answer").value("¡Buenas noches!"));
+    }
+
+    @Test
+    void addsALanguageThatWorksWithTheBasics() throws Exception {
+        mvc.perform(get("/api/languages"))
+                .andExpect(jsonPath("$[?(@.name == 'Spanish')].ipa").value(true));
+        send("POST", "/api/languages", """
+                {"name": "italian"}
+                """)
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.name").value("Italian"))
+                .andExpect(jsonPath("$.ipa").value(false))
+                .andExpect(jsonPath("$.dictionaryName").value("Wiktionary"));
+        send("POST", "/api/languages", """
+                {"name": "Italian"}
+                """).andExpect(status().isConflict());
+        send("POST", "/api/languages", """
+                {"name": "Klingon 2"}
+                """).andExpect(status().isBadRequest());
+
+        send("POST", "/api/languages/Italian/vocab", """
+                {"word": "il caffè", "english": "coffee", "category": ""}
+                """)
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.ipa").value(nullValue()))
+                .andExpect(jsonPath("$.dictionaryUrl").value("https://en.wiktionary.org/wiki/il%20caff%C3%A8#Italian"));
+        mvc.perform(get("/api/languages"))
+                .andExpect(jsonPath("$[?(@.name == 'Italian')].specialLetters[0]").value("è"));
+        // each language has its own words
+        mvc.perform(get(SPANISH + "/vocab")).andExpect(jsonPath("$", hasSize(0)));
+        mvc.perform(get("/api/languages/Klingon/vocab")).andExpect(status().isNotFound());
     }
 }

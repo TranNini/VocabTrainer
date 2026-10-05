@@ -51,6 +51,15 @@ body {
     letter-spacing: 0.02em;
 }
 
+.language-select {
+    width: auto;
+    margin-top: 8px;
+    padding: 6px 12px;
+    border-radius: 999px;
+    background: var(--card);
+    font-weight: 600;
+}
+
 main {
     max-width: 560px;
     margin: 0 auto;
