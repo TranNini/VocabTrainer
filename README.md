@@ -7,7 +7,8 @@ on the Mac in the browser and on the iPhone. Started with Spanish; more language
 Feature:
 
 Several languages, each with its own vocabulary and categories; switch at the top of the app
-Add new vocabulary with its English translation
+Add new vocabulary with its English translation and an optional context note (rules, usage, exceptions),
+    shown with the "Note" button in the word list and after each quiz question
 Save vocabulary locally (one file per language)
 Quiz saved vocabulary
 Randomized vocabulary order
@@ -19,7 +20,11 @@ Categories (general, verbs, sentences, or your own) and a category filter for th
 Edit and delete saved vocabulary
 Alphabetical list in the order of each language, with letter sections
 Buttons for special letters (á, ñ, è, …)
-Link to a dictionary for every word (SpanishDict for Spanish, Wiktionary for others)
+Link to a dictionary for every word (SpanishDict for Spanish, VDict for Vietnamese, Wiktionary for others)
+
+Vietnamese extras:
+    Buttons for ă â đ ê ô ơ ư and the five tone marks (huyền, sắc, hỏi, ngã, nặng),
+    which add the mark to the letter typed before
 
 Spanish extras:
     Articles (el, la, …) are ignored when sorting and give "Don't forget the article!" hints
@@ -48,6 +53,7 @@ iPhone (same Wi-Fi as the Mac, Mac must be awake with the app running)
 
 Where the vocabulary is saved:
     vocab/<Language>.txt, e.g. vocab/Spanish.txt (not in git), one line per entry: word;english;category
+    or word;english;category;context when the entry has a context note
     The old vocab.txt is moved to vocab/Spanish.txt automatically on the first start.
 
 Adding verb conjugations (Spanish):

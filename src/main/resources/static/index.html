@@ -47,6 +47,7 @@
                 <div id="quiz-accents" class="accents" data-for="quiz-answer"></div>
                 <p id="quiz-feedback" class="feedback" aria-live="polite"></p>
                 <p id="quiz-full-answer" class="full-answer" hidden></p>
+                <p id="quiz-context" class="note" hidden></p>
                 <div id="quiz-extras" class="extras" hidden></div>
                 <p id="quiz-answer-ipa" class="ipa" hidden></p>
                 <div class="row">
@@ -73,6 +74,9 @@
             <div class="accents" data-for="add-word"></div>
             <label for="add-english">English <span class="muted">(use / for alternatives)</span></label>
             <input id="add-english" type="text" autocapitalize="off" autocorrect="off" spellcheck="false">
+            <label for="add-context">Context <span class="muted">(optional: rules, usage, exceptions)</span></label>
+            <textarea id="add-context" rows="2" maxlength="500"
+                      placeholder="e.g. irregular · only used formally · always followed by …"></textarea>
             <label for="add-category">Category</label>
             <select id="add-category" class="category-select"></select>
             <input id="add-new-category" type="text" placeholder="New category name" hidden>
@@ -111,6 +115,7 @@
         <label><span class="lang-name"></span> <input name="word" type="text" autocapitalize="off" autocorrect="off" spellcheck="false"></label>
         <div class="accents"></div>
         <label>English <input name="english" type="text" autocapitalize="off" autocorrect="off" spellcheck="false"></label>
+        <label>Context <textarea name="context" rows="2" maxlength="500"></textarea></label>
         <label>Category <select name="category" class="category-select"></select></label>
         <input name="newCategory" type="text" placeholder="New category name" hidden>
         <div class="row">

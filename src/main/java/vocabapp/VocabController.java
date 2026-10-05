@@ -14,6 +14,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.text.Normalizer;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -41,12 +42,12 @@ public class VocabController {
     record CategoryDto(String name, int count) {
     }
 
-    record VocabDto(int id, String word, String english, String category, String section, boolean conjugation,
-                    String ipa, String dictionaryUrl) {
+    record VocabDto(int id, String word, String english, String category, String context, String section,
+                    boolean conjugation, String ipa, String dictionaryUrl) {
     }
 
     // newCategory = true confirms that a category which doesn't exist yet should be created
-    record VocabRequest(String word, String english, String category, boolean newCategory) {
+    record VocabRequest(String word, String english, String category, String context, boolean newCategory) {
     }
 
     // promptIpa is only filled in when the prompt is in the language, so it never gives the answer away
@@ -57,9 +58,9 @@ public class VocabController {
     }
 
     // finished = no more tries for this question; once finished, answer = the full answer with all
-    // alternatives, and ipa / dictionaryUrl are for the word in the language
+    // alternatives, ipa / dictionaryUrl are for the word in the language, and context is its note
     record CheckResult(boolean correct, String feedback, String answer, boolean finished, String ipa,
-                       String dictionaryUrl) {
+                       String dictionaryUrl, String context) {
     }
 
     static class ApiException extends RuntimeException {
@@ -168,14 +169,15 @@ public class VocabController {
         String answer = request.answer() == null ? "" : request.answer().trim();
         String ipa = rules.ipa(vocab.getWord());
         String dictionaryUrl = rules.dictionaryUrl(vocab.getWord());
+        String context = vocab.getContext();
         if (AnswerChecker.isCorrect(answer, expected)) {
-            return new CheckResult(true, "Correct!", AnswerChecker.allOptions(expected), true, ipa, dictionaryUrl);
+            return new CheckResult(true, "Correct!", AnswerChecker.allOptions(expected), true, ipa, dictionaryUrl, context);
         }
         if (request.attempt() < AnswerChecker.MAX_ATTEMPTS) {
             return new CheckResult(false, AnswerChecker.feedback(answer, expected, request.attempt(), rules),
-                    null, false, null, null);
+                    null, false, null, null, null);
         }
-        return new CheckResult(false, "Not quite.", AnswerChecker.allOptions(expected), true, ipa, dictionaryUrl);
+        return new CheckResult(false, "Not quite.", AnswerChecker.allOptions(expected), true, ipa, dictionaryUrl, context);
     }
 
     private VocabStore store(String language) {
@@ -204,13 +206,18 @@ public class VocabController {
     }
 
     private Vocab toVocab(String language, VocabRequest request) {
-        String word = request.word() == null ? "" : request.word().trim();
-        String english = request.english() == null ? "" : request.english().trim();
+        String word = request.word() == null ? "" : Normalizer.normalize(request.word(), Normalizer.Form.NFC).trim();
+        String english = request.english() == null ? "" : Normalizer.normalize(request.english(), Normalizer.Form.NFC).trim();
         if (word.isEmpty() || english.isEmpty()) {
             throw new ApiException(HttpStatus.BAD_REQUEST, "Please fill in both the word and the English translation.");
         }
         if (word.contains(";") || english.contains(";")) {
             throw new ApiException(HttpStatus.BAD_REQUEST, "Please don't use ';' — it separates the columns in the vocab file.");
+        }
+        // one line in the file: line breaks in the note become spaces
+        String context = request.context() == null ? "" : request.context().replaceAll("\\s*[\\r\\n]+\\s*", " ").trim();
+        if (context.length() > 500) {
+            throw new ApiException(HttpStatus.BAD_REQUEST, "Please keep the context under 500 characters.");
         }
         String typed = request.category() == null ? "" : request.category().trim();
         if (typed.contains(";")) {
@@ -225,7 +232,7 @@ public class VocabController {
             }
             category = typed;
         }
-        return new Vocab(word, english, category);
+        return new Vocab(word, english, category, context);
     }
 
     private LanguageDto toDto(String name) {
@@ -251,7 +258,7 @@ public class VocabController {
 
     private VocabDto toDto(String language, Vocab v, VocabIndex index) {
         Language rules = library.language(language);
-        return new VocabDto(store(language).idOf(v), v.getWord(), v.getEnglish(), v.getCategory(),
+        return new VocabDto(store(language).idOf(v), v.getWord(), v.getEnglish(), v.getCategory(), v.getContext(),
                 index.sectionLetter(v), index.isConjugation(v), rules.ipa(v.getWord()), rules.dictionaryUrl(v.getWord()));
     }
 

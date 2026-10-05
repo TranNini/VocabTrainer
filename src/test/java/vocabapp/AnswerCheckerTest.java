@@ -25,6 +25,13 @@ class AnswerCheckerTest {
     }
 
     @Test
+    void accentTypedAsASeparateMarkStillCounts() {
+        // "thi" + tone mark (sắc) + "ch", as the tone buttons or some keyboards type it
+        assertTrue(AnswerChecker.isCorrect("thi\u0301ch", "thích"));
+        assertTrue(AnswerChecker.isCorrect("thích", "thi\u0301ch"));
+    }
+
+    @Test
     void acceptsAnyAlternative() {
         assertTrue(AnswerChecker.isCorrect("good night", "Good evening / Good night"));
         assertTrue(AnswerChecker.isCorrect("Good evening", "Good evening / Good night"));

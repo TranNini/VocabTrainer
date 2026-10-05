@@ -60,6 +60,19 @@ class VocabStoreTest {
     }
 
     @Test
+    void savesContextAsAFourthColumnOnlyWhenThereIsOne() throws IOException {
+        Path file = dir.resolve("vocab.txt");
+        Files.writeString(file, "hablar;to talk;verbs\nser;to be;verbs;permanent things; e.g. origin\n");
+        VocabStore store = new VocabStore(file);
+        assertEquals("", store.getAll().get(0).getContext());
+        assertEquals("permanent things; e.g. origin", store.getAll().get(1).getContext());
+
+        store.add(new Vocab("estar", "to be", "verbs", "  temporary states "));
+        assertEquals(List.of("hablar;to talk;verbs", "ser;to be;verbs;permanent things; e.g. origin",
+                "estar;to be;verbs;temporary states"), Files.readAllLines(file));
+    }
+
+    @Test
     void missingFileMeansEmpty() {
         assertTrue(new VocabStore(dir.resolve("nothing.txt")).getAll().isEmpty());
     }

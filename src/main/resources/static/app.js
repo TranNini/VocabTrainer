@@ -54,18 +54,31 @@ function langUrl(path) {
     return `/api/languages/${encodeURIComponent(language.name)}${path}`;
 }
 
-// Buttons for the language's letters that a normal keyboard lacks (á, ñ, ¿ …)
+// Vietnamese tone marks, typed after the vowel they belong to
+const MARK_NAMES = {"\u0300": "huyền", "\u0301": "sắc", "\u0309": "hỏi", "\u0303": "ngã", "\u0323": "nặng"};
+
+// Buttons for the language's letters that a normal keyboard lacks (á, ñ, ¿, ơ, tone marks …)
 function addAccentButtons(container, input) {
     const letters = language?.specialLetters ?? [];
     container.hidden = letters.length === 0;
     container.replaceChildren(...letters.map((letter) => {
-        const button = el("button", {type: "button", textContent: letter});
+        const isMark = /\p{M}/u.test(letter);
+        // a mark on its own is invisible, so the button shows it on an "a" (it still only adds the mark)
+        const button = el("button", {type: "button", textContent: isMark ? ("a" + letter).normalize("NFC") : letter,
+            title: isMark ? `${MARK_NAMES[letter] ?? "mark"}: adds this mark to the letter before` : letter});
+        button.classList.toggle("mark", isMark);
         // keep the keyboard open on the phone
         button.addEventListener("mousedown", (e) => e.preventDefault());
         button.addEventListener("click", () => {
             const start = input.selectionStart ?? input.value.length;
             const end = input.selectionEnd ?? input.value.length;
             input.setRangeText(letter, start, end, "end");
+            if (isMark) {
+                // "e" + mark -> "é" as one letter, and keep the cursor after it
+                const before = input.value.slice(0, input.selectionEnd).normalize("NFC");
+                input.value = before + input.value.slice(input.selectionEnd).normalize("NFC");
+                input.setSelectionRange(before.length, before.length);
+            }
             input.focus();
         });
         return button;
@@ -77,16 +90,21 @@ function addAccentButtons(container, input) {
 // Button that shows the IPA (worked out in Java, e.g. SpanishIpa) in the given element, and hides it again.
 // Languages without IPA rules get no button.
 function ipaButtons(ipa, target) {
-    return ipa ? [ipaButton(ipa, target)] : [];
+    return ipa ? [toggleButton("IPA", "Show pronunciation", ipa, target)] : [];
 }
 
-function ipaButton(ipa, target) {
-    const button = el("button", {type: "button", className: "ipa-toggle", textContent: "IPA", title: "Show pronunciation"});
+// Same for the context note; words without one get no button
+function noteButtons(context, target) {
+    return context ? [toggleButton("Note", "Show context", context, target)] : [];
+}
+
+function toggleButton(label, title, text, target) {
+    const button = el("button", {type: "button", className: "toggle", textContent: label, title});
     button.setAttribute("aria-expanded", "false");
     button.addEventListener("click", (event) => {
         event.stopPropagation();
         const show = target.hidden;
-        target.textContent = ipa;
+        target.textContent = text;
         target.hidden = !show;
         button.classList.toggle("active", show);
         button.setAttribute("aria-expanded", String(show));
@@ -289,6 +307,7 @@ function showQuestion() {
     $("quiz-feedback").textContent = "";
     $("quiz-feedback").className = "feedback";
     $("quiz-full-answer").hidden = true;
+    $("quiz-context").hidden = true;
     $("quiz-answer").value = "";
     $("quiz-answer").disabled = false;
     $("quiz-check").hidden = false;
@@ -321,6 +340,9 @@ async function checkAnswer() {
             el("span", {className: "muted", textContent: "Answer: "}),
             el("strong", {textContent: result.answer}));
         $("quiz-full-answer").hidden = false;
+        // the note only shows once the question is over, so it never gives the answer away
+        $("quiz-context").textContent = result.context;
+        $("quiz-context").hidden = !result.context;
         $("quiz-extras").replaceChildren(
             ...ipaButtons(result.ipa, $("quiz-answer-ipa")), dictionaryLink(result.dictionaryUrl));
         $("quiz-extras").hidden = false;
@@ -356,6 +378,7 @@ async function addVocab(event) {
     const vocab = {
         word: $("add-word").value,
         english: $("add-english").value,
+        context: $("add-context").value,
         ...readCategory($("add-category"), $("add-new-category")),
     };
     try {
@@ -365,6 +388,7 @@ async function addVocab(event) {
         // keep the category, so a whole verb can be added in a row
         $("add-word").value = "";
         $("add-english").value = "";
+        $("add-context").value = "";
         $("add-new-category").value = "";
         $("add-new-category").hidden = true;
         await loadCategories();
@@ -417,18 +441,22 @@ function wordRow(word) {
             row.append(editForm(word));
         }
     });
+    const buttons = el("div", {className: "row-buttons"});
+    const note = el("p", {className: "note", hidden: true});
     const ipa = el("p", {className: "ipa", hidden: true});
-    row.append(line, ...ipaButtons(word.ipa, ipa), ipa);
+    buttons.append(...noteButtons(word.context, note), ...ipaButtons(word.ipa, ipa));
+    row.append(line, buttons, note, ipa);
     return row;
 }
 
 function editForm(word) {
     const form = $("edit-template").content.firstElementChild.cloneNode(true);
     const wordInput = form.elements.word;
-    const {english, category, newCategory} = form.elements;
+    const {english, context, category, newCategory} = form.elements;
     form.querySelector(".lang-name").textContent = language.name;
     wordInput.value = word.word;
     english.value = word.english;
+    context.value = word.context;
     fillCategorySelect(category, word.category);
     wireCategorySelect(category, newCategory);
     addAccentButtons(form.querySelector(".accents"), wordInput);
@@ -440,6 +468,7 @@ function editForm(word) {
             await saveVocab("PUT", langUrl("/vocab/" + word.id), {
                 word: wordInput.value,
                 english: english.value,
+                context: context.value,
                 ...readCategory(category, newCategory),
             });
             showMessage(`Saved ${wordInput.value.trim()}.`);

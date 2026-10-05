@@ -107,7 +107,8 @@ public class AnswerChecker {
     }
 
     public static String normalize(String text) {
-        return text.replace("...", "")
+        // NFC: a letter typed as "i" + accent mark becomes the same "í" that is saved
+        return Normalizer.normalize(text, Normalizer.Form.NFC).replace("...", "")
                 .replace("…", "")
                 .replace("?", "")
                 .replace("¿", "")

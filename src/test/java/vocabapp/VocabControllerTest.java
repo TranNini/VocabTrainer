@@ -168,6 +168,29 @@ class VocabControllerTest {
     }
 
     @Test
+    void keepsAContextNoteAndShowsItAfterTheQuestion() throws Exception {
+        send("POST", SPANISH + "/vocab", """
+                {"word": "ser", "english": "to be", "category": "", "context": "permanent things;\\nlike origin"}
+                """)
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.context").value("permanent things; like origin"));
+        VocabStore store = library.store("Spanish");
+        int id = store.idOf(store.getAll().get(0));
+
+        String check = """
+                {"id": %d, "answerInLanguage": true, "answer": "%s", "attempt": %d}
+                """;
+        send("POST", SPANISH + "/quiz/check", check.formatted(id, "estar", 1))
+                .andExpect(jsonPath("$.context").value(nullValue()));
+        send("POST", SPANISH + "/quiz/check", check.formatted(id, "ser", 1))
+                .andExpect(jsonPath("$.context").value("permanent things; like origin"));
+
+        send("PUT", SPANISH + "/vocab/" + id, """
+                {"word": "ser", "english": "to be", "category": "general", "context": ""}
+                """).andExpect(jsonPath("$.context").value(""));
+    }
+
+    @Test
     void addsALanguageThatWorksWithTheBasics() throws Exception {
         mvc.perform(get("/api/languages"))
                 .andExpect(jsonPath("$[?(@.name == 'Spanish')].ipa").value(true));

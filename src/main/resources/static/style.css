@@ -92,13 +92,17 @@ label {
 }
 
 /* 16px font stops iOS from zooming into inputs */
-input, select, button {
+input, select, button, textarea {
     font: inherit;
     font-size: 16px;
     color: inherit;
 }
 
-input, select {
+textarea {
+    resize: vertical;
+}
+
+input, select, textarea {
     width: 100%;
     padding: 10px 12px;
     border: 1px solid var(--border);
@@ -106,7 +110,7 @@ input, select {
     background: var(--bg);
 }
 
-input:focus, select:focus {
+input:focus, select:focus, textarea:focus {
     outline: 2px solid var(--accent);
     outline-offset: 1px;
 }
@@ -221,6 +225,13 @@ form > button.primary, .card > button.primary {
     border-radius: 8px;
 }
 
+/* tone marks look different from letters: they change the letter before */
+.accents button.mark {
+    background: none;
+    border: 1px dashed var(--accent);
+    color: var(--accent);
+}
+
 /* Words */
 .letters {
     display: flex;
@@ -283,20 +294,22 @@ form > button.primary, .card > button.primary {
     padding-left: 18px;
 }
 
-.word .ipa-toggle {
+.row-buttons {
+    display: flex;
+    gap: 6px;
     margin-right: 8px;
 }
 
-.word .ipa, .word .edit {
+.word .ipa, .word .note, .word .edit {
     grid-column: 1 / -1;
 }
 
-.word .ipa {
+.word .ipa, .word .note {
     margin: -4px 12px 10px;
 }
 
 /* Pronunciation */
-.ipa-toggle {
+.toggle {
     padding: 4px 8px;
     background: none;
     border: 1px solid var(--border);
@@ -307,9 +320,20 @@ form > button.primary, .card > button.primary {
     letter-spacing: 0.04em;
 }
 
-.ipa-toggle.active, .ipa-toggle:hover {
+.toggle.active, .toggle:hover {
     color: var(--accent);
     border-color: var(--accent);
+}
+
+/* Context note: rules, usage, exceptions */
+.note {
+    margin: 8px 0 0;
+    padding: 6px 10px;
+    border-left: 3px solid var(--accent);
+    background: var(--soft);
+    border-radius: 0 8px 8px 0;
+    font-size: 0.95rem;
+    overflow-wrap: anywhere;
 }
 
 /* fonts that have all IPA symbols (ʝ ɲ θ ɾ ˈ i̯) */

@@ -26,7 +26,7 @@ public class Language {
             Map.entry("polish", new Locale("pl")), Map.entry("turkish", new Locale("tr")),
             Map.entry("russian", new Locale("ru")), Map.entry("greek", new Locale("el")),
             Map.entry("japanese", Locale.JAPANESE), Map.entry("korean", Locale.KOREAN),
-            Map.entry("chinese", Locale.CHINESE));
+            Map.entry("chinese", Locale.CHINESE), Map.entry("vietnamese", new Locale("vi")));
 
     private final String name;
     private final Collator collator;
@@ -55,6 +55,9 @@ public class Language {
         if (name.equalsIgnoreCase("spanish")) {
             return spanish(name);
         }
+        if (name.equalsIgnoreCase("vietnamese")) {
+            return vietnamese(name);
+        }
         return new Language(name, List.of(), List.of(), List.of(), null,
                 "Wiktionary", "https://en.wiktionary.org/wiki/%s#" + name.replace(' ', '_'));
     }
@@ -69,6 +72,15 @@ public class Language {
                 List.of("á", "é", "í", "ó", "ú", "ñ", "ü", "¿", "¡"),
                 SpanishIpa::transcribe,
                 "SpanishDict", "https://www.spanishdict.com/translate/%s");
+    }
+
+    private static Language vietnamese(String name) {
+        return new Language(name, List.of(), List.of(),
+                // the letters, then the five tone marks (huyền, sắc, hỏi, ngã, nặng) to type after a vowel
+                List.of("ă", "â", "đ", "ê", "ô", "ơ", "ư", "\u0300", "\u0301", "\u0309", "\u0303", "\u0323"),
+                null,
+                // 2 = VDict's Vietnamese - English dictionary
+                "VDict", "https://vdict.com/%s,2,0,0.html");
     }
 
     public String getName() {

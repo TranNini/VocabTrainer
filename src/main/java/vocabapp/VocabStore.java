@@ -81,11 +81,13 @@ public class VocabStore {
                 if (line.isBlank()) {
                     continue;
                 }
-                // Older files have no category column: "word;english"
-                String[] parts = line.split(";", 3);
+                // word;english;category;context - older lines have no category, most have no context.
+                // The context is last, so it may contain ";" itself.
+                String[] parts = line.split(";", 4);
                 if (parts.length >= 2) {
-                    String category = parts.length == 3 ? parts[2].trim() : Vocab.DEFAULT_CATEGORY;
-                    track(new Vocab(parts[0].trim(), parts[1].trim(), category));
+                    String category = parts.length >= 3 ? parts[2].trim() : Vocab.DEFAULT_CATEGORY;
+                    String context = parts.length == 4 ? parts[3] : "";
+                    track(new Vocab(parts[0].trim(), parts[1].trim(), category, context));
                 }
             }
         } catch (IOException e) {
@@ -97,6 +99,9 @@ public class VocabStore {
         try (BufferedWriter writer = Files.newBufferedWriter(path)) {
             for (Vocab v : vocabList) {
                 writer.write(v.getWord() + ";" + v.getEnglish() + ";" + v.getCategory());
+                if (!v.getContext().isEmpty()) {
+                    writer.write(";" + v.getContext());
+                }
                 writer.newLine();
             }
         }

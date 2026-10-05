@@ -29,6 +29,15 @@ class LanguageTest {
     }
 
     @Test
+    void vietnameseUsesVDictAndHasToneMarks() {
+        Language vietnamese = Language.forName("Vietnamese");
+        assertEquals("VDict", vietnamese.getDictionaryName());
+        assertEquals("https://vdict.com/c%E1%BA%A3m%20%C6%A1n,2,0,0.html", vietnamese.dictionaryUrl("cảm ơn!"));
+        assertTrue(vietnamese.getSpecialLetters().containsAll(java.util.List.of("ă", "đ", "ư", "\u0301", "\u0323")));
+        assertFalse(vietnamese.hasIpa());
+    }
+
+    @Test
     void sectionLettersFollowTheLanguage() {
         assertEquals("A", Language.forName("Spanish").sectionLetter("árbol"));
         assertEquals("Ñ", Language.forName("Spanish").sectionLetter("ñandú"));
