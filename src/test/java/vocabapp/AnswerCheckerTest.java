@@ -31,6 +31,13 @@ class AnswerCheckerTest {
     }
 
     @Test
+    void allOptionsListsEveryAlternativeTidily() {
+        assertEquals("Good evening / Good night", AnswerChecker.allOptions("Good evening /Good night"));
+        assertEquals("to talk / to speak", AnswerChecker.allOptions("to talk/to speak"));
+        assertEquals("¡Hola!", AnswerChecker.allOptions("¡Hola!"));
+    }
+
+    @Test
     void hintsAtMissingArticle() {
         assertEquals("Don't forget the article!", AnswerChecker.feedback("perro", "el perro", 1));
         assertEquals("Don't forget the article!", AnswerChecker.feedback("dog", "the dog", 2));

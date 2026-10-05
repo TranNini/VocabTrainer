@@ -1,5 +1,7 @@
 package vocabapp;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Random;
 
 public class AnswerChecker {
@@ -34,6 +36,17 @@ public class AnswerChecker {
             return "Almost correct!";
         }
         return "Not quite. Hint: it starts with '" + getHint(target) + "'";
+    }
+
+    // The full answer with every alternative, e.g. "Good evening / Good night"
+    public static String allOptions(String expected) {
+        List<String> options = new ArrayList<>();
+        for (String option : expected.split("/")) {
+            if (!option.isBlank()) {
+                options.add(option.trim());
+            }
+        }
+        return String.join(" / ", options);
     }
 
     public static String pickOne(String text, Random random) {

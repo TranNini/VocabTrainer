@@ -46,7 +46,7 @@ public class VocabController {
     record CheckRequest(int id, boolean askInSpanish, String answer, int attempt) {
     }
 
-    // finished = no more tries for this question; answer is only filled in when it was missed
+    // finished = no more tries for this question; answer = the full answer with all alternatives, once finished
     record CheckResult(boolean correct, String feedback, String answer, boolean finished) {
     }
 
@@ -130,12 +130,12 @@ public class VocabController {
         String expected = Question.expectedAnswer(find(request.id()), request.askInSpanish());
         String answer = request.answer() == null ? "" : request.answer().trim();
         if (AnswerChecker.isCorrect(answer, expected)) {
-            return new CheckResult(true, "Correct!", null, true);
+            return new CheckResult(true, "Correct!", AnswerChecker.allOptions(expected), true);
         }
         if (request.attempt() < AnswerChecker.MAX_ATTEMPTS) {
             return new CheckResult(false, AnswerChecker.feedback(answer, expected, request.attempt()), null, false);
         }
-        return new CheckResult(false, "Not quite. The correct answer is: " + expected, expected, true);
+        return new CheckResult(false, "Not quite.", AnswerChecker.allOptions(expected), true);
     }
 
     private Vocab find(int id) {

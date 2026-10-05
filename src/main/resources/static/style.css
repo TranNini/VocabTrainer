@@ -192,6 +192,12 @@ form > button.primary, .card > button.primary {
     color: var(--bad);
 }
 
+.full-answer {
+    margin: 4px 0 0;
+    font-size: 1.15rem;
+    overflow-wrap: anywhere;
+}
+
 .accents {
     display: flex;
     flex-wrap: wrap;

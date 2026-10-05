@@ -146,5 +146,16 @@ class VocabControllerTest {
                 .andExpect(jsonPath("$.answer").value("el perro"));
         send("POST", "/api/quiz/check", check.formatted(id, "el perro", 2))
                 .andExpect(jsonPath("$.correct").value(true));
+
+        int night = add("¡Buenas noches!", "Good evening/Good night", "sentences");
+        send("POST", "/api/quiz/check", """
+                {"id": %d, "askInSpanish": false, "answer": "good night", "attempt": 1}
+                """.formatted(night))
+                .andExpect(jsonPath("$.correct").value(true))
+                .andExpect(jsonPath("$.answer").value("Good evening / Good night"));
+        send("POST", "/api/quiz/check", """
+                {"id": %d, "askInSpanish": true, "answer": "buenas noches", "attempt": 1}
+                """.formatted(night))
+                .andExpect(jsonPath("$.answer").value("¡Buenas noches!"));
     }
 }

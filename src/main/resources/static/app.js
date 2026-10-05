@@ -166,6 +166,7 @@ function showQuestion() {
     $("quiz-accents").hidden = !question.askInSpanish;
     $("quiz-feedback").textContent = "";
     $("quiz-feedback").className = "feedback";
+    $("quiz-full-answer").hidden = true;
     $("quiz-answer").value = "";
     $("quiz-answer").disabled = false;
     $("quiz-check").hidden = false;
@@ -193,6 +194,11 @@ async function checkAnswer() {
         $("quiz-score").textContent = `${quiz.correct} correct`;
     }
     if (result.finished) {
+        // always show the complete answer, even after a correct one, so all alternatives are seen
+        $("quiz-full-answer").replaceChildren(
+            el("span", {className: "muted", textContent: "Answer: "}),
+            el("strong", {textContent: result.answer}));
+        $("quiz-full-answer").hidden = false;
         $("quiz-answer").disabled = true;
         $("quiz-check").hidden = true;
         $("quiz-next").hidden = false;

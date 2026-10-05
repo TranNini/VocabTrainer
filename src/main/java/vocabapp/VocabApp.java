@@ -183,10 +183,10 @@ public class VocabApp {
                 attempt++;
             }
             if (solved) {
-                System.out.println("Correct!");
+                System.out.println("Correct! " + AnswerChecker.allOptions(question.expected()));
                 correct++;
             } else {
-                System.out.println("Not quite. The correct answer is: " + question.expected());
+                System.out.println("Not quite. The correct answer is: " + AnswerChecker.allOptions(question.expected()));
             }
         }
         System.out.println("\nScore: " + correct + "/" + asked);
