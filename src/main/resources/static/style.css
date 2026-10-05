@@ -265,12 +265,6 @@ form > button.primary, .card > button.primary {
     flex: 1;
 }
 
-.word-line .cat {
-    color: var(--muted);
-    font-size: 0.8rem;
-    align-self: center;
-}
-
 .edit {
     padding: 0 12px 12px;
 }

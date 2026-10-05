@@ -90,7 +90,7 @@ public class VocabApp {
                     currentSection = section;
                 }
                 String indent = index.isConjugation(v) ? "    " : "";
-                System.out.println(indent + (i + 1) + ") " + v.getSpanish() + " = " + v.getEnglish() + " [" + v.getCategory() + "]");
+                System.out.println(indent + (i + 1) + ") " + v.getSpanish() + " = " + v.getEnglish());
             }
             System.out.println("Number to edit (Enter = new search):");
             String input = scanner.nextLine().trim();

@@ -282,8 +282,7 @@ function wordRow(word) {
     const row = el("div", {className: "word" + (word.conjugation ? " conjugation" : "")});
     const line = el("button", {type: "button", className: "word-line"},
         el("span", {className: "es", textContent: word.spanish}),
-        el("span", {className: "en", textContent: word.english}),
-        el("span", {className: "cat", textContent: word.category}));
+        el("span", {className: "en", textContent: word.english}));
     line.addEventListener("click", () => {
         const open = row.querySelector("form");
         if (open) {
