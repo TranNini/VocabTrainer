@@ -63,6 +63,12 @@ public class VocabController {
                        String dictionaryUrl, String context) {
     }
 
+    record HintRequest(int id, boolean answerInLanguage, String answer) {
+    }
+
+    record HintResult(String text) {
+    }
+
     static class ApiException extends RuntimeException {
         final HttpStatus status;
         final Map<String, String> body;
@@ -178,6 +184,15 @@ public class VocabController {
                     null, false, null, null, null);
         }
         return new CheckResult(false, "Not quite.", AnswerChecker.allOptions(expected), true, ipa, dictionaryUrl, context);
+    }
+
+    // The hint button; doesn't count as a try
+    @PostMapping("/{language}/quiz/hint")
+    public HintResult hint(@PathVariable String language, @RequestBody HintRequest request) {
+        Vocab vocab = find(language, request.id());
+        String expected = Question.expectedAnswer(vocab, request.answerInLanguage());
+        String answer = request.answer() == null ? "" : request.answer();
+        return new HintResult(AnswerChecker.hint(answer, expected, rules(language)));
     }
 
     private VocabStore store(String language) {

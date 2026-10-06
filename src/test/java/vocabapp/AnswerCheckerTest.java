@@ -108,4 +108,68 @@ class AnswerCheckerTest {
             assertTrue(picked.equals("Good evening") || picked.equals("Good night"), picked);
         }
     }
+
+    private static String hint(String answer, String expected) {
+        return AnswerChecker.hint(answer, expected, SPANISH);
+    }
+
+    @Test
+    void hintButtonGivesTheFirstLetterBeforeAnyInput() {
+        assertEquals("It starts with 'd'", hint("", "dado"));
+    }
+
+    @Test
+    void hintButtonGivesOneLetterPastWhatIsTypedRight() {
+        assertEquals("It starts with 'da'", hint("deca", "dado"));
+        assertEquals("It starts with 'dad'", hint("Dama", "dado"));
+    }
+
+    @Test
+    void hintButtonGivesTheFirstLetterForACompletelyWrongAnswer() {
+        assertEquals("It starts with 'd'", hint("gato", "dado"));
+    }
+
+    @Test
+    void pressingTheHintButtonAgainWithoutTypingGivesTheSameHint() {
+        assertEquals(hint("", "dado"), hint("", "dado"));
+        assertEquals(hint("deca", "dado"), hint("deca", "dado"));
+    }
+
+    @Test
+    void hintButtonFollowsTheAlternativeThatIsBeingTyped() {
+        assertEquals("It starts with 'Good e'", hint("good x", "Good evening / Good night"));
+        assertEquals("It starts with 'Good nig'", hint("good ni", "Good evening / Good night"));
+    }
+
+    @Test
+    void hintButtonSkipsTheArticleUnlessItIsBeingTyped() {
+        assertEquals("It starts with 'v'", hint("", "la vaca"));
+        assertEquals("It starts with 'v'", hint("gato", "la vaca"));
+        assertEquals("It starts with 'vac'", hint("va", "la vaca"));
+        assertEquals("It starts with 'la va'", hint("la v", "la vaca"));
+        assertEquals("It starts with 'el apelli'", hint("el apell", "el apellido"));
+        assertEquals("It starts with 'c'", hint("", "the cow"));
+        assertEquals("It starts with 's'", hint("", "to speak"));
+    }
+
+    @Test
+    void hintButtonShowsWhichLettersAreRightForNearlyRightAnswers() {
+        assertEquals("Almost! There are a few letters too many.", hint("la apellidone", "el apellido"));
+        assertEquals("Almost! There are a few letters too many.", hint("apellidion", "el apellido"));
+        assertEquals("Almost! These letters are right: da_o", hint("dao", "dado"));
+        assertEquals("Almost! Check the accent: adi_s", hint("adios", "adiós"));
+    }
+
+    @Test
+    void hintButtonPointsAtTheArticleWhenOnlyThatIsWrong() {
+        assertEquals("Don't forget the article!", hint("apellido", "el apellido"));
+        assertEquals("Check the article.", hint("la apellido", "el apellido"));
+        assertEquals("What comes in front of an infinitive verb?", hint("speak", "to speak"));
+    }
+
+    @Test
+    void hintButtonSaysWhenTheAnswerIsAlreadyRightOrTooLong() {
+        assertEquals("That's right! Press Check.", hint("Dado", "dado"));
+        assertEquals("The start is right, but there are letters too many.", hint("dadoxyz", "dado"));
+    }
 }

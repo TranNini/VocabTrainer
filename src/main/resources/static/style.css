@@ -140,6 +140,20 @@ button.danger {
     margin-left: auto;
 }
 
+/* Round icon button at the right end of a row, like the quiz hint bulb */
+button.round {
+    width: 44px;
+    height: 44px;
+    padding: 0;
+    border-radius: 50%;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--soft);
+    color: var(--accent);
+    margin-left: auto;
+}
+
 form > button.primary, .card > button.primary {
     width: 100%;
     margin-top: 16px;
@@ -203,6 +217,12 @@ form > button.primary, .card > button.primary {
 
 .feedback.bad {
     color: var(--bad);
+}
+
+.hint {
+    margin: 4px 0 0;
+    color: var(--accent);
+    font-weight: 500;
 }
 
 .full-answer {

@@ -159,6 +159,11 @@ class VocabControllerTest {
         send("POST", SPANISH + "/quiz/check", check.formatted(id, "el perro", 2))
                 .andExpect(jsonPath("$.correct").value(true));
 
+        send("POST", SPANISH + "/quiz/hint", """
+                {"id": %d, "answerInLanguage": true, "answer": "el g"}
+                """.formatted(id))
+                .andExpect(jsonPath("$.text").value("It starts with 'el p'"));
+
         int night = add("¡Buenas noches!", "Good evening/Good night", "sentences");
         send("POST", SPANISH + "/quiz/check", """
                 {"id": %d, "answerInLanguage": false, "answer": "good night", "attempt": 1}

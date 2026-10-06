@@ -41,6 +41,82 @@ public class AnswerChecker {
         return "Not quite. Hint: it starts with '" + getHint(target, articles) + "'";
     }
 
+    // Hint button. It only looks at what is typed, so pressing it again gives the same hint:
+    // nothing typed or all wrong -> the first letter ('d' for "dado"); the right start -> one
+    // letter more ("deca" -> 'da'); nearly right ("apellidion" for "apellido") -> which letters
+    // are right, like after Check; only the article wrong or missing -> says so.
+    // A leading article (el, la, the, to …) is skipped, so "la vaca" starts with 'v'.
+    public static String hint(String answer, String expected, Language language) {
+        String cleaned = normalize(answer);
+        if (!cleaned.isEmpty() && isCorrect(cleaned, expected)) {
+            return "That's right! Press Check.";
+        }
+        List<String> articles = new ArrayList<>(language.getArticles());
+        articles.addAll(Language.ENGLISH_ARTICLES);
+        String[] typed = splitArticle(cleaned, articles);
+        String[] target = null;
+        int bestPrefix = -1;
+        for (String option : expected.split("/")) {
+            String[] candidate = splitArticle(normalize(option), articles);
+            String word = candidate[0] == null ? cleaned : typed[1];
+            if (!word.isEmpty() && (word.equalsIgnoreCase(candidate[1]) || isClose(word, candidate[1]))) {
+                target = candidate;
+                break;
+            }
+            int prefix = commonPrefix(word, candidate[1]);
+            if (prefix > bestPrefix) {
+                target = candidate;
+                bestPrefix = prefix;
+            }
+        }
+        String article = target[0];
+        String word = target[1];
+        String typedWord = article == null ? cleaned : typed[1];
+        if (typedWord.equalsIgnoreCase(word)) {
+            // the word is right, so it's the article (isCorrect caught everything else)
+            if (article.equals("to")) {
+                return "What comes in front of an infinitive verb?";
+            }
+            return typed[0] == null ? "Don't forget the article!" : "Check the article.";
+        }
+        if (!typedWord.isEmpty() && isClose(typedWord, word)) {
+            return closeHint(typedWord, word);
+        }
+        int prefix = commonPrefix(typedWord, word);
+        if (prefix == word.length()) {
+            return "The start is right, but there are letters too many.";
+        }
+        int length = prefix + 1;
+        if (length < word.length() && word.charAt(length - 1) == ' ') {
+            length++; // a space alone tells nothing, so give the next letter with it
+        }
+        String start = word.substring(0, length);
+        if (article != null && article.equalsIgnoreCase(typed[0])) {
+            start = article + " " + start; // keep the article that is already typed right
+        }
+        return "It starts with '" + start + "'";
+    }
+
+    // "la vaca" -> {"la", "vaca"}, "to talk" -> {"to", "talk"}, "vaca" -> {null, "vaca"}
+    private static String[] splitArticle(String text, List<String> articles) {
+        String[] words = text.split(" ", 2);
+        if (words.length == 2) {
+            String first = words[0].toLowerCase();
+            if (first.equals("to") || articles.contains(first)) {
+                return new String[]{words[0], words[1]};
+            }
+        }
+        return new String[]{null, text};
+    }
+
+    private static int commonPrefix(String a, String b) {
+        int i = 0;
+        while (i < a.length() && i < b.length() && Character.toLowerCase(a.charAt(i)) == Character.toLowerCase(b.charAt(i))) {
+            i++;
+        }
+        return i;
+    }
+
     // For answers that are nearly right: shows the letters that already fit, "_" for the rest,
     // e.g. "oro" for "oso" -> "o_o"
     private static String closeHint(String answer, String target) {

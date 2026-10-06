@@ -310,7 +310,9 @@ function showQuestion() {
     $("quiz-context").hidden = true;
     $("quiz-answer").value = "";
     $("quiz-answer").disabled = false;
+    $("quiz-hint").hidden = true;
     $("quiz-check").hidden = false;
+    $("quiz-hint-button").hidden = false;
     $("quiz-next").hidden = true;
     $("quiz-answer").focus();
 }
@@ -348,12 +350,24 @@ async function checkAnswer() {
         $("quiz-extras").hidden = false;
         $("quiz-answer").disabled = true;
         $("quiz-check").hidden = true;
+        $("quiz-hint-button").hidden = true;
         $("quiz-next").hidden = false;
         $("quiz-next").focus();
     } else {
         quiz.attempt++;
         $("quiz-answer").select();
     }
+}
+
+// A hint that fits what is typed so far (see AnswerChecker.hint); doesn't use up a try
+async function showHint() {
+    const question = quiz.questions[quiz.index];
+    const hint = await api("POST", langUrl("/quiz/hint"), {
+        id: question.id, answerInLanguage: question.answerInLanguage, answer: $("quiz-answer").value,
+    });
+    $("quiz-hint").textContent = hint.text;
+    $("quiz-hint").hidden = false;
+    $("quiz-answer").focus();
 }
 
 function nextQuestion() {
@@ -515,6 +529,9 @@ $("quiz-form").addEventListener("submit", (event) => {
     }
 });
 $("quiz-next").addEventListener("click", nextQuestion);
+// keep the keyboard open on the phone
+$("quiz-hint-button").addEventListener("mousedown", (e) => e.preventDefault());
+$("quiz-hint-button").addEventListener("click", () => showHint().catch((error) => showMessage(error.message, true)));
 $("quiz-stop").addEventListener("click", stopQuiz);
 
 $("add-form").addEventListener("submit", addVocab);

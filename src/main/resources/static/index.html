@@ -46,6 +46,7 @@
                        aria-label="Your answer">
                 <div id="quiz-accents" class="accents" data-for="quiz-answer"></div>
                 <p id="quiz-feedback" class="feedback" aria-live="polite"></p>
+                <p id="quiz-hint" class="hint" aria-live="polite" hidden></p>
                 <p id="quiz-full-answer" class="full-answer" hidden></p>
                 <p id="quiz-context" class="note" hidden></p>
                 <div id="quiz-extras" class="extras" hidden></div>
@@ -54,6 +55,13 @@
                     <button id="quiz-check" type="submit" class="primary">Check</button>
                     <button id="quiz-next" type="button" class="primary" hidden>Next</button>
                     <button id="quiz-stop" type="button" class="secondary">Stop</button>
+                    <button id="quiz-hint-button" type="button" class="round" title="Hint" aria-label="Hint">
+                        <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor"
+                             stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                            <path d="M9 18h6M10 21h4"/>
+                            <path d="M12 3a6 6 0 0 0-3.6 10.8c.7.6 1.1 1.4 1.1 2.2h5c0-.8.4-1.6 1.1-2.2A6 6 0 0 0 12 3z"/>
+                        </svg>
+                    </button>
                 </div>
             </form>
         </div>
