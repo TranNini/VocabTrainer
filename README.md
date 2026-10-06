@@ -84,3 +84,11 @@ AccessCode.java, AccessFilter.java, LoginController.java - the access code for o
 StartupInfo.java - prints the iPhone address and access code on start
 VocabController.java - the web API the page talks to (/api/languages/...)
 src/main/resources/static - the web page (index.html, style.css, app.js)
+
+
+start by:
+
+docker run -d --name vocab-learning-app -p 8080:8080 \                                                                                                                                                      
+-v /Users/nini/IdeaProjects/VocabLearningApp/vocab:/app/vocab \                                                                                                                                           
+-v /Users/nini/IdeaProjects/VocabLearningApp/access-code.txt:/app/access-code.txt \                                                                                                                       
+vocab-learning-app   
