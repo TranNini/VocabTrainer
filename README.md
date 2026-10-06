@@ -86,9 +86,18 @@ VocabController.java - the web API the page talks to (/api/languages/...)
 src/main/resources/static - the web page (index.html, style.css, app.js)
 
 
-start by:
+Running in Docker
 
-docker run -d --name vocab-learning-app -p 8080:8080 \                                                                                                                                                      
--v /Users/nini/IdeaProjects/VocabLearningApp/vocab:/app/vocab \                                                                                                                                           
--v /Users/nini/IdeaProjects/VocabLearningApp/access-code.txt:/app/access-code.txt \                                                                                                                       
-vocab-learning-app   
+Build the jar and the image, then create the container once:
+
+    mvn package
+    docker build -t vocab-learning-app .
+    docker run -d --name vocab-learning-app --restart unless-stopped -p 8080:8080 \
+      -v /Users/nini/IdeaProjects/VocabLearningApp/vocab:/app/vocab \
+      -v /Users/nini/IdeaProjects/VocabLearningApp/access-code.txt:/app/access-code.txt \
+      vocab-learning-app
+
+--restart unless-stopped starts the app again whenever Docker Desktop starts (turn on
+"Start Docker Desktop when you sign in" in its settings), unless you stopped it with
+docker stop. To start it by hand: docker start vocab-learning-app
+For a new version: mvn package, docker build, docker rm -f vocab-learning-app, then docker run again.
