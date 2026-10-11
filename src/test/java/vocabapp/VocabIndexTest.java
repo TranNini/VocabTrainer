@@ -116,6 +116,21 @@ class VocabIndexTest {
     }
 
     @Test
+    void findsAllDuplicatesByWordOrEnglish() {
+        Vocab hola = new Vocab("¡Hola!", "hello/hi", "Sentences");
+        Vocab tu = new Vocab("tú", "you", "general");
+        Vocab tienes = new Vocab("tú tienes", "you have", "verbs");
+        Vocab tenéis = new Vocab("vosotros tenéis", "you have", "verbs");
+        VocabIndex index = new VocabIndex(List.of(hola, tu, tienes, tenéis), SPANISH);
+
+        assertEquals(List.of(hola), index.duplicatesOf("hola", "x", null));
+        assertEquals(List.of(hola), index.duplicatesOf("buenas", "Hi", null));
+        assertEquals(List.of(tienes, tenéis), index.duplicatesOf("usted tiene", "you have", null));
+        assertEquals(List.of(tenéis), index.duplicatesOf("tú tienes", "you have", tienes));
+        assertEquals(List.of(), index.duplicatesOf("tu", "your", null));
+    }
+
+    @Test
     void findsExistingCategorySpelling() {
         VocabIndex index = new VocabIndex(List.of(verb("hablar")), SPANISH);
         assertEquals("verbs", index.findCategory("VERBS"));

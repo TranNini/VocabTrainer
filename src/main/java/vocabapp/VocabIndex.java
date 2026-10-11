@@ -50,6 +50,31 @@ public class VocabIndex {
         return findCategory(trimmed);
     }
 
+    // Saved vocab with the same word or the same English, in any category. Alternatives count on their own
+    // ("hola/buenas" is a duplicate of "hola"); case and punctuation don't matter, accents do ("tu" ≠ "tú").
+    // except = the vocab being edited, which isn't a duplicate of itself.
+    public List<Vocab> duplicatesOf(String word, String english, Vocab except) {
+        List<Vocab> duplicates = new ArrayList<>();
+        for (Vocab v : all) {
+            if (v != except && (sharesOption(v.getWord(), word) || sharesOption(v.getEnglish(), english))) {
+                duplicates.add(v);
+            }
+        }
+        return duplicates;
+    }
+
+    private static boolean sharesOption(String a, String b) {
+        for (String optionA : a.split("/")) {
+            for (String optionB : b.split("/")) {
+                String cleaned = AnswerChecker.normalize(optionA);
+                if (!cleaned.isEmpty() && cleaned.equalsIgnoreCase(AnswerChecker.normalize(optionB))) {
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+
     // category null = all categories
     public List<Vocab> inCategory(String category) {
         List<Vocab> filtered = new ArrayList<>();

@@ -46,8 +46,10 @@ public class VocabController {
                     boolean conjugation, String ipa, String dictionaryUrl) {
     }
 
-    // newCategory = true confirms that a category which doesn't exist yet should be created
-    record VocabRequest(String word, String english, String category, String context, boolean newCategory) {
+    // newCategory = true confirms that a category which doesn't exist yet should be created;
+    // duplicate = true confirms saving although the same word or English is already saved
+    record VocabRequest(String word, String english, String category, String context, boolean newCategory,
+                        boolean duplicate) {
     }
 
     // promptIpa is only filled in when the prompt is in the language, so it never gives the answer away
@@ -71,10 +73,10 @@ public class VocabController {
 
     static class ApiException extends RuntimeException {
         final HttpStatus status;
-        final Map<String, String> body;
+        final Map<String, Object> body;
 
-        ApiException(HttpStatus status, Map<String, String> body) {
-            super(body.get("error"));
+        ApiException(HttpStatus status, Map<String, Object> body) {
+            super((String) body.get("error"));
             this.status = status;
             this.body = body;
         }
@@ -85,7 +87,7 @@ public class VocabController {
     }
 
     @ExceptionHandler(ApiException.class)
-    ResponseEntity<Map<String, String>> handle(ApiException e) {
+    ResponseEntity<Map<String, Object>> handle(ApiException e) {
         return ResponseEntity.status(e.status).body(e.body);
     }
 
@@ -134,6 +136,7 @@ public class VocabController {
     @ResponseStatus(HttpStatus.CREATED)
     public VocabDto add(@PathVariable String language, @RequestBody VocabRequest request) {
         Vocab vocab = toVocab(language, request);
+        checkDuplicates(language, request, vocab, null);
         store(language).add(vocab);
         return toDto(language, vocab, index(language));
     }
@@ -142,6 +145,7 @@ public class VocabController {
     public VocabDto update(@PathVariable String language, @PathVariable int id, @RequestBody VocabRequest request) {
         Vocab existing = find(language, id);
         Vocab updated = toVocab(language, request);
+        checkDuplicates(language, request, updated, existing);
         store(language).replace(existing, updated);
         return toDto(language, updated, index(language));
     }
@@ -248,6 +252,22 @@ public class VocabController {
             category = typed;
         }
         return new Vocab(word, english, category, context);
+    }
+
+    // 409 listing every saved vocab with the same word or English, unless the request already confirmed it
+    private void checkDuplicates(String language, VocabRequest request, Vocab vocab, Vocab except) {
+        if (request.duplicate()) {
+            return;
+        }
+        VocabIndex index = index(language);
+        List<VocabDto> duplicates = new ArrayList<>();
+        for (Vocab v : index.duplicatesOf(vocab.getWord(), vocab.getEnglish(), except)) {
+            duplicates.add(toDto(language, v, index));
+        }
+        if (!duplicates.isEmpty()) {
+            String error = duplicates.size() == 1 ? "This is already saved." : "This is already saved " + duplicates.size() + " times.";
+            throw new ApiException(HttpStatus.CONFLICT, Map.of("error", error, "duplicates", duplicates));
+        }
     }
 
     private LanguageDto toDto(String name) {

@@ -124,6 +124,33 @@ class VocabControllerTest {
     }
 
     @Test
+    void asksBeforeSavingADuplicate() throws Exception {
+        add("tú tienes", "you have", "verbs");
+        int id = add("ir", "to go", "verbs");
+        send("POST", SPANISH + "/vocab", """
+                {"word": "vosotros tenéis", "english": "You have", "category": "verbs"}
+                """)
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.duplicates", hasSize(1)))
+                .andExpect(jsonPath("$.duplicates[0].word").value("tú tienes"));
+        send("PUT", SPANISH + "/vocab/" + id, """
+                {"word": "tú tienes", "english": "to go", "category": "verbs"}
+                """)
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.duplicates", hasSize(1)));
+        send("POST", SPANISH + "/vocab", """
+                {"word": "vosotros tenéis", "english": "you have", "category": "verbs", "duplicate": true}
+                """)
+                .andExpect(status().isCreated());
+        send("POST", SPANISH + "/vocab", """
+                {"word": "ustedes tienen", "english": "you have", "category": "verbs"}
+                """)
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.error").value("This is already saved 2 times."))
+                .andExpect(jsonPath("$.duplicates", hasSize(2)));
+    }
+
+    @Test
     void updatesAndDeletes() throws Exception {
         int id = add("hablar", "to talk", "verbs");
         send("PUT", SPANISH + "/vocab/" + id, """

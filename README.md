@@ -9,6 +9,8 @@ Feature:
 Several languages, each with its own vocabulary and categories; switch at the top of the app
 Add new vocabulary with its English translation and an optional context note (rules, usage, exceptions),
     shown with the "Note" button in the word list and after each quiz question
+Warns before saving a duplicate (same word or same English, also one of the '/' alternatives) and lists
+    every entry it matches
 Save vocabulary locally (one file per language)
 Quiz saved vocabulary
 Randomized vocabulary order

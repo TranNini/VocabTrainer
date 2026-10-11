@@ -241,15 +241,26 @@ function wireCategorySelect(select, newInput) {
     });
 }
 
-// Sends the vocab; if the server says the category is new, asks first and sends again
+// Sends the vocab; if the server says the category is new or the vocab is already saved, asks first
+// and sends again (a new category can still be followed by duplicates)
 async function saveVocab(method, url, vocab) {
     try {
         return await api(method, url, vocab);
     } catch (error) {
-        if (error.status === 409 && confirm(`Create new category '${error.data.newCategory}'?`)) {
-            return api(method, url, {...vocab, newCategory: true});
+        if (error.status !== 409) {
+            throw error;
         }
-        throw error;
+        if (error.data.newCategory !== undefined) {
+            if (confirm(`Create new category '${error.data.newCategory}'?`)) {
+                return saveVocab(method, url, {...vocab, newCategory: true});
+            }
+        } else if (error.data.duplicates) {
+            const list = error.data.duplicates.map((d) => `• ${d.word} = ${d.english} [${d.category}]`).join("\n");
+            if (confirm(`${error.message}\n\n${list}\n\nSave anyway?`)) {
+                return saveVocab(method, url, {...vocab, duplicate: true});
+            }
+        }
+        throw new Error("Not saved.");
     }
 }
 
