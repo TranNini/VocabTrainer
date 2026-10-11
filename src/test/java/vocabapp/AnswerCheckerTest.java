@@ -125,6 +125,25 @@ class AnswerCheckerTest {
     }
 
     @Test
+    void hintButtonKeepsGivingLettersUntilTheEnd() {
+        // nearly finished is not the same as nearly right
+        assertEquals("It starts with 'hablar'", hint("habla", "hablar"));
+        assertEquals("It starts with 'escribi'", hint("escrib", "escribir"));
+        assertEquals("It starts with 'ir'", hint("i", "ir"));
+        assertEquals("It starts with 'to write'", hint("to writ", "to write"));
+    }
+
+    @Test
+    void hintButtonFollowsAnArticleThatIsBeingTyped() {
+        assertEquals("It starts with 'el'", hint("e", "el examen"));
+        assertEquals("It starts with 'el e'", hint("el", "el examen"));
+        assertEquals("It starts with 'el b'", hint("el ", "el bolígrafo"));
+        assertEquals("It starts with 'to t'", hint("to", "to talk / to speak"));
+        assertEquals("It starts with 'to sp'", hint("to s", "to talk / to speak"));
+        assertEquals("It starts with 'to g'", hint("to", "to go"));
+    }
+
+    @Test
     void hintButtonGivesTheFirstLetterForACompletelyWrongAnswer() {
         assertEquals("It starts with 'd'", hint("gato", "dado"));
     }

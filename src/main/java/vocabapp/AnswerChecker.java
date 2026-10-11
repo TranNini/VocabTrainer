@@ -54,6 +54,22 @@ public class AnswerChecker {
         List<String> articles = new ArrayList<>(language.getArticles());
         articles.addAll(Language.ENGLISH_ARTICLES);
         String[] typed = splitArticle(cleaned, articles);
+        // Typed right so far, nearly finished or with the article ("e", "el", "to") -> one letter more.
+        // Checked first, so a correct start is never mistaken for a nearly right answer.
+        if (!cleaned.isEmpty()) {
+            for (String option : expected.split("/")) {
+                String full = normalize(option);
+                String word = splitArticle(full, articles)[1];
+                if (commonPrefix(cleaned, full) == cleaned.length()) {
+                    return "It starts with '" + start(full, cleaned.length()) + "'";
+                }
+                // the whole word without its article falls through to "Don't forget the article!"
+                if (typed[0] == null && cleaned.length() < word.length()
+                        && commonPrefix(cleaned, word) == cleaned.length()) {
+                    return "It starts with '" + start(word, cleaned.length()) + "'";
+                }
+            }
+        }
         String[] target = null;
         int bestPrefix = -1;
         for (String option : expected.split("/")) {
@@ -86,15 +102,20 @@ public class AnswerChecker {
         if (prefix == word.length()) {
             return "The start is right, but there are letters too many.";
         }
-        int length = prefix + 1;
-        if (length < word.length() && word.charAt(length - 1) == ' ') {
-            length++; // a space alone tells nothing, so give the next letter with it
-        }
-        String start = word.substring(0, length);
+        String start = start(word, prefix);
         if (article != null && article.equalsIgnoreCase(typed[0])) {
             start = article + " " + start; // keep the article that is already typed right
         }
         return "It starts with '" + start + "'";
+    }
+
+    // The first known letters of the target plus one more
+    private static String start(String target, int known) {
+        int length = Math.min(known + 1, target.length());
+        if (length < target.length() && target.charAt(length - 1) == ' ') {
+            length++; // a space alone tells nothing, so give the next letter with it
+        }
+        return target.substring(0, length);
     }
 
     // "la vaca" -> {"la", "vaca"}, "to talk" -> {"to", "talk"}, "vaca" -> {null, "vaca"}
