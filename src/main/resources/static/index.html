@@ -10,12 +10,15 @@
     <link rel="icon" href="icon.svg" type="image/svg+xml">
     <link rel="apple-touch-icon" href="apple-touch-icon.png">
     <title>Vocab Trainer</title>
-    <link rel="stylesheet" href="style.css?v=2">
+    <link rel="stylesheet" href="style.css?v=3">
 </head>
 <body>
 <header class="top">
     <h1>Vocab Trainer</h1>
-    <select id="language" class="language-select" aria-label="Language"></select>
+    <div class="pickers">
+        <select id="learner" class="language-select" aria-label="Who's learning"></select>
+        <select id="language" class="language-select" aria-label="Language"></select>
+    </div>
 </header>
 
 <main>
@@ -135,6 +138,6 @@
 </template>
 
 <!-- ?v=2: one-time nudge for browsers still holding an old cached copy -->
-<script src="app.js?v=2"></script>
+<script src="app.js?v=3"></script>
 </body>
 </html>

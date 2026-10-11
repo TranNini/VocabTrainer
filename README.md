@@ -6,6 +6,8 @@ on the Mac in the browser and on the iPhone. Started with Spanish; more language
 
 Feature:
 
+Several learners (e.g. a parent and a child), each with their own languages and vocabulary; pick
+    "who's learning" at the top, each device remembers it. "Add learner…" adds a new one
 Several languages, each with its own vocabulary and categories; switch at the top of the app
 Add new vocabulary with its English translation and an optional context note (rules, usage, exceptions),
     shown with the "Note" button in the word list and after each quiz question
@@ -54,9 +56,10 @@ iPhone (same Wi-Fi as the Mac, Mac must be awake with the app running)
     for the new one and add it to the Home Screen again.
 
 Where the vocabulary is saved:
-    vocab/<Language>.txt, e.g. vocab/Spanish.txt (not in git), one line per entry: word;english;category
-    or word;english;category;context when the entry has a context note
-    The old vocab.txt is moved to vocab/Spanish.txt automatically on the first start.
+    vocab/<Learner>/<Language>.txt, e.g. vocab/Nini/Spanish.txt (not in git), one line per entry:
+    word;english;category or word;english;category;context when the entry has a context note
+    Vocab saved before there were learners (vocab/Spanish.txt …, or the even older vocab.txt) is moved
+    to the first learner (vocab.first-learner in application.properties) automatically on the first start.
 
 Adding verb conjugations (Spanish):
     Add the infinitive first (e.g. tener), then its forms starting with the pronoun
@@ -75,7 +78,8 @@ Project Structure (src/main/java/vocabapp):
 
 Vocab.java - represents a vocabulary entry and its category
 VocabStore.java - handles storing and loading the vocabulary of one language
-VocabLibrary.java - all languages, one file each in the vocab folder
+Learners.java - everyone who learns with the app, one folder each in the vocab folder
+VocabLibrary.java - all languages of one learner, one file each in their folder
 Language.java - everything that differs between languages (Spanish rules, defaults for others)
 AnswerChecker.java - checks quiz answers and gives hints
 Question.java - one quiz question (which side is asked)

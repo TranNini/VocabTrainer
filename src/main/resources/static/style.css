@@ -51,6 +51,14 @@ body {
     letter-spacing: 0.02em;
 }
 
+/* who's learning and which language, side by side */
+.pickers {
+    display: flex;
+    justify-content: center;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
 .language-select {
     width: auto;
     margin-top: 8px;

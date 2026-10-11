@@ -3,7 +3,9 @@
 
 const NEW_CATEGORY = "__new__";
 const ADD_LANGUAGE = "__add__";
+const ADD_LEARNER = "__add__";
 
+let learner = null; // whose vocab is shown: each learner has their own languages and words
 let languages = [];
 let language = null; // the one being learned right now: {name, count, ipa, specialLetters, dictionaryName}
 let categories = [];
@@ -49,9 +51,14 @@ function showMessage(text, isError = false) {
     showMessage.timer = setTimeout(() => (message.hidden = true), 4000);
 }
 
-// URL of something in the current language, e.g. /api/languages/Spanish/vocab
+// URL of something of the current learner, e.g. /api/learners/Nini/languages
+function learnerUrl(path) {
+    return `/api/learners/${encodeURIComponent(learner)}${path}`;
+}
+
+// URL of something in the current language, e.g. /api/learners/Nini/languages/Spanish/vocab
 function langUrl(path) {
-    return `/api/languages/${encodeURIComponent(language.name)}${path}`;
+    return learnerUrl(`/languages/${encodeURIComponent(language.name)}${path}`);
 }
 
 // Vietnamese tone marks, typed after the vowel they belong to
@@ -123,25 +130,86 @@ function dictionaryLink(url) {
     });
 }
 
-// ---------- languages ----------
+// ---------- learners ----------
 
-function savedLanguageName() {
+// Each device remembers its learner, and the last language of each learner
+function loadSetting(key) {
     try {
-        return localStorage.getItem("language");
+        return localStorage.getItem(key);
     } catch {
-        return null; // private browsing: just start with the first language
+        return null; // private browsing: just start with the first one
     }
 }
 
+function saveSetting(key, value) {
+    try {
+        localStorage.setItem(key, value);
+    } catch {
+        // only a convenience
+    }
+}
+
+async function loadLearners(selectName) {
+    const names = await api("GET", "/api/learners");
+    const select = $("learner");
+    select.replaceChildren(
+        ...names.map((name) => el("option", {value: name, textContent: name})),
+        el("option", {value: ADD_LEARNER, textContent: "Add learner…"}));
+    const wanted = names.find((n) => n === selectName) || names.find((n) => n === loadSetting("learner")) || names[0];
+    if (!wanted) {
+        select.value = ADD_LEARNER;
+        showMessage("Add your name to start.");
+        return;
+    }
+    select.value = wanted;
+    await switchLearner(wanted);
+}
+
+async function switchLearner(name) {
+    learner = name;
+    saveSetting("learner", name);
+    await loadLanguages();
+}
+
+async function addLearner() {
+    const name = prompt("What's the name of the new learner?");
+    if (!name) {
+        $("learner").value = learner ?? ADD_LEARNER;
+        return;
+    }
+    try {
+        const added = await api("POST", "/api/learners", {name});
+        await loadLearners(added.name);
+        showMessage(`Hi ${added.name}! Add the first language you want to learn.`);
+    } catch (error) {
+        $("learner").value = learner ?? ADD_LEARNER;
+        showMessage(error.message, true);
+    }
+}
+
+// ---------- languages ----------
+
 async function loadLanguages(selectName) {
-    languages = await api("GET", "/api/languages");
+    languages = await api("GET", learnerUrl("/languages"));
     const select = $("language");
     select.replaceChildren(
         ...languages.map((l) => el("option", {value: l.name, textContent: l.name})),
         el("option", {value: ADD_LANGUAGE, textContent: "Add language…"}));
-    const wanted = languages.find((l) => l.name === selectName) || languages.find((l) => l.name === savedLanguageName())
-        || languages[0];
+    const wanted = languages.find((l) => l.name === selectName)
+        || languages.find((l) => l.name === loadSetting("language:" + learner)) || languages[0];
     if (!wanted) {
+        // a new learner: nothing of the previous learner may stay on screen
+        language = null;
+        for (const id of ["quiz-category", "words-category", "add-category"]) {
+            $(id).replaceChildren();
+        }
+        $("words-list").replaceChildren();
+        $("words-letters").replaceChildren();
+        $("add-recent").hidden = true;
+        $("add-recent-list").replaceChildren();
+        $("quiz-question").hidden = true;
+        $("quiz-summary").hidden = true;
+        $("quiz-setup").hidden = false;
         select.value = ADD_LANGUAGE;
         showMessage("Add the first language you want to learn.");
         return;
@@ -152,11 +220,7 @@ async function loadLanguages(selectName) {
 
 async function switchLanguage(name) {
     language = languages.find((l) => l.name === name);
-    try {
-        localStorage.setItem("language", name);
-    } catch {
-        // only a convenience
-    }
+    saveSetting("language:" + learner, name);
     for (const label of document.querySelectorAll(".lang-name")) {
         label.textContent = name;
     }
@@ -175,7 +239,7 @@ async function switchLanguage(name) {
 
 // Word count and special letters change when words are added, so fetch the language again
 async function refreshLanguage() {
-    languages = await api("GET", "/api/languages");
+    languages = await api("GET", learnerUrl("/languages"));
     language = languages.find((l) => l.name === language.name) || language;
     addAccentButtons($("quiz-accents"), $("quiz-answer"));
     addAccentButtons(document.querySelector("#add-form .accents"), $("add-word"));
@@ -188,7 +252,7 @@ async function addLanguage() {
         return;
     }
     try {
-        const added = await api("POST", "/api/languages", {name});
+        const added = await api("POST", learnerUrl("/languages"), {name});
         await loadLanguages(added.name);
         showMessage(`${added.name} added. Start by adding some vocab.`);
     } catch (error) {
@@ -553,6 +617,11 @@ $("quiz-stop").addEventListener("click", stopQuiz);
 $("add-form").addEventListener("submit", addVocab);
 wireCategorySelect($("add-category"), $("add-new-category"));
 
+$("learner").addEventListener("change", () => {
+    const name = $("learner").value;
+    (name === ADD_LEARNER ? addLearner() : switchLearner(name)).catch((error) => showMessage(error.message, true));
+});
+
 $("language").addEventListener("change", () => {
     const name = $("language").value;
     (name === ADD_LANGUAGE ? addLanguage() : switchLanguage(name)).catch((error) => showMessage(error.message, true));
@@ -566,6 +635,6 @@ $("words-search").addEventListener("input", () => {
 
 window.addEventListener("hashchange", () => showView(location.hash.slice(1)));
 
-loadLanguages()
+loadLearners()
     .then(() => showView(location.hash.slice(1)))
     .catch((error) => showMessage(error.message, true));

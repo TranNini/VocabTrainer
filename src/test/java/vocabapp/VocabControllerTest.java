@@ -26,7 +26,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @SpringBootTest
 @AutoConfigureMockMvc
 class VocabControllerTest {
-    private static final String SPANISH = "/api/languages/Spanish";
+    private static final String NINI = "/api/learners/Nini";
+    private static final String SPANISH = NINI + "/languages/Spanish";
 
     @TempDir
     static Path dir;
@@ -42,10 +43,16 @@ class VocabControllerTest {
     MockMvc mvc;
 
     @Autowired
+    Learners learners;
+
     VocabLibrary library;
 
     @BeforeEach
     void emptySpanish() {
+        if (learners.library("Nini") == null) {
+            learners.add("Nini");
+        }
+        library = learners.library("Nini");
         if (library.store("Spanish") == null) {
             library.addLanguage("Spanish");
         }
@@ -228,32 +235,60 @@ class VocabControllerTest {
 
     @Test
     void addsALanguageThatWorksWithTheBasics() throws Exception {
-        mvc.perform(get("/api/languages"))
+        mvc.perform(get(NINI + "/languages"))
                 .andExpect(jsonPath("$[?(@.name == 'Spanish')].ipa").value(true));
-        send("POST", "/api/languages", """
+        send("POST", NINI + "/languages", """
                 {"name": "italian"}
                 """)
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.name").value("Italian"))
                 .andExpect(jsonPath("$.ipa").value(false))
                 .andExpect(jsonPath("$.dictionaryName").value("Wiktionary"));
-        send("POST", "/api/languages", """
+        send("POST", NINI + "/languages", """
                 {"name": "Italian"}
                 """).andExpect(status().isConflict());
-        send("POST", "/api/languages", """
+        send("POST", NINI + "/languages", """
                 {"name": "Klingon 2"}
                 """).andExpect(status().isBadRequest());
 
-        send("POST", "/api/languages/Italian/vocab", """
+        send("POST", NINI + "/languages/Italian/vocab", """
                 {"word": "il caffè", "english": "coffee", "category": ""}
                 """)
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.ipa").value(nullValue()))
                 .andExpect(jsonPath("$.dictionaryUrl").value("https://en.wiktionary.org/wiki/il%20caff%C3%A8#Italian"));
-        mvc.perform(get("/api/languages"))
+        mvc.perform(get(NINI + "/languages"))
                 .andExpect(jsonPath("$[?(@.name == 'Italian')].specialLetters[0]").value("è"));
         // each language has its own words
         mvc.perform(get(SPANISH + "/vocab")).andExpect(jsonPath("$", hasSize(0)));
-        mvc.perform(get("/api/languages/Klingon/vocab")).andExpect(status().isNotFound());
+        mvc.perform(get(NINI + "/languages/Klingon/vocab")).andExpect(status().isNotFound());
+    }
+
+    @Test
+    void everyLearnerHasTheirOwnLanguagesAndVocab() throws Exception {
+        add("hablar", "to talk", "verbs");
+        send("POST", "/api/learners", """
+                {"name": "  mia "}
+                """)
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.name").value("Mia"));
+        send("POST", "/api/learners", """
+                {"name": "MIA"}
+                """).andExpect(status().isConflict());
+        send("POST", "/api/learners", """
+                {"name": "../Nini"}
+                """).andExpect(status().isBadRequest());
+        mvc.perform(get("/api/learners")).andExpect(jsonPath("$[?(@ == 'Mia')]", hasSize(1)));
+
+        mvc.perform(get("/api/learners/Mia/languages")).andExpect(jsonPath("$", hasSize(0)));
+        send("POST", "/api/learners/Mia/languages", """
+                {"name": "Spanish"}
+                """).andExpect(status().isCreated());
+        mvc.perform(get("/api/learners/Mia/languages/Spanish/vocab")).andExpect(jsonPath("$", hasSize(0)));
+        send("POST", "/api/learners/Mia/languages/Spanish/vocab", """
+                {"word": "hablar", "english": "to talk", "category": "verbs", "newCategory": true}
+                """).andExpect(status().isCreated());
+        mvc.perform(get(SPANISH + "/vocab")).andExpect(jsonPath("$", hasSize(1)));
+        mvc.perform(get("/api/learners/Nobody/languages")).andExpect(status().isNotFound());
     }
 }

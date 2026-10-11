@@ -23,20 +23,20 @@ import java.util.Random;
 import java.util.TreeSet;
 
 @RestController
-@RequestMapping("/api/languages")
+@RequestMapping("/api/learners")
 public class VocabController {
-    private final VocabLibrary library;
+    private final Learners learners;
     private final Random random = new Random();
 
-    public VocabController(VocabLibrary library) {
-        this.library = library;
+    public VocabController(Learners learners) {
+        this.learners = learners;
     }
 
     // ipa = whether IPA can be shown; specialLetters = buttons for letters a normal keyboard lacks
     record LanguageDto(String name, int count, boolean ipa, List<String> specialLetters, String dictionaryName) {
     }
 
-    record NewLanguageRequest(String name) {
+    record NewNameRequest(String name) {
     }
 
     record CategoryDto(String name, int count) {
@@ -92,20 +92,18 @@ public class VocabController {
         return ResponseEntity.status(e.status).body(e.body);
     }
 
+    // Everyone who learns with the app, each with their own languages and vocab
     @GetMapping
-    public List<LanguageDto> languages() {
-        List<LanguageDto> result = new ArrayList<>();
-        for (String name : library.languageNames()) {
-            result.add(toDto(name));
-        }
-        return result;
+    public List<String> learners() {
+        return learners.names();
     }
 
+    // Returns the saved name ("mia" -> "Mia")
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
-    public LanguageDto addLanguage(@RequestBody NewLanguageRequest request) {
+    public Map<String, String> addLearner(@RequestBody NewNameRequest request) {
         try {
-            return toDto(library.addLanguage(request.name()));
+            return Map.of("name", learners.add(request.name()));
         } catch (IllegalArgumentException e) {
             throw new ApiException(HttpStatus.BAD_REQUEST, e.getMessage());
         } catch (IllegalStateException e) {
@@ -113,69 +111,90 @@ public class VocabController {
         }
     }
 
-    @GetMapping("/{language}/categories")
-    public List<CategoryDto> categories(@PathVariable String language) {
-        List<CategoryDto> categories = new ArrayList<>();
-        index(language).categoryCounts().forEach((name, count) -> categories.add(new CategoryDto(name, count)));
-        return categories;
-    }
-
-    // Empty category = all; q: one letter = that section, longer = search both sides
-    @GetMapping("/{language}/vocab")
-    public List<VocabDto> vocab(@PathVariable String language,
-                                @RequestParam(defaultValue = "") String category,
-                                @RequestParam(defaultValue = "") String q) {
-        VocabIndex index = index(language);
-        List<VocabDto> result = new ArrayList<>();
-        for (Vocab v : index.search(blankToNull(category), q.trim())) {
-            result.add(toDto(language, v, index));
+    @GetMapping("/{learner}/languages")
+    public List<LanguageDto> languages(@PathVariable String learner) {
+        List<LanguageDto> result = new ArrayList<>();
+        for (String name : library(learner).languageNames()) {
+            result.add(toDto(learner, name));
         }
         return result;
     }
 
-    @PostMapping("/{language}/vocab")
+    @PostMapping("/{learner}/languages")
     @ResponseStatus(HttpStatus.CREATED)
-    public VocabDto add(@PathVariable String language, @RequestBody VocabRequest request) {
-        Vocab vocab = toVocab(language, request);
-        checkDuplicates(language, request, vocab, null);
-        store(language).add(vocab);
-        return toDto(language, vocab, index(language));
+    public LanguageDto addLanguage(@PathVariable String learner, @RequestBody NewNameRequest request) {
+        try {
+            return toDto(learner, library(learner).addLanguage(request.name()));
+        } catch (IllegalArgumentException e) {
+            throw new ApiException(HttpStatus.BAD_REQUEST, e.getMessage());
+        } catch (IllegalStateException e) {
+            throw new ApiException(HttpStatus.CONFLICT, e.getMessage());
+        }
     }
 
-    @PutMapping("/{language}/vocab/{id}")
-    public VocabDto update(@PathVariable String language, @PathVariable int id, @RequestBody VocabRequest request) {
-        Vocab existing = find(language, id);
-        Vocab updated = toVocab(language, request);
-        checkDuplicates(language, request, updated, existing);
-        store(language).replace(existing, updated);
-        return toDto(language, updated, index(language));
+    @GetMapping("/{learner}/languages/{language}/categories")
+    public List<CategoryDto> categories(@PathVariable String learner, @PathVariable String language) {
+        List<CategoryDto> categories = new ArrayList<>();
+        index(learner, language).categoryCounts().forEach((name, count) -> categories.add(new CategoryDto(name, count)));
+        return categories;
     }
 
-    @DeleteMapping("/{language}/vocab/{id}")
+    // Empty category = all; q: one letter = that section, longer = search both sides
+    @GetMapping("/{learner}/languages/{language}/vocab")
+    public List<VocabDto> vocab(@PathVariable String learner, @PathVariable String language,
+                                @RequestParam(defaultValue = "") String category,
+                                @RequestParam(defaultValue = "") String q) {
+        VocabIndex index = index(learner, language);
+        List<VocabDto> result = new ArrayList<>();
+        for (Vocab v : index.search(blankToNull(category), q.trim())) {
+            result.add(toDto(learner, language, v, index));
+        }
+        return result;
+    }
+
+    @PostMapping("/{learner}/languages/{language}/vocab")
+    @ResponseStatus(HttpStatus.CREATED)
+    public VocabDto add(@PathVariable String learner, @PathVariable String language, @RequestBody VocabRequest request) {
+        Vocab vocab = toVocab(learner, language, request);
+        checkDuplicates(learner, language, request, vocab, null);
+        store(learner, language).add(vocab);
+        return toDto(learner, language, vocab, index(learner, language));
+    }
+
+    @PutMapping("/{learner}/languages/{language}/vocab/{id}")
+    public VocabDto update(@PathVariable String learner, @PathVariable String language, @PathVariable int id, @RequestBody VocabRequest request) {
+        Vocab existing = find(learner, language, id);
+        Vocab updated = toVocab(learner, language, request);
+        checkDuplicates(learner, language, request, updated, existing);
+        store(learner, language).replace(existing, updated);
+        return toDto(learner, language, updated, index(learner, language));
+    }
+
+    @DeleteMapping("/{learner}/languages/{language}/vocab/{id}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
-    public void delete(@PathVariable String language, @PathVariable int id) {
-        store(language).remove(find(language, id));
+    public void delete(@PathVariable String learner, @PathVariable String language, @PathVariable int id) {
+        store(learner, language).remove(find(learner, language, id));
     }
 
     // All vocab in the category, shuffled, each asked in a random direction
-    @GetMapping("/{language}/quiz")
-    public List<QuestionDto> quiz(@PathVariable String language, @RequestParam(defaultValue = "") String category) {
-        Language rules = rules(language);
-        List<Vocab> vocab = new ArrayList<>(index(language).inCategory(blankToNull(category)));
+    @GetMapping("/{learner}/languages/{language}/quiz")
+    public List<QuestionDto> quiz(@PathVariable String learner, @PathVariable String language, @RequestParam(defaultValue = "") String category) {
+        Language rules = rules(learner, language);
+        List<Vocab> vocab = new ArrayList<>(index(learner, language).inCategory(blankToNull(category)));
         Collections.shuffle(vocab, random);
         List<QuestionDto> questions = new ArrayList<>();
         for (Vocab v : vocab) {
             Question question = Question.from(v, random);
             String promptIpa = question.answerInLanguage() ? null : rules.ipa(question.prompt());
-            questions.add(new QuestionDto(store(language).idOf(v), question.answerInLanguage(), question.prompt(), promptIpa));
+            questions.add(new QuestionDto(store(learner, language).idOf(v), question.answerInLanguage(), question.prompt(), promptIpa));
         }
         return questions;
     }
 
-    @PostMapping("/{language}/quiz/check")
-    public CheckResult check(@PathVariable String language, @RequestBody CheckRequest request) {
-        Language rules = rules(language);
-        Vocab vocab = find(language, request.id());
+    @PostMapping("/{learner}/languages/{language}/quiz/check")
+    public CheckResult check(@PathVariable String learner, @PathVariable String language, @RequestBody CheckRequest request) {
+        Language rules = rules(learner, language);
+        Vocab vocab = find(learner, language, request.id());
         String expected = Question.expectedAnswer(vocab, request.answerInLanguage());
         String answer = request.answer() == null ? "" : request.answer().trim();
         String ipa = rules.ipa(vocab.getWord());
@@ -192,41 +211,49 @@ public class VocabController {
     }
 
     // The hint button; doesn't count as a try and never repeats a hint shown for this question
-    @PostMapping("/{language}/quiz/hint")
-    public HintResult hint(@PathVariable String language, @RequestBody HintRequest request) {
-        Vocab vocab = find(language, request.id());
+    @PostMapping("/{learner}/languages/{language}/quiz/hint")
+    public HintResult hint(@PathVariable String learner, @PathVariable String language, @RequestBody HintRequest request) {
+        Vocab vocab = find(learner, language, request.id());
         String expected = Question.expectedAnswer(vocab, request.answerInLanguage());
         String answer = request.answer() == null ? "" : request.answer();
         List<String> shown = request.shown() == null ? List.of() : request.shown();
-        return new HintResult(AnswerChecker.hint(answer, expected, rules(language), shown));
+        return new HintResult(AnswerChecker.hint(answer, expected, rules(learner, language), shown));
     }
 
-    private VocabStore store(String language) {
-        VocabStore store = library.store(language);
+    private VocabLibrary library(String learner) {
+        VocabLibrary library = learners.library(learner);
+        if (library == null) {
+            throw new ApiException(HttpStatus.NOT_FOUND, learner + " doesn't exist.");
+        }
+        return library;
+    }
+
+    private VocabStore store(String learner, String language) {
+        VocabStore store = library(learner).store(language);
         if (store == null) {
             throw new ApiException(HttpStatus.NOT_FOUND, language + " Doesn't exist.");
         }
         return store;
     }
 
-    private Language rules(String language) {
-        store(language); // 404 for unknown languages
-        return library.language(language);
+    private Language rules(String learner, String language) {
+        store(learner, language); // 404 for unknown languages
+        return library(learner).language(language);
     }
 
-    private VocabIndex index(String language) {
-        return new VocabIndex(store(language).getAll(), rules(language));
+    private VocabIndex index(String learner, String language) {
+        return new VocabIndex(store(learner, language).getAll(), rules(learner, language));
     }
 
-    private Vocab find(String language, int id) {
-        Vocab vocab = store(language).findById(id);
+    private Vocab find(String learner, String language, int id) {
+        Vocab vocab = store(learner, language).findById(id);
         if (vocab == null) {
             throw new ApiException(HttpStatus.NOT_FOUND, "This vocab doesn't exist anymore.");
         }
         return vocab;
     }
 
-    private Vocab toVocab(String language, VocabRequest request) {
+    private Vocab toVocab(String learner, String language, VocabRequest request) {
         String word = request.word() == null ? "" : Normalizer.normalize(request.word(), Normalizer.Form.NFC).trim();
         String english = request.english() == null ? "" : Normalizer.normalize(request.english(), Normalizer.Form.NFC).trim();
         if (word.isEmpty() || english.isEmpty()) {
@@ -244,7 +271,7 @@ public class VocabController {
         if (typed.contains(";")) {
             throw new ApiException(HttpStatus.BAD_REQUEST, "Don't use ';' in a category name.");
         }
-        String category = index(language).resolveCategory(typed);
+        String category = index(learner, language).resolveCategory(typed);
         if (category == null) {
             if (!request.newCategory()) {
                 throw new ApiException(HttpStatus.CONFLICT, Map.of(
@@ -257,14 +284,14 @@ public class VocabController {
     }
 
     // 409 listing every saved vocab with the same word or English, unless the request already confirmed it
-    private void checkDuplicates(String language, VocabRequest request, Vocab vocab, Vocab except) {
+    private void checkDuplicates(String learner, String language, VocabRequest request, Vocab vocab, Vocab except) {
         if (request.duplicate()) {
             return;
         }
-        VocabIndex index = index(language);
+        VocabIndex index = index(learner, language);
         List<VocabDto> duplicates = new ArrayList<>();
         for (Vocab v : index.duplicatesOf(vocab.getWord(), vocab.getEnglish(), except)) {
-            duplicates.add(toDto(language, v, index));
+            duplicates.add(toDto(learner, language, v, index));
         }
         if (!duplicates.isEmpty()) {
             String error = duplicates.size() == 1 ? "This is already saved." : "This is already saved " + duplicates.size() + " times.";
@@ -272,7 +299,8 @@ public class VocabController {
         }
     }
 
-    private LanguageDto toDto(String name) {
+    private LanguageDto toDto(String learner, String name) {
+        VocabLibrary library = library(learner);
         Language rules = library.language(name);
         List<Vocab> all = library.store(name).getAll();
         List<String> letters = rules.getSpecialLetters();
@@ -293,9 +321,9 @@ public class VocabController {
         return new ArrayList<>(letters);
     }
 
-    private VocabDto toDto(String language, Vocab v, VocabIndex index) {
-        Language rules = library.language(language);
-        return new VocabDto(store(language).idOf(v), v.getWord(), v.getEnglish(), v.getCategory(), v.getContext(),
+    private VocabDto toDto(String learner, String language, Vocab v, VocabIndex index) {
+        Language rules = library(learner).language(language);
+        return new VocabDto(store(learner, language).idOf(v), v.getWord(), v.getEnglish(), v.getCategory(), v.getContext(),
                 index.sectionLetter(v), index.isConjugation(v), rules.ipa(v.getWord()), rules.dictionaryUrl(v.getWord()));
     }
 
