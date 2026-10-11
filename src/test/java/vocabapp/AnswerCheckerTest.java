@@ -172,8 +172,34 @@ class AnswerCheckerTest {
     }
 
     @Test
+    void hintButtonShowsTheMistakeInsteadOfTheStart() {
+        assertEquals("Almost! Check the accent: C_mo", hint("como", "Cómo...?"));
+        assertEquals("Almost! Check the accent: C_mo …", hint("como", "Cómo te llamas?"));
+        assertEquals("Almost! Check the accent: De d_nde eres", hint("de donde eres", "De dónde eres?"));
+    }
+
+    @Test
+    void hintButtonShowsWhichWordsOfASentenceAreWrong() {
+        assertEquals("Almost! These letters are right: C_mo __ llamas", hint("como se llamas", "Cómo te llamas?"));
+        assertEquals("Almost! These letters are right: Es la foto n_mero ___", hint("Es la foto numero dos", "Es la foto número uno."));
+        assertEquals("Almost! These letters are right: No es un_ isla", hint("No es un isla", "No es una isla."));
+        assertEquals("Almost! These letters are right: __ tienes", hint("yo tienes", "tú tienes"));
+        assertEquals("Almost! These letters are right: __ n_mero", hint("la numero", "el número"));
+    }
+
+    @Test
+    void checkShowsTheSameMistakesOnTheSecondTry() {
+        assertEquals("Almost! These letters are right: Es la foto n_mero ___",
+                AnswerChecker.feedback("Es la foto numero dos", "Es la foto número uno.", 2, SPANISH));
+        assertEquals("Almost! These letters are right: How are y__",
+                AnswerChecker.feedback("How are yuo", "How are you? / What's up?", 2, SPANISH));
+        assertEquals("Almost! There's one word too many.",
+                AnswerChecker.feedback("yo soy soy Nini", "Yo soy Nini", 2, SPANISH));
+    }
+
+    @Test
     void hintButtonShowsWhichLettersAreRightForNearlyRightAnswers() {
-        assertEquals("Almost! There are a few letters too many.", hint("la apellidone", "el apellido"));
+        assertEquals("Almost! These letters are right: __ apellido", hint("la apellidone", "el apellido"));
         assertEquals("Almost! There are a few letters too many.", hint("apellidion", "el apellido"));
         assertEquals("Almost! These letters are right: da_o", hint("dao", "dado"));
         assertEquals("Almost! Check the accent: adi_s", hint("adios", "adiós"));

@@ -35,16 +35,17 @@ public class AnswerChecker {
         if (attempt == 1) {
             return "Not quite.";
         }
-        if (isClose(cleaned, target)) {
-            return closeHint(cleaned, target);
+        Mistake mistake = findMistakes(cleaned, expected, articles);
+        if (mistake != null) {
+            return mistake.message();
         }
         return "Not quite. Hint: it starts with '" + getHint(target, articles) + "'";
     }
 
     // Hint button. It only looks at what is typed, so pressing it again gives the same hint:
     // nothing typed or all wrong -> the first letter ('d' for "dado"); the right start -> one
-    // letter more ("deca" -> 'da'); nearly right ("apellidion" for "apellido") -> which letters
-    // are right, like after Check; only the article wrong or missing -> says so.
+    // letter more ("deca" -> 'da'); mistakes in it ("como" for "Cómo te llamas") -> which letters
+    // are right, word by word, like after Check; only the article wrong or missing -> says so.
     // A leading article (el, la, the, to …) is skipped, so "la vaca" starts with 'v'.
     public static String hint(String answer, String expected, Language language) {
         String cleaned = normalize(answer);
@@ -95,16 +96,19 @@ public class AnswerChecker {
             }
             return typed[0] == null ? "Don't forget the article!" : "Check the article.";
         }
-        if (!typedWord.isEmpty() && isClose(typedWord, word)) {
-            return closeHint(typedWord, word);
-        }
         int prefix = commonPrefix(typedWord, word);
-        if (prefix == word.length()) {
+        boolean articleRight = article == null || article.equalsIgnoreCase(typed[0]);
+        if (!typedWord.isEmpty() && prefix == word.length() && articleRight) {
             return "The start is right, but there are letters too many.";
         }
         String start = start(word, prefix);
-        if (article != null && article.equalsIgnoreCase(typed[0])) {
+        if (article != null && articleRight) {
             start = article + " " + start; // keep the article that is already typed right
+        }
+        // the letters that are right, unless the start tells more ("Dama" for "dado" -> 'dad')
+        Mistake mistake = findMistakes(cleaned, expected, articles);
+        if (mistake != null && (mistake.gaps() == 0 || mistake.known() >= start.replace(" ", "").length())) {
+            return mistake.message();
         }
         return "It starts with '" + start + "'";
     }
@@ -138,20 +142,143 @@ public class AnswerChecker {
         return i;
     }
 
-    // For answers that are nearly right: shows the letters that already fit, "_" for the rest,
-    // e.g. "oro" for "oso" -> "o_o"
-    private static String closeHint(String answer, String target) {
-        String pattern = knownLetters(answer, target);
-        if (stripAccents(answer).equalsIgnoreCase(stripAccents(target))) {
-            return "Almost! Check the accent: " + pattern;
+    // known = letters shown as right, gaps = letters shown as "_"
+    private record Mistake(String message, int known, int gaps) {
+    }
+
+    // For answers with mistakes: the answer word by word, with the letters that are right and "_" for the
+    // rest, e.g. "oro" for "oso" -> "o_o", "como se llamas" for "Cómo te llamas" -> "C_mo _e llamas",
+    // "numero dos" for "número uno" -> "n_mero ___". Words not typed yet at the end are left out
+    // ("como" -> "C_mo …"). Uses the alternative that fits best; null if nothing typed fits.
+    private static Mistake findMistakes(String answer, String expected, List<String> articles) {
+        if (answer.isEmpty()) {
+            return null;
         }
-        if (!pattern.contains("_")) {
+        String[] typed = answer.split(" ");
+        boolean typedArticle = splitArticle(answer, articles)[0] != null;
+        Mistake best = null;
+        for (String option : expected.split("/")) {
+            String full = normalize(option);
+            List<String> targets = new ArrayList<>(List.of(full));
+            String word = splitArticle(full, articles)[1];
+            if (!typedArticle && !word.equals(full)) {
+                targets.add(word); // "apellidion" is compared with "apellido", not "el apellido"
+            }
+            for (String target : targets) {
+                Mistake mistake = compareWords(typed, target.split(" "));
+                if (mistake != null && (best == null || mistake.known() > best.known()
+                        || mistake.known() == best.known() && mistake.gaps() < best.gaps())) {
+                    best = mistake;
+                }
+            }
+        }
+        return best;
+    }
+
+    // Lines up the typed words with the target words (a word can be missing, extra or wrong),
+    // then shows each target word as right, partly right or all "_"
+    private static Mistake compareWords(String[] typed, String[] target) {
+        int n = typed.length;
+        int m = target.length;
+        int[][] dp = new int[n + 1][m + 1];
+        for (int i = 0; i <= n; i++) {
+            dp[i][0] = i;
+        }
+        for (int j = 0; j <= m; j++) {
+            dp[0][j] = j;
+        }
+        for (int i = 1; i <= n; i++) {
+            for (int j = 1; j <= m; j++) {
+                int pair = dp[i - 1][j - 1] + wordCost(typed[i - 1], target[j - 1], i == n);
+                dp[i][j] = Math.min(pair, Math.min(dp[i - 1][j], dp[i][j - 1]) + 1);
+            }
+        }
+        String[] shown = new String[m];
+        boolean onlyAccents = true;
+        int extraWords = 0;
+        int i = n;
+        int j = m;
+        while (i > 0 && j > 0) {
+            int cost = wordCost(typed[i - 1], target[j - 1], i == n);
+            if (dp[i][j] == dp[i - 1][j - 1] + cost) {
+                shown[j - 1] = cost < 2 ? knownLetters(typed[i - 1], target[j - 1]) : "_".repeat(target[j - 1].length());
+                onlyAccents &= stripAccents(typed[i - 1]).equalsIgnoreCase(stripAccents(target[j - 1]));
+                i--;
+                j--;
+            } else if (dp[i][j] == dp[i - 1][j] + 1) {
+                extraWords++;
+                i--;
+            } else {
+                j--;
+            }
+        }
+        extraWords += i;
+        int last = m - 1;
+        while (last >= 0 && shown[last] == null) {
+            last--; // not typed yet
+        }
+        if (last < 0) {
+            return null;
+        }
+        List<String> words = new ArrayList<>();
+        int known = 0;
+        int gaps = 0;
+        for (int k = 0; k <= last; k++) {
+            if (shown[k] == null) {
+                shown[k] = "_".repeat(target[k].length()); // missing word
+                onlyAccents = false;
+            }
+            words.add(shown[k]);
+            gaps += (int) shown[k].chars().filter(c -> c == '_').count();
+            known += shown[k].length() - (int) shown[k].chars().filter(c -> c == '_').count();
+        }
+        if (known == 0) {
+            return null;
+        }
+        String pattern = String.join(" ", words) + (last < m - 1 ? " …" : "");
+        String message;
+        if (onlyAccents && extraWords == 0 && gaps > 0) {
+            message = "Almost! Check the accent: " + pattern;
+        } else if (gaps == 0 && last == m - 1) {
             // every letter is there, so the pattern would give the answer away
-            return answer.length() - target.length() == 1
-                    ? "Almost! There's one letter too many."
-                    : "Almost! There are a few letters too many.";
+            int extraLetters = String.join(" ", typed).length() - String.join(" ", target).length();
+            if (extraWords > 0) {
+                message = extraWords == 1 ? "Almost! There's one word too many." : "Almost! There are a few words too many.";
+            } else {
+                message = extraLetters == 1 ? "Almost! There's one letter too many." : "Almost! There are a few letters too many.";
+            }
+        } else {
+            message = "Almost! These letters are right: " + pattern;
         }
-        return "Almost! These letters are right: " + pattern;
+        return new Mistake(message, known, gaps);
+    }
+
+    // 0 = the same word, 1 = partly right (more than half the letters), 2 = a different word. The last typed word may be unfinished
+    // ("ll" for "llamas"). Short words (el, tu, yo) are partly right only when just an accent is wrong.
+    private static int wordCost(String typed, String target, boolean last) {
+        if (typed.equalsIgnoreCase(target)) {
+            return 0;
+        }
+        if (stripAccents(typed).equalsIgnoreCase(stripAccents(target))) {
+            return 1;
+        }
+        if (target.length() <= 2) {
+            return 2;
+        }
+        if (last && stripAccents(target).toLowerCase().startsWith(stripAccents(typed).toLowerCase())) {
+            return 1;
+        }
+        if (sortedLetters(typed).equals(sortedLetters(target))) {
+            return 1; // letters swapped ("yuo" for "you")
+        }
+        String pattern = knownLetters(typed, target);
+        int known = pattern.length() - (int) pattern.chars().filter(c -> c == '_').count();
+        return known * 2 > target.length() ? 1 : 2;
+    }
+
+    private static String sortedLetters(String word) {
+        int[] letters = stripAccents(word).toLowerCase().codePoints().sorted().toArray();
+        return new String(letters, 0, letters.length);
     }
 
     // Lines the answer up with the target the same way the typo check counts changes,
