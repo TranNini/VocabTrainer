@@ -7,7 +7,7 @@ on the Mac in the browser and on the iPhone. Started with Spanish; more language
 Feature:
 
 Several learners (e.g. a parent and a child), each with their own languages and vocabulary; pick
-    "who's learning" at the top, each device remembers it. "Add learner…" adds a new one
+    "who's learning" at the top, each device remembers it. The same menu adds, renames and deletes learners
 Several languages, each with its own vocabulary and categories; switch at the top of the app
 Add new vocabulary with its English translation and an optional context note (rules, usage, exceptions),
     shown with the "Note" button in the word list and after each quiz question
@@ -60,6 +60,8 @@ Where the vocabulary is saved:
     word;english;category or word;english;category;context when the entry has a context note
     Vocab saved before there were learners (vocab/Spanish.txt …, or the even older vocab.txt) is moved
     to the first learner (vocab.first-learner in application.properties) automatically on the first start.
+    A deleted learner's folder is moved to vocab/.deleted/<name> <date time>; to restore it, move it back
+    to vocab/ (named like before, without the date) and restart the app.
 
 Adding verb conjugations (Spanish):
     Add the infinitive first (e.g. tener), then its forms starting with the pronoun

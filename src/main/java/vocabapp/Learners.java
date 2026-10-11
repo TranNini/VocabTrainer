@@ -9,6 +9,8 @@ import java.nio.file.DirectoryStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -20,6 +22,8 @@ import java.util.TreeMap;
 public class Learners {
     // Before languages existed everything was Spanish, saved in vocab.txt
     private static final String FIRST_LANGUAGE = "Spanish";
+    // Deleted learners are kept here (not a learner itself, it starts with "."), so they can be restored
+    static final String DELETED = ".deleted";
 
     private final Path dir;
     private final Map<String, VocabLibrary> libraries = new TreeMap<>(String.CASE_INSENSITIVE_ORDER);
@@ -58,11 +62,57 @@ public class Learners {
     public synchronized String add(String name) {
         String saved = VocabLibrary.cleanName(name, "name");
         if (libraries.containsKey(saved)) {
-            throw new IllegalStateException(libraries.keySet().stream()
-                    .filter(saved::equalsIgnoreCase).findFirst().orElse(saved) + " already exists.");
+            throw new IllegalStateException(savedName(saved) + " already exists.");
         }
         libraries.put(saved, new VocabLibrary(dir.resolve(saved)));
         return saved;
+    }
+
+    // Renames the learner's folder; returns the saved new name. Only the case may change ("mia" -> "Mia").
+    // null if there is no such learner.
+    public synchronized String rename(String learner, String newName) {
+        String old = savedName(learner);
+        if (old == null) {
+            return null;
+        }
+        String saved = VocabLibrary.cleanName(newName, "name");
+        if (libraries.containsKey(saved) && !saved.equalsIgnoreCase(old)) {
+            throw new IllegalStateException(savedName(saved) + " already exists.");
+        }
+        try {
+            // through a temporary name, so a change of case also works on the Mac, where "mia" and "Mia" are one folder
+            Path temporary = dir.resolve("." + old + "-renaming");
+            Files.move(dir.resolve(old), temporary);
+            Files.move(temporary, dir.resolve(saved));
+        } catch (IOException e) {
+            throw new UncheckedIOException("Could not rename the folder of " + old, e);
+        }
+        libraries.remove(old);
+        libraries.put(saved, new VocabLibrary(dir.resolve(saved)));
+        return saved;
+    }
+
+    // Moves the learner's folder to vocab/.deleted/<name> <date and time>, so nothing is lost for good;
+    // false if there is no such learner
+    public synchronized boolean delete(String learner) {
+        String saved = savedName(learner);
+        if (saved == null) {
+            return false;
+        }
+        String stamp = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH-mm-ss"));
+        try {
+            Path deleted = Files.createDirectories(dir.resolve(DELETED));
+            Files.move(dir.resolve(saved), deleted.resolve(saved + " " + stamp));
+        } catch (IOException e) {
+            throw new UncheckedIOException("Could not delete the folder of " + saved, e);
+        }
+        libraries.remove(saved);
+        return true;
+    }
+
+    // The saved spelling of a learner's name ("nini" -> "Nini"), or null
+    private String savedName(String learner) {
+        return libraries.keySet().stream().filter(name -> name.equalsIgnoreCase(learner)).findFirst().orElse(null);
     }
 
     private static boolean isName(String name) {

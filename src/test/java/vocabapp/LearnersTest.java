@@ -85,4 +85,50 @@ class LearnersTest {
         Files.createDirectories(dir.resolve("vocab/Mia"));
         assertEquals(List.of("Mia"), learners().names());
     }
+
+    @Test
+    void renamesALearnerWithTheirVocab() throws IOException {
+        Learners learners = learners();
+        learners.add("Mia");
+        learners.library("Mia").addLanguage("Spanish");
+        Files.writeString(dir.resolve("vocab/Mia/Spanish.txt"), "ir;to go;verbs\n");
+        learners.add("Nini");
+
+        assertEquals("Emma", learners.rename("mia", " emma "));
+        assertEquals(List.of("Emma", "Nini"), learners.names());
+        assertNull(learners.library("Mia"));
+        assertEquals("ir", learners.library("Emma").store("Spanish").getAll().get(0).getWord());
+        assertEquals(List.of("Emma", "Nini"), learners().names());
+
+        assertThrows(IllegalStateException.class, () -> learners.rename("Emma", "nini"));
+        assertThrows(IllegalArgumentException.class, () -> learners.rename("Emma", "../x"));
+        assertNull(learners.rename("Nobody", "Somebody"));
+    }
+
+    @Test
+    void renamingCanChangeOnlyTheCase() {
+        Learners learners = learners();
+        learners.add("mia van dijk");
+        assertEquals("Mia Van Dijk", learners.rename("Mia van dijk", "Mia Van Dijk"));
+        assertEquals(List.of("Mia Van Dijk"), learners().names());
+    }
+
+    @Test
+    void deletingKeepsTheLearnersFilesInDeleted() throws IOException {
+        Learners learners = learners();
+        learners.add("Mia");
+        learners.library("Mia").addLanguage("Spanish");
+        learners.add("Nini");
+
+        assertTrue(learners.delete("mia"));
+        assertEquals(List.of("Nini"), learners.names());
+        assertEquals(List.of("Nini"), learners().names());
+        assertFalse(Files.exists(dir.resolve("vocab/Mia")));
+        try (var kept = Files.list(dir.resolve("vocab/" + Learners.DELETED))) {
+            Path folder = kept.findFirst().orElseThrow();
+            assertTrue(folder.getFileName().toString().startsWith("Mia "));
+            assertTrue(Files.exists(folder.resolve("Spanish.txt")));
+        }
+        assertFalse(learners.delete("Nobody"));
+    }
 }

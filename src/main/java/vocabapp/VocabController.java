@@ -111,6 +111,32 @@ public class VocabController {
         }
     }
 
+    // Renames the learner (and their folder); returns the saved new name
+    @PutMapping("/{learner}")
+    public Map<String, String> renameLearner(@PathVariable String learner, @RequestBody NewNameRequest request) {
+        String saved;
+        try {
+            saved = learners.rename(learner, request.name());
+        } catch (IllegalArgumentException e) {
+            throw new ApiException(HttpStatus.BAD_REQUEST, e.getMessage());
+        } catch (IllegalStateException e) {
+            throw new ApiException(HttpStatus.CONFLICT, e.getMessage());
+        }
+        if (saved == null) {
+            library(learner); // 404
+        }
+        return Map.of("name", saved);
+    }
+
+    // Deletes the learner with all their languages and vocab (kept in vocab/.deleted, see Learners.delete)
+    @DeleteMapping("/{learner}")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void deleteLearner(@PathVariable String learner) {
+        if (!learners.delete(learner)) {
+            library(learner); // 404
+        }
+    }
+
     @GetMapping("/{learner}/languages")
     public List<LanguageDto> languages(@PathVariable String learner) {
         List<LanguageDto> result = new ArrayList<>();

@@ -4,6 +4,8 @@
 const NEW_CATEGORY = "__new__";
 const ADD_LANGUAGE = "__add__";
 const ADD_LEARNER = "__add__";
+const RENAME_LEARNER = "__rename__";
+const DELETE_LEARNER = "__delete__";
 
 let learner = null; // whose vocab is shown: each learner has their own languages and words
 let languages = [];
@@ -149,26 +151,71 @@ function saveSetting(key, value) {
     }
 }
 
+let learnerNames = [];
+
 async function loadLearners(selectName) {
-    const names = await api("GET", "/api/learners");
-    const select = $("learner");
-    select.replaceChildren(
-        ...names.map((name) => el("option", {value: name, textContent: name})),
-        el("option", {value: ADD_LEARNER, textContent: "Add learner…"}));
-    const wanted = names.find((n) => n === selectName) || names.find((n) => n === loadSetting("learner")) || names[0];
+    learnerNames = await api("GET", "/api/learners");
+    const wanted = learnerNames.find((n) => n === selectName) || learnerNames.find((n) => n === loadSetting("learner"))
+        || learnerNames[0];
     if (!wanted) {
-        select.value = ADD_LEARNER;
+        learner = null;
+        fillLearnerSelect();
+        $("learner").value = ADD_LEARNER;
         showMessage("Add your name to start.");
         return;
     }
-    select.value = wanted;
     await switchLearner(wanted);
+}
+
+// The learners, then "Add learner…" and renaming or deleting the current one
+function fillLearnerSelect() {
+    const options = learnerNames.map((name) => el("option", {value: name, textContent: name}));
+    options.push(el("option", {value: ADD_LEARNER, textContent: "Add learner…"}));
+    if (learner) {
+        options.push(el("option", {value: RENAME_LEARNER, textContent: `Rename ${learner}…`}),
+            el("option", {value: DELETE_LEARNER, textContent: `Delete ${learner}…`}));
+    }
+    $("learner").replaceChildren(...options);
+    $("learner").value = learner ?? ADD_LEARNER;
 }
 
 async function switchLearner(name) {
     learner = name;
     saveSetting("learner", name);
+    fillLearnerSelect();
     await loadLanguages();
+}
+
+async function renameLearner() {
+    const name = prompt(`New name for ${learner}:`, learner);
+    $("learner").value = learner;
+    if (!name || name.trim() === learner) {
+        return;
+    }
+    try {
+        const renamed = await api("PUT", "/api/learners/" + encodeURIComponent(learner), {name});
+        // keep the last language of this learner
+        saveSetting("language:" + renamed.name, loadSetting("language:" + learner) ?? "");
+        await loadLearners(renamed.name);
+        showMessage(`Renamed to ${renamed.name}.`);
+    } catch (error) {
+        showMessage(error.message, true);
+    }
+}
+
+async function deleteLearner() {
+    $("learner").value = learner;
+    if (!confirm(`Delete ${learner} with all of ${learner}'s languages and words?`)) {
+        return;
+    }
+    try {
+        const deleted = learner;
+        await api("DELETE", "/api/learners/" + encodeURIComponent(deleted));
+        await loadLearners();
+        showMessage(`Deleted ${deleted}.`);
+    } catch (error) {
+        showMessage(error.message, true);
+    }
 }
 
 async function addLearner() {
@@ -618,8 +665,9 @@ $("add-form").addEventListener("submit", addVocab);
 wireCategorySelect($("add-category"), $("add-new-category"));
 
 $("learner").addEventListener("change", () => {
+    const actions = {[ADD_LEARNER]: addLearner, [RENAME_LEARNER]: renameLearner, [DELETE_LEARNER]: deleteLearner};
     const name = $("learner").value;
-    (name === ADD_LEARNER ? addLearner() : switchLearner(name)).catch((error) => showMessage(error.message, true));
+    (actions[name] ? actions[name]() : switchLearner(name)).catch((error) => showMessage(error.message, true));
 });
 
 $("language").addEventListener("change", () => {

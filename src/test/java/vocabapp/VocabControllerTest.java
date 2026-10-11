@@ -291,4 +291,28 @@ class VocabControllerTest {
         mvc.perform(get(SPANISH + "/vocab")).andExpect(jsonPath("$", hasSize(1)));
         mvc.perform(get("/api/learners/Nobody/languages")).andExpect(status().isNotFound());
     }
+
+    @Test
+    void renamesAndDeletesLearners() throws Exception {
+        send("POST", "/api/learners", """
+                {"name": "Lena"}
+                """).andExpect(status().isCreated());
+        send("PUT", "/api/learners/lena", """
+                {"name": "lea"}
+                """)
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.name").value("Lea"));
+        mvc.perform(get("/api/learners/Lea/languages")).andExpect(status().isOk());
+        mvc.perform(get("/api/learners/Lena/languages")).andExpect(status().isNotFound());
+        send("PUT", "/api/learners/Lea", """
+                {"name": "Nini"}
+                """).andExpect(status().isConflict());
+        send("PUT", "/api/learners/Nobody", """
+                {"name": "Somebody"}
+                """).andExpect(status().isNotFound());
+
+        mvc.perform(delete("/api/learners/Lea")).andExpect(status().isNoContent());
+        mvc.perform(get("/api/learners")).andExpect(jsonPath("$[?(@ == 'Lea')]", hasSize(0)));
+        mvc.perform(delete("/api/learners/Lea")).andExpect(status().isNotFound());
+    }
 }
