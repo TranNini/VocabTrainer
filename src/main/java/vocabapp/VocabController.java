@@ -204,7 +204,7 @@ public class VocabController {
     private VocabStore store(String language) {
         VocabStore store = library.store(language);
         if (store == null) {
-            throw new ApiException(HttpStatus.NOT_FOUND, "There is no language called '" + language + "'.");
+            throw new ApiException(HttpStatus.NOT_FOUND, language + " Doesn't exist.");
         }
         return store;
     }
@@ -230,19 +230,19 @@ public class VocabController {
         String word = request.word() == null ? "" : Normalizer.normalize(request.word(), Normalizer.Form.NFC).trim();
         String english = request.english() == null ? "" : Normalizer.normalize(request.english(), Normalizer.Form.NFC).trim();
         if (word.isEmpty() || english.isEmpty()) {
-            throw new ApiException(HttpStatus.BAD_REQUEST, "Please fill in both the word and the English translation.");
+            throw new ApiException(HttpStatus.BAD_REQUEST, "Fill in both the word and the English translation.");
         }
         if (word.contains(";") || english.contains(";")) {
-            throw new ApiException(HttpStatus.BAD_REQUEST, "Please don't use ';' — it separates the columns in the vocab file.");
+            throw new ApiException(HttpStatus.BAD_REQUEST, "Don't use ';' — it separates the columns in the vocab file.");
         }
         // one line in the file: line breaks in the note become spaces
         String context = request.context() == null ? "" : request.context().replaceAll("\\s*[\\r\\n]+\\s*", " ").trim();
         if (context.length() > 500) {
-            throw new ApiException(HttpStatus.BAD_REQUEST, "Please keep the context under 500 characters.");
+            throw new ApiException(HttpStatus.BAD_REQUEST, "Keep the context under 500 characters.");
         }
         String typed = request.category() == null ? "" : request.category().trim();
         if (typed.contains(";")) {
-            throw new ApiException(HttpStatus.BAD_REQUEST, "Please don't use ';' in a category name.");
+            throw new ApiException(HttpStatus.BAD_REQUEST, "Don't use ';' in a category name.");
         }
         String category = index(language).resolveCategory(typed);
         if (category == null) {
