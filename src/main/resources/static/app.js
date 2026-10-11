@@ -287,7 +287,8 @@ function showView(name) {
 
 // ---------- quiz ----------
 
-const quiz = {questions: [], index: 0, attempt: 1, correct: 0, asked: 0};
+// shownHints = the hints shown for the current question, so the hint button never repeats one
+const quiz = {questions: [], index: 0, attempt: 1, correct: 0, asked: 0, shownHints: []};
 
 async function startQuiz() {
     quiz.questions = await api("GET", langUrl("/quiz?category=" + encodeURIComponent($("quiz-category").value)));
@@ -305,6 +306,7 @@ async function startQuiz() {
 function showQuestion() {
     const question = quiz.questions[quiz.index];
     quiz.attempt = 1;
+    quiz.shownHints = [];
     $("quiz-progress").textContent = `${quiz.index + 1} / ${quiz.questions.length}`;
     $("quiz-score").textContent = `${quiz.correct} correct`;
     $("quiz-direction").textContent = question.answerInLanguage ? `In ${language.name}:` : "In English:";
@@ -342,6 +344,7 @@ async function checkAnswer() {
     });
     const feedback = $("quiz-feedback");
     feedback.textContent = result.feedback;
+    quiz.shownHints.push(result.feedback);
     feedback.className = "feedback " + (result.correct ? "good" : "bad");
     if (result.correct) {
         quiz.correct++;
@@ -370,12 +373,14 @@ async function checkAnswer() {
     }
 }
 
-// A hint that fits what is typed so far (see AnswerChecker.hint); doesn't use up a try
+// A hint that fits what is typed so far and wasn't shown yet (see AnswerChecker.hint); doesn't use up a try
 async function showHint() {
     const question = quiz.questions[quiz.index];
     const hint = await api("POST", langUrl("/quiz/hint"), {
         id: question.id, answerInLanguage: question.answerInLanguage, answer: $("quiz-answer").value,
+        shown: quiz.shownHints,
     });
+    quiz.shownHints.push(hint.text);
     $("quiz-hint").textContent = hint.text;
     $("quiz-hint").hidden = false;
     $("quiz-answer").focus();

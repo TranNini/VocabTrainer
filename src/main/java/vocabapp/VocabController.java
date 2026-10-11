@@ -65,7 +65,8 @@ public class VocabController {
                        String dictionaryUrl, String context) {
     }
 
-    record HintRequest(int id, boolean answerInLanguage, String answer) {
+    // shown = the hints already shown for this question, so the next one says more
+    record HintRequest(int id, boolean answerInLanguage, String answer, List<String> shown) {
     }
 
     record HintResult(String text) {
@@ -190,13 +191,14 @@ public class VocabController {
         return new CheckResult(false, "Not quite.", AnswerChecker.allOptions(expected), true, ipa, dictionaryUrl, context);
     }
 
-    // The hint button; doesn't count as a try
+    // The hint button; doesn't count as a try and never repeats a hint shown for this question
     @PostMapping("/{language}/quiz/hint")
     public HintResult hint(@PathVariable String language, @RequestBody HintRequest request) {
         Vocab vocab = find(language, request.id());
         String expected = Question.expectedAnswer(vocab, request.answerInLanguage());
         String answer = request.answer() == null ? "" : request.answer();
-        return new HintResult(AnswerChecker.hint(answer, expected, rules(language)));
+        List<String> shown = request.shown() == null ? List.of() : request.shown();
+        return new HintResult(AnswerChecker.hint(answer, expected, rules(language), shown));
     }
 
     private VocabStore store(String language) {

@@ -2,6 +2,8 @@ package vocabapp;
 
 import org.junit.jupiter.api.Test;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Random;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -149,9 +151,39 @@ class AnswerCheckerTest {
     }
 
     @Test
-    void pressingTheHintButtonAgainWithoutTypingGivesTheSameHint() {
-        assertEquals(hint("", "dado"), hint("", "dado"));
-        assertEquals(hint("deca", "dado"), hint("deca", "dado"));
+    void pressingTheHintButtonAgainGivesTheNextHint() {
+        assertEquals(List.of("It starts with 'v'", "It starts with 'va'", "It starts with 'vac'",
+                "No more hints. Press Check to see the answer."), pressHintButton("", "la vaca", 4));
+        assertEquals(List.of("Almost! These letters are right: C_mo __ llamas", "One more letter: Cómo __ llamas",
+                "One more letter: Cómo t_ llamas", "No more hints. Press Check to see the answer."),
+                pressHintButton("como se llamas", "Cómo te llamas?", 4));
+        assertEquals(List.of("Almost! Check the accent: C_mo …", "One more letter: Cómo …"),
+                pressHintButton("como", "Cómo te llamas?", 2));
+        assertEquals(List.of("Don't forget the article!", "It starts with 'e'"), pressHintButton("apellido", "el apellido", 2));
+    }
+
+    @Test
+    void hintButtonDoesNotRepeatTheHintFromCheck() {
+        String afterCheck = AnswerChecker.feedback("perro", "el gato", 2, SPANISH);
+        assertEquals("Not quite. Hint: it starts with 'g'", afterCheck);
+        assertEquals("It starts with 'ga'", AnswerChecker.hint("perro", "el gato", SPANISH, List.of(afterCheck)));
+    }
+
+    @Test
+    void hintButtonNeverGivesTheWholeAnswer() {
+        assertEquals("No more hints. Press Check to see the answer.",
+                AnswerChecker.hint("da", "dado", SPANISH, List.of("It starts with 'dad'")));
+        assertEquals("No more hints. Press Check to see the answer.",
+                AnswerChecker.hint("como", "Cómo", SPANISH, List.of("Almost! Check the accent: C_mo")));
+    }
+
+    // The hints for pressing the hint button again and again without typing anything else
+    private static List<String> pressHintButton(String answer, String expected, int times) {
+        List<String> shown = new ArrayList<>();
+        for (int i = 0; i < times; i++) {
+            shown.add(AnswerChecker.hint(answer, expected, SPANISH, shown));
+        }
+        return shown;
     }
 
     @Test
