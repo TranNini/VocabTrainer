@@ -334,9 +334,30 @@ form > button.primary, .card > button.primary {
     padding-left: 18px;
 }
 
-/* The folded conjugation under an infinitive; the button shows how many forms it has */
+/* The folded conjugation under an infinitive; the button shows how many forms it has.
+   Open, its forms move in as a whole, in smaller rows, with a line joining them to the infinitive */
+.conjugations {
+    margin: -2px 0 10px 18px;
+    padding-left: 10px;
+    border-left: 2px solid var(--accent);
+}
+
 .conjugations[hidden] {
     display: none;
+}
+
+.conjugations .word {
+    margin-bottom: 4px;
+    border-radius: 8px;
+    font-size: 0.9rem;
+}
+
+.conjugations .word-line {
+    padding: 6px 10px;
+}
+
+.conjugations .word.conjugation .es {
+    padding-left: 0;
 }
 
 .forms-toggle {
