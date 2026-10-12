@@ -5,6 +5,7 @@ import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Random;
+import java.util.Set;
 
 public class AnswerChecker {
     public static final int MAX_ATTEMPTS = 3;
@@ -57,57 +58,57 @@ public class AnswerChecker {
         return false;
     }
 
-    // Hint after a wrong answer; attempt is 1 after the first try. The language gives its articles
-    // (for "Don't forget the article!"); English ones are always known.
-    public static String feedback(String answer, String expected, int attempt, Language language) {
-        expected = withOptionalPronouns(answer, expected, language);
-        List<String> articles = new ArrayList<>(language.getArticles());
-        articles.addAll(Language.ENGLISH_ARTICLES);
-        String target = closestAlternative(answer, expected, articles);
-        String cleaned = normalize(answer);
-        String articleHint = missingArticleHint(cleaned, target, articles);
-        if (articleHint != null) {
-            return articleHint;
-        }
-        if (attempt == 1) {
-            return "Not quite.";
-        }
-        Mistake mistake = findMistakes(cleaned, expected, articles);
-        if (mistake != null) {
-            return mistake.message();
-        }
-        return "Not quite. Hint: it starts with '" + getHint(target, articles) + "'";
+    // The hint after a wrong answer (Check). Every wrong try gets one, never one that was already shown
+    // for this vocab (shown = the hints after Check and from the hint button so far).
+    public static String feedback(String answer, String expected, Language language, List<String> shown) {
+        String hint = hint(answer, expected, language, shown);
+        return hint.startsWith(STARTS_WITH) ? "Not quite. Hint: it starts with" + hint.substring(STARTS_WITH.length()) : hint;
     }
 
-    // The first hint for what is typed (the hint button without hints shown before):
-    // nothing typed or all wrong -> the first letter ('d' for "dado"); the right start -> one
-    // letter more ("deca" -> 'da'); mistakes in it ("como" for "Cómo te llamas") -> which letters
-    // are right, word by word, like after Check; only the article wrong or missing -> says so.
-    // A leading article (el, la, the, to …) is skipped, so "la vaca" starts with 'v'.
+    // The best hint for what is typed (see hints)
     public static String hint(String answer, String expected, Language language) {
-        expected = withOptionalPronouns(answer, expected, language);
-        return firstHint(answer, expected, language).text();
+        return hint(answer, expected, language, List.of());
     }
 
-    // Hint button, but never a hint that was already shown for this vocab (by the hint button or after
-    // Check): then the next one, with one letter more each time. The answer itself is never given:
-    // after the last hint it says so, and Check shows the answer after the last try.
+    // The hint button: the best hint for what is typed that wasn't shown yet for this vocab. The page
+    // allows one per try, so with the hint after Check there are two hints per try.
     public static String hint(String answer, String expected, Language language, List<String> shown) {
         expected = withOptionalPronouns(answer, expected, language);
-        Hint first = firstHint(answer, expected, language);
-        HashSet<String> seen = new HashSet<>();
+        Set<String> seen = new HashSet<>();
         for (String text : shown) {
             seen.add(hintKey(text));
         }
-        if (!seen.contains(hintKey(first.text())) || first.text().equals(RIGHT)) {
-            return first.text();
-        }
-        for (String next : moreHints(answer, expected, language, first)) {
-            if (!seen.contains(hintKey(next))) {
-                return next;
+        List<String> hints = hints(answer, expected, language);
+        for (String hint : hints) {
+            if (!seen.contains(hintKey(hint)) || hint.equals(RIGHT)) {
+                return hint;
             }
         }
-        return "No more hints. Press Check to see the answer.";
+        return hints.get(hints.size() - 1); // seldom: every hint was shown already
+    }
+
+    // Every hint for what is typed, the most helpful first: a nearly right answer -> what kind of
+    // mistake it is ("One letter is wrong: t_ngo", "An accent is missing: c_mo"); then the first hint
+    // (see firstHint), then ones with one letter more each. The whole answer is never given.
+    private static List<String> hints(String answer, String expected, Language language) {
+        List<String> articles = new ArrayList<>(language.getArticles());
+        articles.addAll(Language.ENGLISH_ARTICLES);
+        Hint first = firstHint(answer, expected, language);
+        List<String> hints = new ArrayList<>();
+        String kind = first.text().equals(RIGHT) ? null : mistakeKind(normalize(answer), expected, articles);
+        if (kind != null) {
+            hints.add(kind);
+        }
+        hints.add(first.text());
+        hints.addAll(moreHints(answer, expected, language, first));
+        if (kind != null || first.mistake() == null) {
+            // after "C_mo t_ llamas" with its letters filled in, a start would tell less
+            hints.addAll(longerStarts(normalize(answer), expected, articles));
+        }
+        // the same pattern under another name is the same hint
+        Set<String> keys = new HashSet<>();
+        hints.removeIf(hint -> !keys.add(hintKey(hint)));
+        return hints;
     }
 
     private static final String RIGHT = "That's right! Press Check.";
@@ -118,9 +119,144 @@ public class AnswerChecker {
     private record Hint(String text, Mistake mistake) {
     }
 
-    // "Not quite. Hint: it starts with 'd'" after Check is the same hint as "It starts with 'd'"
+    private static final String STARTS_WITH = "It starts with";
+
+    // One letter past the right start of what is typed, then one more each time, up to the last
+    // letter but one ("tango" for "tengo" -> 'te', 'ten', 'teng'); the article only when it is typed
+    private static List<String> longerStarts(String answer, String expected, List<String> articles) {
+        boolean typedArticle = splitArticle(answer, articles)[0] != null;
+        String target = null;
+        int known = -1;
+        for (String option : expected.split("/")) {
+            String full = normalize(option);
+            String word = splitArticle(full, articles)[1];
+            for (String candidate : typedArticle ? List.of(full) : List.of(word, full)) {
+                int prefix = commonPrefix(answer, candidate);
+                if (prefix > known) {
+                    target = candidate;
+                    known = prefix;
+                }
+            }
+        }
+        List<String> starts = new ArrayList<>();
+        String start = target.substring(0, known);
+        while (true) {
+            start = start(target, start.length());
+            if (start.length() >= target.length()) {
+                return starts;
+            }
+            starts.add(STARTS_WITH + " '" + start + "'");
+        }
+    }
+
+    // "Not quite. Hint: it starts with 'd'" after Check is the same hint as "It starts with 'd'", and
+    // "An accent is missing: c_mo" the same as "Check the accent: c_mo"
     private static String hintKey(String text) {
-        return text.replaceFirst("^Not quite\\. Hint: ", "").toLowerCase();
+        String key = text.replaceFirst("^Not quite\\. Hint: ", "").toLowerCase();
+        int colon = key.indexOf(": ");
+        return colon < 0 ? key : key.substring(colon + 2);
+    }
+
+    // For a nearly right answer, what kind of mistake it is; null if it isn't nearly right or is typed
+    // right so far ("habl" for "hablar").
+    // Compared with every alternative, without its article when none is typed ("baca" for "la vaca").
+    private static String mistakeKind(String answer, String expected, List<String> articles) {
+        if (answer.isEmpty()) {
+            return null;
+        }
+        boolean typedArticle = splitArticle(answer, articles)[0] != null;
+        for (String option : expected.split("/")) {
+            String full = normalize(option);
+            String word = splitArticle(full, articles)[1];
+            for (String target : typedArticle || word.equals(full) ? List.of(full) : List.of(full, word)) {
+                if (commonPrefix(answer, target) == answer.length()) {
+                    return null; // right so far, so not a mistake: the next letter helps more
+                }
+                String kind = mistakeKind(answer, target);
+                if (kind != null) {
+                    return kind;
+                }
+            }
+        }
+        return null;
+    }
+
+    private static String mistakeKind(String answer, String target) {
+        String a = answer.toLowerCase();
+        String b = target.toLowerCase();
+        if (a.equals(b)) {
+            return null;
+        }
+        if (a.length() == b.length() && stripAccents(a).equals(stripAccents(b))) {
+            return accentMistake(a, target);
+        }
+        int distance = editDistances(a, b)[a.length()][b.length()];
+        if (distance == 1) {
+            if (a.replace(" ", "").equals(b.replace(" ", ""))) {
+                return a.length() > b.length() ? "Almost! There's a space too many." : "Almost! A space is missing.";
+            }
+            if (a.length() > b.length()) {
+                return "Almost! There's one letter too many.";
+            }
+            String pattern = knownLetters(answer, target);
+            return (a.length() < b.length() ? "Almost! One letter is missing: " : "Almost! One letter is wrong: ") + pattern;
+        }
+        if (distance == 2 && a.length() == b.length()) {
+            int i = 0;
+            while (a.charAt(i) == b.charAt(i)) {
+                i++;
+            }
+            if (i + 1 < a.length() && a.charAt(i) == b.charAt(i + 1) && a.charAt(i + 1) == b.charAt(i)
+                    && a.substring(i + 2).equals(b.substring(i + 2))) {
+                return "Almost! Two letters are swapped.";
+            }
+        }
+        return null;
+    }
+
+    // Only accents, ü or ñ differ: says which, with "_" where they belong ("pinguino" -> "ping_ino")
+    private static String accentMistake(String answer, String target) {
+        StringBuilder pattern = new StringBuilder(target);
+        int missing = 0;
+        int extra = 0;
+        int other = 0;
+        boolean onlyDiaeresis = true;
+        boolean onlyTilde = true;
+        for (int i = 0; i < answer.length(); i++) {
+            char typed = answer.charAt(i);
+            char right = Character.toLowerCase(target.charAt(i));
+            if (typed == right) {
+                continue;
+            }
+            pattern.setCharAt(i, '_');
+            boolean rightMarked = right != stripAccents(String.valueOf(right)).charAt(0);
+            boolean typedMarked = typed != stripAccents(String.valueOf(typed)).charAt(0);
+            if (rightMarked && !typedMarked) {
+                missing++;
+                onlyDiaeresis &= right == 'ü';
+                onlyTilde &= right == 'ñ';
+            } else if (typedMarked && !rightMarked) {
+                extra++;
+            } else {
+                other++;
+            }
+        }
+        if (missing == 0 && other == 0) {
+            return extra == 1 ? "Almost! There's an accent too many." : "Almost! There are accents too many.";
+        }
+        if (extra == 0 && other == 0) {
+            if (onlyDiaeresis) {
+                return "Almost! The diaeresis (¨) is missing: " + pattern;
+            }
+            if (onlyTilde) {
+                return "Almost! The ñ is missing: " + pattern;
+            }
+            return (missing == 1 ? "Almost! An accent is missing: " : "Almost! Some accents are missing: ") + pattern;
+        }
+        if (missing == 1 && extra == 1 && other == 0) {
+            return "Almost! The accent is on the wrong letter: " + pattern;
+        }
+        return "Almost! Check the accents: " + pattern;
     }
 
     // The hints after the first one, each with one letter more: the letters that are right with the
@@ -192,12 +328,12 @@ public class AnswerChecker {
                 String full = normalize(option);
                 String word = splitArticle(full, articles)[1];
                 if (commonPrefix(cleaned, full) == cleaned.length()) {
-                    return new Hint("It starts with '" + start(full, cleaned.length()) + "'", null);
+                    return startHint(full, cleaned.length());
                 }
                 // the whole word without its article falls through to "Don't forget the article!"
                 if (typed[0] == null && cleaned.length() < word.length()
                         && commonPrefix(cleaned, word) == cleaned.length()) {
-                    return new Hint("It starts with '" + start(word, cleaned.length()) + "'", null);
+                    return startHint(word, cleaned.length());
                 }
             }
         }
@@ -241,6 +377,15 @@ public class AnswerChecker {
             return new Hint(mistake.message(), mistake);
         }
         return new Hint("It starts with '" + start + "'", null);
+    }
+
+    // One letter past what is typed right, but never the whole answer
+    private static Hint startHint(String target, int known) {
+        String start = start(target, known);
+        if (start.length() >= target.length()) {
+            return new Hint("Almost! Just the last letter is missing.", null);
+        }
+        return new Hint(STARTS_WITH + " '" + start + "'", null);
     }
 
     // The first known letters of the target plus one more
@@ -476,38 +621,6 @@ public class AnswerChecker {
                 .trim();
     }
 
-    private static String closestAlternative(String answer, String expected, List<String> articles) {
-        String cleaned = normalize(answer);
-        String[] options = expected.split("/");
-        for (String option : options) {
-            String target = normalize(option);
-            if (missingArticleHint(cleaned, target, articles) != null || isClose(cleaned, target)) {
-                return target;
-            }
-        }
-        return normalize(options[0]);
-    }
-
-    private static String missingArticleHint(String answer, String expected, List<String> articles) {
-        String[] words = expected.split(" ", 2);
-        if (words.length < 2) {
-            return null;
-        }
-        String first = words[0].toLowerCase();
-        if (!answer.equalsIgnoreCase(words[1])) {
-            return null;
-        }
-        if (first.equals("to")) {
-            return "What comes in front of an infinitive verb?";
-        }
-        for (String article : articles) {
-            if (first.equals(article)) {
-                return "Don't forget the article!";
-            }
-        }
-        return null;
-    }
-
     private static boolean isClose(String answer, String expected) {
         String a = answer.toLowerCase();
         String b = expected.toLowerCase();
@@ -533,23 +646,5 @@ public class AnswerChecker {
             }
         }
         return dp;
-    }
-
-    private static String getHint(String expected, List<String> articles) {
-        for (String word : expected.split(" ")) {
-            if (word.isEmpty()) {
-                continue;
-            }
-            boolean isArticle = word.equalsIgnoreCase("to");
-            for (String article : articles) {
-                if (word.equalsIgnoreCase(article)) {
-                    isArticle = true;
-                }
-            }
-            if (!isArticle) {
-                return word.substring(0, 1);
-            }
-        }
-        return expected.substring(0, 1);
     }
 }

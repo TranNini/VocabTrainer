@@ -437,6 +437,7 @@ function showQuestion() {
     $("quiz-hint").hidden = true;
     $("quiz-check").hidden = false;
     $("quiz-hint-button").hidden = false;
+    setHintButton(true);
     $("quiz-next").hidden = true;
     $("quiz-answer").focus();
 }
@@ -452,6 +453,7 @@ async function checkAnswer() {
     }
     const result = await api("POST", langUrl("/quiz/check"), {
         id: question.id, answerInLanguage: question.answerInLanguage, answer, attempt: quiz.attempt,
+        shown: quiz.shownHints,
     });
     const feedback = $("quiz-feedback");
     feedback.textContent = result.feedback;
@@ -480,12 +482,20 @@ async function checkAnswer() {
         $("quiz-next").focus();
     } else {
         quiz.attempt++;
+        setHintButton(true); // a new try, so one more hint
         $("quiz-answer").select();
     }
 }
 
+// One hint per try: the button works again after the next Check
+function setHintButton(enabled) {
+    $("quiz-hint-button").disabled = !enabled;
+    $("quiz-hint-button").title = enabled ? "Hint" : "One hint per try. Check your answer for the next one.";
+}
+
 // A hint that fits what is typed so far and wasn't shown yet (see AnswerChecker.hint); doesn't use up a try
 async function showHint() {
+    setHintButton(false);
     const question = quiz.questions[quiz.index];
     const hint = await api("POST", langUrl("/quiz/hint"), {
         id: question.id, answerInLanguage: question.answerInLanguage, answer: $("quiz-answer").value,

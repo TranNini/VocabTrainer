@@ -78,57 +78,67 @@ class AnswerCheckerTest {
 
     @Test
     void hintsAtMissingArticle() {
-        assertEquals("Don't forget the article!", AnswerChecker.feedback("perro", "el perro", 1, SPANISH));
-        assertEquals("Don't forget the article!", AnswerChecker.feedback("dog", "the dog", 2, SPANISH));
+        assertEquals("Don't forget the article!", AnswerChecker.feedback("perro", "el perro", SPANISH, List.of()));
+        assertEquals("Don't forget the article!", AnswerChecker.feedback("dog", "the dog", SPANISH, List.of()));
     }
 
     @Test
     void hintsAtMissingTo() {
-        assertEquals("What comes in front of an infinitive verb?", AnswerChecker.feedback("talk", "to talk", 1, SPANISH));
+        assertEquals("What comes in front of an infinitive verb?", AnswerChecker.feedback("talk", "to talk", SPANISH, List.of()));
     }
 
     @Test
     void findsArticleHintInLaterAlternative() {
-        assertEquals("Don't forget the article!", AnswerChecker.feedback("speak", "to talk / the speak", 1, SPANISH));
+        assertEquals("Don't forget the article!", AnswerChecker.feedback("speak", "to talk / the speak", SPANISH, List.of()));
     }
 
     @Test
     void otherLanguagesStillGetEnglishArticleHints() {
         Language italian = Language.forName("Italian");
-        assertEquals("Don't forget the article!", AnswerChecker.feedback("dog", "the dog", 1, italian));
-        assertEquals("Not quite.", AnswerChecker.feedback("cane", "il cane", 1, italian));
+        assertEquals("Don't forget the article!", AnswerChecker.feedback("dog", "the dog", italian, List.of()));
+        assertEquals("Almost! These letters are right: __ cane", AnswerChecker.feedback("cane", "il cane", italian, List.of()));
     }
 
     @Test
-    void firstWrongTryOnlySaysNotQuite() {
-        assertEquals("Not quite.", AnswerChecker.feedback("gatto", "gato", 1, SPANISH));
+    void everyWrongTryGetsAHint() {
+        assertEquals("Almost! There's one letter too many.", AnswerChecker.feedback("gatto", "gato", SPANISH, List.of()));
     }
 
     @Test
-    void secondTryShowsWhichLettersAreRight() {
-        assertEquals("Almost! These letters are right: o_o", AnswerChecker.feedback("oro", "oso", 2, SPANISH));
-        assertEquals("Almost! These letters are right: _ato", AnswerChecker.feedback("pato", "gato", 2, SPANISH));
-        assertEquals("Almost! These letters are right: g_to", AnswerChecker.feedback("gto", "gato", 2, SPANISH));
-        assertEquals("Almost! These letters are right: el o_o", AnswerChecker.feedback("el oro", "el oso", 2, SPANISH));
-        assertEquals("Almost! These letters are right: Good n__ht", AnswerChecker.feedback("good nacht", "Good evening / Good night", 2, SPANISH));
+    void checkNamesTheKindOfMistake() {
+        assertEquals("Almost! One letter is wrong: o_o", AnswerChecker.feedback("oro", "oso", SPANISH, List.of()));
+        assertEquals("Almost! One letter is wrong: _ato", AnswerChecker.feedback("pato", "gato", SPANISH, List.of()));
+        assertEquals("Almost! One letter is missing: g_to", AnswerChecker.feedback("gto", "gato", SPANISH, List.of()));
+        assertEquals("Almost! One letter is wrong: el o_o", AnswerChecker.feedback("el oro", "el oso", SPANISH, List.of()));
+        assertEquals("Almost! Two letters are swapped.", AnswerChecker.feedback("How are yuo", "How are you? / What's up?", SPANISH, List.of()));
+        assertEquals("Almost! A space is missing.", AnswerChecker.feedback("buenasnoches", "buenas noches", SPANISH, List.of()));
+        assertEquals("Almost! There's one word too many.", AnswerChecker.feedback("yo soy soy Nini", "Yo soy Nini", SPANISH, List.of()));
     }
 
     @Test
-    void secondTryPointsAtTheAccent() {
-        assertEquals("Almost! Check the accent: tambi_n", AnswerChecker.feedback("tambien", "también", 2, SPANISH));
-        assertEquals("Almost! Check the accent: ni_o", AnswerChecker.feedback("nino", "el niño / niño", 2, SPANISH));
+    void checkShowsWhichLettersAreRightWhenMoreIsWrong() {
+        assertEquals("Almost! These letters are right: Good n__ht", AnswerChecker.feedback("good nacht", "Good evening / Good night", SPANISH, List.of()));
     }
 
     @Test
-    void secondTryNamesExtraLettersInsteadOfGivingTheAnswerAway() {
-        assertEquals("Almost! There's one letter too many.", AnswerChecker.feedback("gatto", "gato", 2, SPANISH));
-        assertEquals("Almost! There are a few letters too many.", AnswerChecker.feedback("elefantee", "elefant", 2, SPANISH));
+    void checkPointsAtTheAccent() {
+        assertEquals("Almost! An accent is missing: tambi_n", AnswerChecker.feedback("tambien", "también", SPANISH, List.of()));
+        assertEquals("Almost! The ñ is missing: ni_o", AnswerChecker.feedback("nino", "el niño / niño", SPANISH, List.of()));
+        assertEquals("Almost! The diaeresis (¨) is missing: ping_ino", AnswerChecker.feedback("pinguino", "pingüino", SPANISH, List.of()));
+        assertEquals("Almost! The accent is on the wrong letter: _di_s", AnswerChecker.feedback("ádios", "adiós", SPANISH, List.of()));
+        assertEquals("Almost! There's an accent too many.", AnswerChecker.feedback("adiós", "adios", SPANISH, List.of()));
     }
 
     @Test
-    void secondTryGivesFirstLetterSkippingArticles() {
-        assertEquals("Not quite. Hint: it starts with 'g'", AnswerChecker.feedback("perro", "el gato", 2, SPANISH));
-        assertEquals("Not quite. Hint: it starts with 't'", AnswerChecker.feedback("speak", "to talk", 2, SPANISH));
+    void checkNamesExtraLettersInsteadOfGivingTheAnswerAway() {
+        assertEquals("Almost! There's one letter too many.", AnswerChecker.feedback("gatto", "gato", SPANISH, List.of()));
+        assertEquals("The start is right, but there are letters too many.", AnswerChecker.feedback("elefantee", "elefant", SPANISH, List.of()));
+    }
+
+    @Test
+    void checkGivesFirstLetterSkippingArticles() {
+        assertEquals("Not quite. Hint: it starts with 'g'", AnswerChecker.feedback("perro", "el gato", SPANISH, List.of()));
+        assertEquals("Not quite. Hint: it starts with 't'", AnswerChecker.feedback("speak", "to talk", SPANISH, List.of()));
     }
 
     @Test
@@ -156,12 +166,12 @@ class AnswerCheckerTest {
     }
 
     @Test
-    void hintButtonKeepsGivingLettersUntilTheEnd() {
+    void hintButtonGivesTheNextLetterButNeverTheLast() {
         // nearly finished is not the same as nearly right
-        assertEquals("It starts with 'hablar'", hint("habla", "hablar"));
+        assertEquals("Almost! Just the last letter is missing.", hint("habla", "hablar"));
         assertEquals("It starts with 'escribi'", hint("escrib", "escribir"));
-        assertEquals("It starts with 'ir'", hint("i", "ir"));
-        assertEquals("It starts with 'to write'", hint("to writ", "to write"));
+        assertEquals("Almost! Just the last letter is missing.", hint("i", "ir"));
+        assertEquals("Almost! Just the last letter is missing.", hint("to writ", "to write"));
     }
 
     @Test
@@ -180,36 +190,40 @@ class AnswerCheckerTest {
     }
 
     @Test
-    void pressingTheHintButtonAgainGivesTheNextHint() {
-        assertEquals(List.of("It starts with 'v'", "It starts with 'va'", "It starts with 'vac'",
-                "No more hints. Press Check to see the answer."), pressHintButton("", "la vaca", 4));
+    void eachTryGetsTwoDifferentHints() {
+        // per try: the hint after Check, then the hint button
+        assertEquals(List.of("Almost! One letter is wrong: t_ngo", "It starts with 'te'",
+                "Not quite. Hint: it starts with 'ten'", "It starts with 'teng'"), tries("tango", "tengo"));
+        assertEquals(List.of("Not quite. Hint: it starts with 'g'", "It starts with 'ga'",
+                "Not quite. Hint: it starts with 'gat'"), tries("perro", "el gato").subList(0, 3));
         assertEquals(List.of("Almost! These letters are right: C_mo __ llamas", "One more letter: Cómo __ llamas",
-                "One more letter: Cómo t_ llamas", "No more hints. Press Check to see the answer."),
-                pressHintButton("como se llamas", "Cómo te llamas?", 4));
-        assertEquals(List.of("Almost! Check the accent: C_mo …", "One more letter: Cómo …"),
-                pressHintButton("como", "Cómo te llamas?", 2));
-        assertEquals(List.of("Don't forget the article!", "It starts with 'e'"), pressHintButton("apellido", "el apellido", 2));
+                "One more letter: Cómo t_ llamas"), tries("como se llamas", "Cómo te llamas?").subList(0, 3));
+        assertEquals(List.of("Don't forget the article!", "It starts with 'e'"), tries("apellido", "el apellido").subList(0, 2));
+        assertEquals(List.of("Almost! The ñ is missing: ni_o", "It starts with 'niñ'"), tries("nino", "niño").subList(0, 2));
     }
 
     @Test
     void hintButtonDoesNotRepeatTheHintFromCheck() {
-        String afterCheck = AnswerChecker.feedback("perro", "el gato", 2, SPANISH);
+        String afterCheck = AnswerChecker.feedback("perro", "el gato", SPANISH, List.of());
         assertEquals("Not quite. Hint: it starts with 'g'", afterCheck);
         assertEquals("It starts with 'ga'", AnswerChecker.hint("perro", "el gato", SPANISH, List.of(afterCheck)));
+        // the same letters under another name count as the same hint
+        assertEquals("It starts with 'Có'", AnswerChecker.hint("como", "Cómo", SPANISH, List.of("Almost! Check the accent: C_mo")));
     }
 
     @Test
     void hintButtonNeverGivesTheWholeAnswer() {
-        assertEquals("No more hints. Press Check to see the answer.",
-                AnswerChecker.hint("da", "dado", SPANISH, List.of("It starts with 'dad'")));
-        assertEquals("No more hints. Press Check to see the answer.",
-                AnswerChecker.hint("como", "Cómo", SPANISH, List.of("Almost! Check the accent: C_mo")));
+        // when every hint was shown, the last one comes again, never the answer
+        assertEquals("It starts with 'dad'", AnswerChecker.hint("da", "dado", SPANISH, List.of("It starts with 'dad'")));
+        assertEquals("Almost! Just the last letter is missing.", AnswerChecker.hint("habla", "hablar", SPANISH,
+                List.of("Almost! Just the last letter is missing.")));
     }
 
-    // The hints for pressing the hint button again and again without typing anything else
-    private static List<String> pressHintButton(String answer, String expected, int times) {
+    // Check, hint button, Check, hint button with the same answer each time
+    private static List<String> tries(String answer, String expected) {
         List<String> shown = new ArrayList<>();
-        for (int i = 0; i < times; i++) {
+        for (int i = 0; i < 2; i++) {
+            shown.add(AnswerChecker.feedback(answer, expected, SPANISH, shown));
             shown.add(AnswerChecker.hint(answer, expected, SPANISH, shown));
         }
         return shown;
@@ -234,16 +248,16 @@ class AnswerCheckerTest {
 
     @Test
     void hintButtonShowsTheMistakeInsteadOfTheStart() {
-        assertEquals("Almost! Check the accent: C_mo", hint("como", "Cómo...?"));
+        assertEquals("Almost! An accent is missing: C_mo", hint("como", "Cómo...?"));
         assertEquals("Almost! Check the accent: C_mo …", hint("como", "Cómo te llamas?"));
-        assertEquals("Almost! Check the accent: De d_nde eres", hint("de donde eres", "De dónde eres?"));
+        assertEquals("Almost! An accent is missing: De d_nde eres", hint("de donde eres", "De dónde eres?"));
     }
 
     @Test
     void hintButtonShowsWhichWordsOfASentenceAreWrong() {
         assertEquals("Almost! These letters are right: C_mo __ llamas", hint("como se llamas", "Cómo te llamas?"));
         assertEquals("Almost! These letters are right: Es la foto n_mero ___", hint("Es la foto numero dos", "Es la foto número uno."));
-        assertEquals("Almost! These letters are right: No es un_ isla", hint("No es un isla", "No es una isla."));
+        assertEquals("Almost! One letter is missing: No es un_ isla", hint("No es un isla", "No es una isla."));
         assertEquals("Almost! These letters are right: __ tienes", hint("yo tienes", "tú tienes"));
         assertEquals("Almost! These letters are right: __ n_mero", hint("la numero", "el número"));
     }
@@ -251,19 +265,17 @@ class AnswerCheckerTest {
     @Test
     void checkShowsTheSameMistakesOnTheSecondTry() {
         assertEquals("Almost! These letters are right: Es la foto n_mero ___",
-                AnswerChecker.feedback("Es la foto numero dos", "Es la foto número uno.", 2, SPANISH));
-        assertEquals("Almost! These letters are right: How are y__",
-                AnswerChecker.feedback("How are yuo", "How are you? / What's up?", 2, SPANISH));
+                AnswerChecker.feedback("Es la foto numero dos", "Es la foto número uno.", SPANISH, List.of()));
         assertEquals("Almost! There's one word too many.",
-                AnswerChecker.feedback("yo soy soy Nini", "Yo soy Nini", 2, SPANISH));
+                AnswerChecker.feedback("yo soy soy Nini", "Yo soy Nini", SPANISH, List.of()));
     }
 
     @Test
     void hintButtonShowsWhichLettersAreRightForNearlyRightAnswers() {
         assertEquals("Almost! These letters are right: __ apellido", hint("la apellidone", "el apellido"));
         assertEquals("Almost! There are a few letters too many.", hint("apellidion", "el apellido"));
-        assertEquals("Almost! These letters are right: da_o", hint("dao", "dado"));
-        assertEquals("Almost! Check the accent: adi_s", hint("adios", "adiós"));
+        assertEquals("Almost! One letter is missing: da_o", hint("dao", "dado"));
+        assertEquals("Almost! An accent is missing: adi_s", hint("adios", "adiós"));
     }
 
     @Test

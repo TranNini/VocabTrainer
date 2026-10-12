@@ -17,7 +17,9 @@ Save vocabulary locally (one file per language)
 Quiz saved vocabulary
 Randomized vocabulary order
 Practice both directions (language → English and English → language)
-Up to 3 tries per answer with hints, and a hint button that gives a new, stronger hint each time it is pressed
+Up to 3 tries per answer, with two different hints per try: one after every wrong Check, and one from the
+    hint button (once per try). A nearly right answer gets told what kind of mistake it is (a letter wrong,
+    missing or too many, letters swapped, an accent, ü or ñ missing); otherwise the next letter of the right start
 Score at the end of the quiz
 Add multiple answer choices using '/'
 Categories (general, verbs, sentences, or your own) and a category filter for the quiz

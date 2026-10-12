@@ -56,7 +56,7 @@ public class VocabController {
     record QuestionDto(int id, boolean answerInLanguage, String prompt, String promptIpa) {
     }
 
-    record CheckRequest(int id, boolean answerInLanguage, String answer, int attempt) {
+    record CheckRequest(int id, boolean answerInLanguage, String answer, int attempt, List<String> shown) {
     }
 
     // finished = no more tries for this question; once finished, answer = the full answer with all
@@ -230,7 +230,8 @@ public class VocabController {
             return new CheckResult(true, "Correct!", AnswerChecker.allOptions(expected), true, ipa, dictionaryUrl, context);
         }
         if (request.attempt() < AnswerChecker.MAX_ATTEMPTS) {
-            return new CheckResult(false, AnswerChecker.feedback(answer, expected, request.attempt(), rules),
+            return new CheckResult(false, AnswerChecker.feedback(answer, expected, rules,
+                    request.shown() == null ? List.of() : request.shown()),
                     null, false, null, null, null);
         }
         return new CheckResult(false, "Not quite.", AnswerChecker.allOptions(expected), true, ipa, dictionaryUrl, context);
