@@ -34,6 +34,7 @@ Spanish extras:
     Articles (el, la, …) are ignored when sorting and give "Don't forget the article!" hints
     Verb conjugations are grouped under their infinitive and folded away; the button on the infinitive
         (e.g. "6 ▾") shows them. A search shows the matching forms open
+    The subject pronoun is optional in quiz answers: "tengo" is right for "yo tengo"
     Pronunciation in IPA (Spain Spanish) on demand, worked out from the spelling
 
 How to run:

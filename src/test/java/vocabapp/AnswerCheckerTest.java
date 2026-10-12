@@ -41,6 +41,25 @@ class AnswerCheckerTest {
     }
 
     @Test
+    void subjectPronounIsOptional() {
+        assertTrue(AnswerChecker.isCorrect("tengo", "yo tengo", SPANISH));
+        assertTrue(AnswerChecker.isCorrect("Yo tengo", "yo tengo", SPANISH));
+        assertTrue(AnswerChecker.isCorrect("tiene", "él tiene / ella tiene", SPANISH));
+        assertTrue(AnswerChecker.isCorrect("ella tiene", "él tiene / ella tiene", SPANISH));
+        assertFalse(AnswerChecker.isCorrect("tienes", "yo tengo", SPANISH));
+        // only for languages with pronoun rules, and only a pronoun at the start
+        assertFalse(AnswerChecker.isCorrect("tengo", "yo tengo", Language.forName("Italian")));
+        assertFalse(AnswerChecker.isCorrect("vaca", "la vaca", SPANISH));
+    }
+
+    @Test
+    void hintsWorkWithoutThePronoun() {
+        assertEquals("That's right! Press Check.", AnswerChecker.hint("tengo", "yo tengo", SPANISH));
+        assertEquals("It starts with 'y'", AnswerChecker.hint("", "yo tengo", SPANISH));
+        assertEquals("It starts with 'ten'", AnswerChecker.hint("te", "yo tengo", SPANISH));
+    }
+
+    @Test
     void allOptionsListsEveryAlternativeTidily() {
         assertEquals("Good evening / Good night", AnswerChecker.allOptions("Good evening /Good night"));
         assertEquals("to talk / to speak", AnswerChecker.allOptions("to talk/to speak"));

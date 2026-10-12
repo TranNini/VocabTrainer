@@ -226,7 +226,7 @@ public class VocabController {
         String ipa = rules.ipa(vocab.getWord());
         String dictionaryUrl = rules.dictionaryUrl(vocab.getWord());
         String context = vocab.getContext();
-        if (AnswerChecker.isCorrect(answer, expected)) {
+        if (AnswerChecker.isCorrect(answer, expected, rules)) {
             return new CheckResult(true, "Correct!", AnswerChecker.allOptions(expected), true, ipa, dictionaryUrl, context);
         }
         if (request.attempt() < AnswerChecker.MAX_ATTEMPTS) {

@@ -22,9 +22,44 @@ public class AnswerChecker {
         return false;
     }
 
+    // Like isCorrect(answer, expected), but the subject pronoun of a conjugation is optional,
+    // as in speaking: "tengo" is right for "yo tengo"
+    public static boolean isCorrect(String answer, String expected, Language language) {
+        return isCorrect(answer, withOptionalPronouns(answer, expected, language));
+    }
+
+    // "yo tengo" -> "yo tengo/tengo"; the forms without pronoun come after all the others, so the
+    // first hints still lead to the saved form. Not when the answer starts with a pronoun itself: then
+    // it is compared with the pronoun ("yo tienes" for "tú tienes" -> "__ tienes", not a word too many)
+    static String withOptionalPronouns(String answer, String expected, Language language) {
+        if (isPronoun(normalize(answer).split(" ")[0], language)) {
+            return expected;
+        }
+        List<String> options = new ArrayList<>(List.of(expected.split("/")));
+        for (String option : expected.split("/")) {
+            String[] words = normalize(option).split(" ", 2);
+            if (words.length == 2 && isPronoun(words[0], language) && !options.contains(words[1])) {
+                options.add(words[1]);
+            }
+        }
+        return String.join("/", options);
+    }
+
+    private static boolean isPronoun(String word, Language language) {
+        for (List<String> pronouns : language.getSubjectPronouns()) {
+            for (String pronoun : pronouns) {
+                if (pronoun.equalsIgnoreCase(word)) {
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+
     // Hint after a wrong answer; attempt is 1 after the first try. The language gives its articles
     // (for "Don't forget the article!"); English ones are always known.
     public static String feedback(String answer, String expected, int attempt, Language language) {
+        expected = withOptionalPronouns(answer, expected, language);
         List<String> articles = new ArrayList<>(language.getArticles());
         articles.addAll(Language.ENGLISH_ARTICLES);
         String target = closestAlternative(answer, expected, articles);
@@ -49,6 +84,7 @@ public class AnswerChecker {
     // are right, word by word, like after Check; only the article wrong or missing -> says so.
     // A leading article (el, la, the, to …) is skipped, so "la vaca" starts with 'v'.
     public static String hint(String answer, String expected, Language language) {
+        expected = withOptionalPronouns(answer, expected, language);
         return firstHint(answer, expected, language).text();
     }
 
@@ -56,6 +92,7 @@ public class AnswerChecker {
     // Check): then the next one, with one letter more each time. The answer itself is never given:
     // after the last hint it says so, and Check shows the answer after the last try.
     public static String hint(String answer, String expected, Language language, List<String> shown) {
+        expected = withOptionalPronouns(answer, expected, language);
         Hint first = firstHint(answer, expected, language);
         HashSet<String> seen = new HashSet<>();
         for (String text : shown) {
