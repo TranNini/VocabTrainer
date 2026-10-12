@@ -555,18 +555,52 @@ async function loadWords() {
     if (words.length === 0) {
         list.append(el("p", {className: "muted", textContent: query ? `No vocab found for '${query}'.` : "No vocab here yet."}));
     }
+    let verb = null;
     for (const word of words) {
+        // conjugations come right after their infinitive: fold them under it (a search shows them open)
+        if (word.conjugation && verb) {
+            addConjugation(verb, wordRow(word), query !== "");
+            continue;
+        }
         if (letters[letters.length - 1] !== word.section) {
             letters.push(word.section);
             list.append(el("h3", {className: "section-header", id: "section-" + word.section, textContent: word.section}));
         }
-        list.append(wordRow(word));
+        const row = wordRow(word);
+        list.append(row);
+        verb = word.conjugation ? null : {word, row, forms: null};
     }
     $("words-letters").replaceChildren(...letters.map((letter) => {
         const button = el("button", {type: "button", textContent: letter});
         button.addEventListener("click", () => $("section-" + letter).scrollIntoView({behavior: "smooth"}));
         return button;
     }));
+}
+
+// Infinitives whose conjugations are open; kept while the list reloads, e.g. after an edit
+const openVerbs = new Set();
+
+function addConjugation(verb, row, open) {
+    if (!verb.forms) {
+        verb.forms = el("div", {className: "conjugations"});
+        const toggle = el("button", {type: "button", className: "toggle forms-toggle"});
+        const show = (visible) => {
+            verb.forms.hidden = !visible;
+            toggle.classList.toggle("active", visible);
+            toggle.textContent = `${verb.forms.children.length} ${visible ? "▴" : "▾"}`;
+            toggle.title = visible ? "Hide the conjugation" : "Show the conjugation";
+        };
+        toggle.addEventListener("click", () => {
+            const visible = verb.forms.hidden;
+            visible ? openVerbs.add(verb.word.id) : openVerbs.delete(verb.word.id);
+            show(visible);
+        });
+        verb.show = show;
+        verb.row.querySelector(".row-buttons").prepend(toggle);
+        verb.row.after(verb.forms);
+    }
+    verb.forms.append(row);
+    verb.show(open || openVerbs.has(verb.word.id));
 }
 
 function wordRow(word) {

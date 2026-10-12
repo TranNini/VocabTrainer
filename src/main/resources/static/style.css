@@ -322,6 +322,15 @@ form > button.primary, .card > button.primary {
     padding-left: 18px;
 }
 
+/* The folded conjugation under an infinitive; the button shows how many forms it has */
+.conjugations[hidden] {
+    display: none;
+}
+
+.forms-toggle {
+    min-width: 44px;
+}
+
 .row-buttons {
     display: flex;
     gap: 6px;
