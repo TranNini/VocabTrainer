@@ -53,6 +53,16 @@ class AnswerCheckerTest {
     }
 
     @Test
+    void pronounAtTheStartOfASentenceIsOptional() {
+        assertTrue(AnswerChecker.isCorrect("tengo una pregunta", "yo tengo una pregunta", SPANISH));
+        assertTrue(AnswerChecker.isCorrect("¿Tienes hambre?", "¿Tú tienes hambre?", SPANISH));
+        assertTrue(AnswerChecker.isCorrect("Somos amigos", "Nosotros somos amigos", SPANISH));
+        assertFalse(AnswerChecker.isCorrect("tú tengo una pregunta", "yo tengo una pregunta", SPANISH));
+        // only at the start: a pronoun later in the sentence still counts
+        assertFalse(AnswerChecker.isCorrect("no entiendo", "no entiendo yo", SPANISH));
+    }
+
+    @Test
     void hintsWorkWithoutThePronoun() {
         assertEquals("That's right! Press Check.", AnswerChecker.hint("tengo", "yo tengo", SPANISH));
         assertEquals("It starts with 'y'", AnswerChecker.hint("", "yo tengo", SPANISH));

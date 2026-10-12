@@ -22,13 +22,14 @@ public class AnswerChecker {
         return false;
     }
 
-    // Like isCorrect(answer, expected), but the subject pronoun of a conjugation is optional,
-    // as in speaking: "tengo" is right for "yo tengo"
+    // Like isCorrect(answer, expected), but a subject pronoun at the start is optional, as in
+    // speaking: "tengo" is right for "yo tengo", "tengo una pregunta" for "yo tengo una pregunta"
     public static boolean isCorrect(String answer, String expected, Language language) {
         return isCorrect(answer, withOptionalPronouns(answer, expected, language));
     }
 
-    // "yo tengo" -> "yo tengo/tengo"; the forms without pronoun come after all the others, so the
+    // "yo tengo" -> "yo tengo/tengo", "yo tengo una pregunta" -> "… /tengo una pregunta": a subject pronoun
+    // at the start, of a conjugation or a sentence, may be left out. The forms without pronoun come after all the others, so the
     // first hints still lead to the saved form. Not when the answer starts with a pronoun itself: then
     // it is compared with the pronoun ("yo tienes" for "tú tienes" -> "__ tienes", not a word too many)
     static String withOptionalPronouns(String answer, String expected, Language language) {
