@@ -21,7 +21,7 @@ public class LoginController {
         if (!accessCode.tryLogin(code)) {
             return "redirect:/login.html?wrong";
         }
-        ResponseCookie cookie = ResponseCookie.from(AccessFilter.COOKIE, accessCode.getCode())
+        ResponseCookie cookie = ResponseCookie.from(AccessFilter.COOKIE, accessCode.getCookieKey())
                 .httpOnly(true)
                 .sameSite("Lax")
                 .path("/")

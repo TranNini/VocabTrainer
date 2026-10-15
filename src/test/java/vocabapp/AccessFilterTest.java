@@ -52,7 +52,8 @@ class AccessFilterTest {
     @Test
     void createsAndSavesACode() throws Exception {
         assertEquals(8, accessCode.getCode().length());
-        assertEquals(accessCode.getCode(), Files.readString(dir.resolve("access-code.txt")).trim());
+        assertEquals(accessCode.getCode() + "\n" + accessCode.getCookieKey(),
+                Files.readString(dir.resolve("access-code.txt")).trim().replace("\r", ""));
         assertTrue(accessCode.matches(" " + accessCode.getCode().toUpperCase() + " "));
     }
 
@@ -82,10 +83,28 @@ class AccessFilterTest {
     void rightCodeIsRemembered() throws Exception {
         mvc.perform(post("/login").param("code", accessCode.getCode()).with(fromIPhone()))
                 .andExpect(redirectedUrl("/"))
-                .andExpect(cookie().value(AccessFilter.COOKIE, accessCode.getCode()))
+                .andExpect(cookie().value(AccessFilter.COOKIE, accessCode.getCookieKey()))
                 .andExpect(cookie().httpOnly(AccessFilter.COOKIE, true));
-        mvc.perform(get("/api/learners").with(fromIPhone()).cookie(new Cookie(AccessFilter.COOKIE, accessCode.getCode())))
+        mvc.perform(get("/api/learners").with(fromIPhone()).cookie(new Cookie(AccessFilter.COOKIE, accessCode.getCookieKey())))
                 .andExpect(status().isOk());
+    }
+
+    @Test
+    void theCodeItselfIsNoCookie() throws Exception {
+        // else codes could be tried in a cookie, without the limit of the login page
+        mvc.perform(get("/api/learners").with(fromIPhone()).cookie(new Cookie(AccessFilter.COOKIE, accessCode.getCode())))
+                .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    void keepsTheCodeOfAnOldFileAndAddsAKey() throws Exception {
+        Path old = dir.resolve("old-code.txt");
+        Files.writeString(old, "abcd2345\n");
+        AccessCode code = new AccessCode(old.toString());
+        assertEquals("abcd2345", code.getCode());
+        assertEquals(43, code.getCookieKey().length());
+        // the same key after a restart, so devices stay logged in
+        assertEquals(code.getCookieKey(), new AccessCode(old.toString()).getCookieKey());
     }
 
     @Test

@@ -56,8 +56,9 @@ iPhone (same Wi-Fi as the Mac, Mac must be awake with the app running)
     2. The first time, macOS may ask whether Java may accept incoming connections: click Allow.
     3. Open the address in Safari on the iPhone and enter the access code (only needed once).
     4. Share button → Add to Home Screen (keep "Open as Web App" on). It now opens like an app.
-    The code is saved in access-code.txt (not in git). Delete that file to get a new code;
-    devices then have to enter the new one.
+    The code is saved in access-code.txt (not in git), on the first line; the second line is the key the
+    login cookie holds (a long random one, so codes can't be tried in a cookie). Delete that file to get
+    a new code and key; devices then have to enter the new code.
     If the iPhone can't connect anymore, the Mac's address may have changed: check the Run window
     for the new one and add it to the Home Screen again.
 
