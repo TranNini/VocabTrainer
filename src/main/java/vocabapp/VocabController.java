@@ -26,10 +26,12 @@ import java.util.TreeSet;
 @RequestMapping("/api/learners")
 public class VocabController {
     private final Learners learners;
+    private final SpellChecker spellChecker;
     private final Random random = new Random();
 
-    public VocabController(Learners learners) {
+    public VocabController(Learners learners, SpellChecker spellChecker) {
         this.learners = learners;
+        this.spellChecker = spellChecker;
     }
 
     // ipa = whether IPA can be shown; specialLetters = buttons for letters a normal keyboard lacks
@@ -47,9 +49,10 @@ public class VocabController {
     }
 
     // newCategory = true confirms that a category which doesn't exist yet should be created;
-    // duplicate = true confirms saving although the same word or English is already saved
+    // duplicate = true confirms saving although the same word or English is already saved;
+    // spellingChecked = true confirms saving although a word isn't in the dictionary
     record VocabRequest(String word, String english, String category, String context, boolean newCategory,
-                        boolean duplicate) {
+                        boolean duplicate, boolean spellingChecked) {
     }
 
     // promptIpa is only filled in when the prompt is in the language, so it never gives the answer away
@@ -182,6 +185,7 @@ public class VocabController {
     @ResponseStatus(HttpStatus.CREATED)
     public VocabDto add(@PathVariable String learner, @PathVariable String language, @RequestBody VocabRequest request) {
         Vocab vocab = toVocab(learner, language, request);
+        checkSpelling(learner, language, request, vocab);
         checkDuplicates(learner, language, request, vocab, null);
         store(learner, language).add(vocab);
         return toDto(learner, language, vocab, index(learner, language));
@@ -191,6 +195,7 @@ public class VocabController {
     public VocabDto update(@PathVariable String learner, @PathVariable String language, @PathVariable int id, @RequestBody VocabRequest request) {
         Vocab existing = find(learner, language, id);
         Vocab updated = toVocab(learner, language, request);
+        checkSpelling(learner, language, request, updated);
         checkDuplicates(learner, language, request, updated, existing);
         store(learner, language).replace(existing, updated);
         return toDto(learner, language, updated, index(learner, language));
@@ -308,6 +313,28 @@ public class VocabController {
             category = typed;
         }
         return new Vocab(word, english, category, context);
+    }
+
+    record MisspellingDto(String word, String language, List<String> suggestions) {
+    }
+
+    // 409 listing the words that aren't in the dictionary of their side, unless the request already confirmed them
+    private void checkSpelling(String learner, String language, VocabRequest request, Vocab vocab) {
+        if (request.spellingChecked()) {
+            return;
+        }
+        Language rules = rules(learner, language);
+        List<MisspellingDto> misspellings = new ArrayList<>();
+        for (SpellChecker.Misspelling m : spellChecker.check(vocab.getWord(), rules.getSpellDictionary())) {
+            misspellings.add(new MisspellingDto(m.word(), rules.getName(), m.suggestions()));
+        }
+        for (SpellChecker.Misspelling m : spellChecker.check(vocab.getEnglish(), SpellChecker.ENGLISH)) {
+            misspellings.add(new MisspellingDto(m.word(), "English", m.suggestions()));
+        }
+        if (!misspellings.isEmpty()) {
+            String error = misspellings.size() == 1 ? "Check the spelling:" : "Check the spelling of these words:";
+            throw new ApiException(HttpStatus.CONFLICT, Map.of("error", error, "spelling", misspellings));
+        }
     }
 
     // 409 listing every saved vocab with the same word or English, unless the request already confirmed it

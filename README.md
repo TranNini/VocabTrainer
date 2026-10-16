@@ -11,6 +11,9 @@ Several learners (e.g. a parent and a child), each with their own languages and 
 Several languages, each with its own vocabulary and categories; switch at the top of the app
 Add new vocabulary with its English translation and an optional context note (rules, usage, exceptions),
     shown with the "Note" button in the word list and after each quiz question
+Spell check when saving: a word that isn't in the dictionary (Spanish and the English side) gets a warning
+    with suggestions, e.g. 'nostoros' -> nosotros. It can still be saved (names, rare words). Works offline,
+    with the open Hunspell dictionaries in src/main/resources/dictionaries (licences next to them)
 Warns before saving a duplicate (same word or same English, also one of the '/' alternatives) and lists
     every entry it matches
 Save vocabulary locally (one file per language)
@@ -94,6 +97,7 @@ Learners.java - everyone who learns with the app, one folder each in the vocab f
 VocabLibrary.java - all languages of one learner, one file each in their folder
 Language.java - everything that differs between languages (Spanish rules, defaults for others)
 AnswerChecker.java - checks quiz answers and gives hints
+SpellChecker.java - the spell check for new vocab
 Question.java - one quiz question (which side is asked)
 VocabIndex.java - sorting, sections, search, verb grouping and categories
 SpanishIpa.java - works out the IPA pronunciation from the Spanish spelling

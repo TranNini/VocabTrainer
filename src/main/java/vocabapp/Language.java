@@ -38,9 +38,11 @@ public class Language {
     private final UnaryOperator<String> ipa;
     private final String dictionaryName;
     private final String dictionaryUrl;
+    private final String spellDictionary;
 
     private Language(String name, List<String> articles, List<List<String>> subjectPronouns,
-                     List<String> specialLetters, UnaryOperator<String> ipa, String dictionaryName, String dictionaryUrl) {
+                     List<String> specialLetters, UnaryOperator<String> ipa, String dictionaryName, String dictionaryUrl,
+                     String spellDictionary) {
         this.name = name;
         this.collator = Collator.getInstance(LOCALES.getOrDefault(name.toLowerCase(), Locale.ROOT));
         // PRIMARY ignores case and accents, so "árbol" sorts with "arbol"
@@ -51,6 +53,7 @@ public class Language {
         this.ipa = ipa;
         this.dictionaryName = dictionaryName;
         this.dictionaryUrl = dictionaryUrl;
+        this.spellDictionary = spellDictionary;
     }
 
     public static Language forName(String name) {
@@ -61,7 +64,7 @@ public class Language {
             return vietnamese(name);
         }
         return new Language(name, List.of(), List.of(), List.of(), null,
-                "Wiktionary", "https://en.wiktionary.org/wiki/%s#" + name.replace(' ', '_'));
+                "Wiktionary", "https://en.wiktionary.org/wiki/%s#" + name.replace(' ', '_'), null);
     }
 
     private static Language spanish(String name) {
@@ -73,7 +76,8 @@ public class Language {
                         List.of("ellos", "ellas", "ustedes")),
                 List.of("á", "é", "í", "ó", "ú", "ñ", "ü", "¿", "¡"),
                 SpanishIpa::transcribe,
-                "SpanishDict", "https://www.spanishdict.com/translate/%s");
+                "SpanishDict", "https://www.spanishdict.com/translate/%s",
+                "es");
     }
 
     private static Language vietnamese(String name) {
@@ -82,7 +86,7 @@ public class Language {
                 List.of("ă", "â", "đ", "ê", "ô", "ơ", "ư", "\u0300", "\u0301", "\u0309", "\u0303", "\u0323"),
                 null,
                 // 2 = VDict's Vietnamese - English dictionary
-                "VDict", "https://vdict.com/%s,2,0,0.html");
+                "VDict", "https://vdict.com/%s,2,0,0.html", null);
     }
 
     public String getName() {
@@ -113,6 +117,11 @@ public class Language {
     // null when there are no IPA rules for this language yet
     public String ipa(String word) {
         return ipa == null ? null : ipa.apply(word);
+    }
+
+    // The folder in src/main/resources/dictionaries for the spell check of new vocab; null = no spell check
+    public String getSpellDictionary() {
+        return spellDictionary;
     }
 
     public String getDictionaryName() {

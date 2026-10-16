@@ -131,6 +131,37 @@ class VocabControllerTest {
     }
 
     @Test
+    void asksBeforeSavingAMisspelledWord() throws Exception {
+        send("POST", SPANISH + "/vocab", """
+                {"word": "nostoros queremos", "english": "we wnat", "category": "verbs", "newCategory": true}
+                """)
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.spelling", hasSize(2)))
+                .andExpect(jsonPath("$.spelling[0].word").value("nostoros"))
+                .andExpect(jsonPath("$.spelling[0].language").value("Spanish"))
+                .andExpect(jsonPath("$.spelling[0].suggestions[0]").value("nosotros"))
+                .andExpect(jsonPath("$.spelling[1].word").value("wnat"))
+                .andExpect(jsonPath("$.spelling[1].language").value("English"));
+        send("POST", SPANISH + "/vocab", """
+                {"word": "nostoros queremos", "english": "we wnat", "category": "verbs", "newCategory": true, "spellingChecked": true}
+                """)
+                .andExpect(status().isCreated());
+    }
+
+    @Test
+    void languagesWithoutADictionaryOnlyCheckTheEnglish() throws Exception {
+        send("POST", NINI + "/languages", """
+                {"name": "Swedish"}
+                """);
+        send("POST", NINI + "/languages/Swedish/vocab", """
+                {"word": "katten", "english": "the catt", "category": "general", "newCategory": true}
+                """)
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.spelling", hasSize(1)))
+                .andExpect(jsonPath("$.spelling[0].word").value("catt"));
+    }
+
+    @Test
     void asksBeforeSavingADuplicate() throws Exception {
         add("tú tienes", "you have", "verbs");
         int id = add("ir", "to go", "verbs");

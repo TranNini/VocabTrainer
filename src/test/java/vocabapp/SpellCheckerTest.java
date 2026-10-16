@@ -1,0 +1,53 @@
+package vocabapp;
+
+import org.junit.jupiter.api.Test;
+
+import java.util.List;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+
+class SpellCheckerTest {
+    private static final SpellChecker CHECKER = new SpellChecker();
+
+    private static List<String> wrong(String text, String dictionary) {
+        return CHECKER.check(text, dictionary).stream().map(SpellChecker.Misspelling::word).toList();
+    }
+
+    @Test
+    void findsSpanishTyposAndSuggestsTheWord() {
+        List<SpellChecker.Misspelling> found = CHECKER.check("nostoros queremos", "es");
+        assertEquals(1, found.size());
+        assertEquals("nostoros", found.get(0).word());
+        assertEquals("nosotros", found.get(0).suggestions().get(0));
+        assertEquals(List.of("médicia"), wrong("Yo tengo una cita médicia", "es"));
+        assertEquals(List.of("tambien"), wrong("tambien", "es"));
+    }
+
+    @Test
+    void acceptsRightSpanishWithAccentsSignsAndAlternatives() {
+        assertTrue(wrong("¿Cómo te llamas?", "es").isEmpty());
+        assertTrue(wrong("él / ella / usted quiere", "es").isEmpty());
+        assertTrue(wrong("el niño / la niña", "es").isEmpty());
+        assertTrue(wrong("Yo soy...", "es").isEmpty());
+    }
+
+    @Test
+    void checksTheEnglishSide() {
+        assertEquals(List.of("appointmen"), wrong("I have an appointmen", SpellChecker.ENGLISH));
+        assertTrue(wrong("you have (plural) / you all have", SpellChecker.ENGLISH).isEmpty());
+        assertTrue(wrong("I don't understand", SpellChecker.ENGLISH).isEmpty());
+    }
+
+    @Test
+    void takesCapitalisedWordsInsideAsNames() {
+        assertTrue(wrong("Yo soy Nini", "es").isEmpty());
+        // a lower-case country is still a mistake
+        assertEquals(List.of("alemania"), wrong("alemania", "es"));
+    }
+
+    @Test
+    void languagesWithoutADictionaryAreNotChecked() {
+        assertTrue(wrong("xyzzy", null).isEmpty());
+    }
+}

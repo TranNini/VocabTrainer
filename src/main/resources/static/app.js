@@ -352,8 +352,8 @@ function wireCategorySelect(select, newInput) {
     });
 }
 
-// Sends the vocab; if the server says the category is new or the vocab is already saved, asks first
-// and sends again (a new category can still be followed by duplicates)
+// Sends the vocab; if the server says the category is new, a word may be misspelled or the vocab is
+// already saved, asks first and sends again (each can still be followed by the next)
 async function saveVocab(method, url, vocab) {
     try {
         return await api(method, url, vocab);
@@ -364,6 +364,13 @@ async function saveVocab(method, url, vocab) {
         if (error.data.newCategory !== undefined) {
             if (confirm(`Create new category '${error.data.newCategory}'?`)) {
                 return saveVocab(method, url, {...vocab, newCategory: true});
+            }
+        } else if (error.data.spelling) {
+            // learning a typo is worse than a moment's checking
+            const list = error.data.spelling.map((m) => `• '${m.word}' isn't in the ${m.language} dictionary` +
+                (m.suggestions.length ? `. Did you mean: ${m.suggestions.join(", ")}?` : ".")).join("\n");
+            if (confirm(`${error.message}\n\n${list}\n\nSave anyway?`)) {
+                return saveVocab(method, url, {...vocab, spellingChecked: true});
             }
         } else if (error.data.duplicates) {
             const list = error.data.duplicates.map((d) => `• ${d.word} = ${d.english} [${d.category}]`).join("\n");
