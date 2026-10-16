@@ -63,6 +63,21 @@ class AnswerCheckerTest {
     }
 
     @Test
+    void whatIsInBracketsIsOptional() {
+        assertTrue(AnswerChecker.isCorrect("you have", "you have (singular)", SPANISH));
+        assertTrue(AnswerChecker.isCorrect("you have (singular)", "you have (singular)", SPANISH));
+        assertTrue(AnswerChecker.isCorrect("you have", "you have (plural) / you all have", SPANISH));
+        assertTrue(AnswerChecker.isCorrect("go", "(to) go", SPANISH));
+        assertTrue(AnswerChecker.isCorrect("tengo una cita", "(yo) tengo una cita", SPANISH));
+        assertFalse(AnswerChecker.isCorrect("you have plural", "you have (plural)", SPANISH));
+        // only brackets: nothing to leave out
+        assertTrue(AnswerChecker.isCorrect("(ok)", "(ok)", SPANISH));
+        // hints lead to the form without brackets
+        assertEquals("It starts with 'you h'", AnswerChecker.hint("you", "you have (singular)", SPANISH));
+        assertEquals("Almost! There's one letter too many.", AnswerChecker.hint("you haves", "you have (singular)", SPANISH));
+    }
+
+    @Test
     void hintsWorkWithoutThePronoun() {
         assertEquals("That's right! Press Check.", AnswerChecker.hint("tengo", "yo tengo", SPANISH));
         assertEquals("It starts with 'y'", AnswerChecker.hint("", "yo tengo", SPANISH));

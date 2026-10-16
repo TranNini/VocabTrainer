@@ -22,6 +22,7 @@ Up to 3 tries per answer, with two different hints per try: one after every wron
     missing or too many, letters swapped, an accent, ü or ñ missing); otherwise the next letter of the right start
 Score at the end of the quiz
 Add multiple answer choices using '/'
+What is written in brackets can be left out in quiz answers: "you have" is right for "you have (singular)"
 Categories (general, verbs, sentences, or your own) and a category filter for the quiz
 Edit and delete saved vocabulary
 Alphabetical list in the order of each language, with letter sections

@@ -23,10 +23,32 @@ public class AnswerChecker {
         return false;
     }
 
-    // Like isCorrect(answer, expected), but a subject pronoun at the start is optional, as in
-    // speaking: "tengo" is right for "yo tengo", "tengo una pregunta" for "yo tengo una pregunta"
+    // Like isCorrect(answer, expected), but what is in brackets and a subject pronoun at the start are
+    // optional: "you have" is right for "you have (singular)", "tengo" for "yo tengo"
     public static boolean isCorrect(String answer, String expected, Language language) {
-        return isCorrect(answer, withOptionalPronouns(answer, expected, language));
+        return isCorrect(answer, withOptionalParts(answer, expected, language));
+    }
+
+    private static String withOptionalParts(String answer, String expected, Language language) {
+        return withOptionalPronouns(answer, withoutBrackets(expected), language);
+    }
+
+    // "you have (singular)" -> "you have/you have (singular)": what is in brackets may be left out, or
+    // typed too. The form without comes first, so the hints lead to it.
+    static String withoutBrackets(String expected) {
+        List<String> options = new ArrayList<>();
+        List<String> withBrackets = new ArrayList<>();
+        for (String option : expected.split("/")) {
+            String without = option.replaceAll("\\([^()]*\\)", " ").replaceAll(" +", " ").trim();
+            if (without.equals(option.trim()) || normalize(without).isEmpty()) {
+                options.add(option);
+            } else {
+                options.add(without);
+                withBrackets.add(option);
+            }
+        }
+        options.addAll(withBrackets);
+        return String.join("/", options);
     }
 
     // "yo tengo" -> "yo tengo/tengo", "yo tengo una pregunta" -> "… /tengo una pregunta": a subject pronoun
@@ -73,7 +95,7 @@ public class AnswerChecker {
     // The hint button: the best hint for what is typed that wasn't shown yet for this vocab. The page
     // allows one per try, so with the hint after Check there are two hints per try.
     public static String hint(String answer, String expected, Language language, List<String> shown) {
-        expected = withOptionalPronouns(answer, expected, language);
+        expected = withOptionalParts(answer, expected, language);
         Set<String> seen = new HashSet<>();
         for (String text : shown) {
             seen.add(hintKey(text));
