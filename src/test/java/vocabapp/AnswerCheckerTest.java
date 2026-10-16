@@ -286,8 +286,16 @@ class AnswerCheckerTest {
     }
 
     @Test
+    void aWordWithAllLettersRightButMoreTypedIsNotShownAsRight() {
+        // "nostoros" is no pronoun, so it has to be typed
+        assertEquals("Almost! These letters are right: ________ queremos, but a word has letters too many.",
+                hint("quieremos", "nostoros queremos"));
+        assertEquals("Almost! There's one letter too many.", hint("quieremos", "nosotros queremos"));
+    }
+
+    @Test
     void hintButtonShowsWhichLettersAreRightForNearlyRightAnswers() {
-        assertEquals("Almost! These letters are right: __ apellido", hint("la apellidone", "el apellido"));
+        assertEquals("Almost! These letters are right: __ apellido, but a word has letters too many.", hint("la apellidone", "el apellido"));
         assertEquals("Almost! There are a few letters too many.", hint("apellidion", "el apellido"));
         assertEquals("Almost! One letter is missing: da_o", hint("dao", "dado"));
         assertEquals("Almost! An accent is missing: adi_s", hint("adios", "adiós"));

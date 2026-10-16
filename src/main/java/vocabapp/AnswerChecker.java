@@ -494,12 +494,15 @@ public class AnswerChecker {
         String[] shown = new String[m];
         boolean onlyAccents = true;
         int extraWords = 0;
+        // words with every letter right but more typed ("quieremos" for "queremos")
+        boolean lettersTooMany = false;
         int i = n;
         int j = m;
         while (i > 0 && j > 0) {
             int cost = wordCost(typed[i - 1], target[j - 1], i == n);
             if (dp[i][j] == dp[i - 1][j - 1] + cost) {
                 shown[j - 1] = cost < 2 ? knownLetters(typed[i - 1], target[j - 1]) : "_".repeat(target[j - 1].length());
+                lettersTooMany |= shown[j - 1].indexOf('_') < 0 && typed[i - 1].length() > target[j - 1].length();
                 onlyAccents &= stripAccents(typed[i - 1]).equalsIgnoreCase(stripAccents(target[j - 1]));
                 i--;
                 j--;
@@ -547,7 +550,8 @@ public class AnswerChecker {
                 message = extraLetters == 1 ? "Almost! There's one letter too many." : "Almost! There are a few letters too many.";
             }
         } else {
-            message = "Almost! These letters are right: " + pattern;
+            message = "Almost! These letters are right: " + pattern
+                    + (lettersTooMany ? ", but a word has letters too many." : "");
         }
         return new Mistake(message, known, gaps, shownWords,
                 String.join(" ", List.of(target).subList(0, last + 1)), last < m - 1);
