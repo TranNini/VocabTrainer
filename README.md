@@ -40,6 +40,8 @@ Spanish extras:
     A subject pronoun at the start (yo, tú, él …) is optional in quiz answers, for conjugations and
         sentences: "tengo" is right for "yo tengo", "tengo una pregunta" for "yo tengo una pregunta".
         Save the pronoun without brackets
+    Short form for conjugations: "él / ella / usted quiere" means "él quiere / ella quiere / usted quiere",
+        and "he / she / it wants" means "he wants / she wants / it wants"
     Pronunciation in IPA (Spain Spanish) on demand, worked out from the spelling
 
 How to run:

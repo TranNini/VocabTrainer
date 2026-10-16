@@ -15,6 +15,8 @@ import java.util.function.UnaryOperator;
 public class Language {
     // The translation side is always English
     public static final List<String> ENGLISH_ARTICLES = List.of("the", "a", "an");
+    // For the short form "he / she / it wants" (see AnswerChecker.expandPronounShortForm)
+    public static final List<String> ENGLISH_PRONOUNS = List.of("I", "you", "he", "she", "it", "we", "they");
 
     // Locales for alphabetical order, by the English name of the language
     private static final Map<String, Locale> LOCALES = Map.ofEntries(

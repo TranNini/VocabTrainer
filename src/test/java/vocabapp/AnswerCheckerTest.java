@@ -78,6 +78,24 @@ class AnswerCheckerTest {
     }
 
     @Test
+    void pronounsOnTheirOwnShareTheVerbOfTheLastAlternative() {
+        String quiere = "el / ella / usted quiere";
+        assertTrue(AnswerChecker.isCorrect("ella quiere", quiere, SPANISH));
+        assertTrue(AnswerChecker.isCorrect("él quiere", quiere, SPANISH));
+        assertTrue(AnswerChecker.isCorrect("usted quiere", quiere, SPANISH));
+        assertTrue(AnswerChecker.isCorrect("quiere", quiere, SPANISH));
+        assertFalse(AnswerChecker.isCorrect("ella", quiere, SPANISH));
+        assertFalse(AnswerChecker.isCorrect("el", quiere, SPANISH));
+        assertTrue(AnswerChecker.isCorrect("ellas quieren", "ellos / ellas / ustedes quieren", SPANISH));
+        assertTrue(AnswerChecker.isCorrect("she wants", "he / she / it wants", SPANISH));
+        assertFalse(AnswerChecker.isCorrect("he", "he / she / it wants", SPANISH));
+        // not the short form: every alternative stays
+        assertTrue(AnswerChecker.isCorrect("you", "you / you all", SPANISH));
+        assertTrue(AnswerChecker.isCorrect("bien", "bien / muy bien", SPANISH));
+        assertEquals("él quiere/ella quiere/usted quiere", AnswerChecker.expandPronounShortForm(quiere, SPANISH));
+    }
+
+    @Test
     void hintsWorkWithoutThePronoun() {
         assertEquals("That's right! Press Check.", AnswerChecker.hint("tengo", "yo tengo", SPANISH));
         assertEquals("It starts with 'y'", AnswerChecker.hint("", "yo tengo", SPANISH));

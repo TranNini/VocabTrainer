@@ -30,7 +30,42 @@ public class AnswerChecker {
     }
 
     private static String withOptionalParts(String answer, String expected, Language language) {
-        return withOptionalPronouns(answer, withoutBrackets(expected), language);
+        return withOptionalPronouns(answer, expandPronounShortForm(withoutBrackets(expected), language), language);
+    }
+
+    // "él / ella / usted quiere" -> "él quiere/ella quiere/usted quiere", "he / she / it wants" -> "he wants/…":
+    // pronouns on their own before the last alternative share its verb. Only when every alternative
+    // before the last is a pronoun on its own, so "you / you all" stays as it is. A pronoun without its
+    // accent ("el") gets it here, as "el" on its own would be the article.
+    static String expandPronounShortForm(String expected, Language language) {
+        String[] options = expected.split("/");
+        String[] last = options[options.length - 1].trim().split(" +", 2);
+        if (options.length < 2 || last.length < 2 || pronounSpelling(last[0], language) == null) {
+            return expected;
+        }
+        List<String> expanded = new ArrayList<>();
+        for (int i = 0; i < options.length - 1; i++) {
+            String option = options[i].trim();
+            String pronoun = option.contains(" ") ? null : pronounSpelling(option, language);
+            if (pronoun == null || option.equalsIgnoreCase(last[0])) {
+                return expected;
+            }
+            expanded.add(pronoun + " " + last[1]);
+        }
+        expanded.add(options[options.length - 1].trim());
+        return String.join("/", expanded);
+    }
+
+    // "el" -> "él", "She" -> "she"; null if the word is no pronoun of the language or of English
+    private static String pronounSpelling(String word, Language language) {
+        List<String> pronouns = new ArrayList<>(Language.ENGLISH_PRONOUNS);
+        language.getSubjectPronouns().forEach(pronouns::addAll);
+        for (String pronoun : pronouns) {
+            if (stripAccents(pronoun).equalsIgnoreCase(stripAccents(normalize(word)))) {
+                return pronoun;
+            }
+        }
+        return null;
     }
 
     // "you have (singular)" -> "you have/you have (singular)": what is in brackets may be left out, or
