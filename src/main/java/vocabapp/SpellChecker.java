@@ -19,11 +19,12 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 // Spell check for new vocab, so a typo isn't learned: the open Hunspell dictionaries (the ones LibreOffice
-// uses) in src/main/resources/dictionaries/<code>/, e.g. "es" for Spanish and "en" for the English side.
+// uses) in src/main/resources/dictionaries/<code>/, e.g. "es" for Spanish; the English side has American
+// and British spelling ("color" and "colour").
 // It only warns; the word can still be saved (names, rare words).
 @Component
 public class SpellChecker {
-    public static final String ENGLISH = "en";
+    public static final List<String> ENGLISH = List.of("en", "en-gb");
 
     // a word, also with an apostrophe inside ("don't"); numbers and signs are skipped
     private static final Pattern WORD = Pattern.compile("[\\p{L}\\p{M}]+(?:'[\\p{L}\\p{M}]+)*");
@@ -36,14 +37,14 @@ public class SpellChecker {
     public record Misspelling(String word, List<String> suggestions) {
     }
 
-    // The words of text that aren't in the dictionary, each once. A capitalised word that doesn't start
-    // an alternative is taken as a name ("Yo soy Nini"). Empty for a language without a dictionary (null).
-    public List<Misspelling> check(String text, String dictionary) {
+    // The words of text that are in none of the dictionaries, each once. A capitalised word that doesn't
+    // start an alternative is taken as a name ("Yo soy Nini"). Empty for no dictionaries.
+    public List<Misspelling> check(String text, List<String> dictionaries) {
         List<Misspelling> misspellings = new ArrayList<>();
-        if (dictionary == null || text == null) {
+        if (text == null) {
             return misspellings;
         }
-        Hunspell hunspell = load(dictionary);
+        List<Hunspell> loaded = dictionaries.stream().map(this::load).toList();
         Set<String> seen = new LinkedHashSet<>();
         for (String option : text.split("/")) {
             Matcher matcher = WORD.matcher(option);
@@ -55,19 +56,27 @@ public class SpellChecker {
                 if (name || !seen.add(word)) {
                     continue;
                 }
-                synchronized (hunspell) {
-                    if (!hunspell.spell(word)) {
-                        misspellings.add(new Misspelling(word, suggest(hunspell, word)));
-                    }
+                if (!loaded.isEmpty() && loaded.stream().noneMatch(hunspell -> spell(hunspell, word))) {
+                    misspellings.add(new Misspelling(word, suggest(loaded.get(0), word)));
                 }
             }
         }
         return misspellings;
     }
 
+    // one Hunspell must not be used by two requests at once
+    private static boolean spell(Hunspell hunspell, String word) {
+        synchronized (hunspell) {
+            return hunspell.spell(word);
+        }
+    }
+
     // Whole words first: "nos toros" for "nostoros" is seldom what was meant
     private static List<String> suggest(Hunspell hunspell, String word) {
-        List<String> all = hunspell.suggest(word);
+        List<String> all;
+        synchronized (hunspell) {
+            all = hunspell.suggest(word);
+        }
         List<String> suggestions = new ArrayList<>();
         for (String suggestion : all) {
             if (!suggestion.contains(" ") && !suggestion.contains("-") && suggestions.size() < SUGGESTIONS) {

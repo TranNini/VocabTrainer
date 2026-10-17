@@ -11,7 +11,8 @@ Several learners (e.g. a parent and a child), each with their own languages and 
 Several languages, each with its own vocabulary and categories; switch at the top of the app
 Add new vocabulary with its English translation and an optional context note (rules, usage, exceptions),
     shown with the "Note" button in the word list and after each quiz question
-Spell check when saving: a word that isn't in the dictionary (Spanish and the English side) gets a warning
+Spell check when saving: a word that isn't in the dictionary (Spanish, and American or British English for
+    the English side) gets a warning
     with suggestions, e.g. 'nostoros' -> nosotros. It can still be saved (names, rare words). Works offline,
     with the open Hunspell dictionaries in src/main/resources/dictionaries (licences next to them)
 Warns before saving a duplicate (same word or same English, also one of the '/' alternatives) and lists

@@ -325,7 +325,8 @@ public class VocabController {
         }
         Language rules = rules(learner, language);
         List<MisspellingDto> misspellings = new ArrayList<>();
-        for (SpellChecker.Misspelling m : spellChecker.check(vocab.getWord(), rules.getSpellDictionary())) {
+        for (SpellChecker.Misspelling m : spellChecker.check(vocab.getWord(),
+                rules.getSpellDictionary() == null ? List.of() : List.of(rules.getSpellDictionary()))) {
             misspellings.add(new MisspellingDto(m.word(), rules.getName(), m.suggestions()));
         }
         for (SpellChecker.Misspelling m : spellChecker.check(vocab.getEnglish(), SpellChecker.ENGLISH)) {

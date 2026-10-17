@@ -11,12 +11,16 @@ class SpellCheckerTest {
     private static final SpellChecker CHECKER = new SpellChecker();
 
     private static List<String> wrong(String text, String dictionary) {
-        return CHECKER.check(text, dictionary).stream().map(SpellChecker.Misspelling::word).toList();
+        return wrong(text, dictionary == null ? List.of() : List.of(dictionary));
+    }
+
+    private static List<String> wrong(String text, List<String> dictionaries) {
+        return CHECKER.check(text, dictionaries).stream().map(SpellChecker.Misspelling::word).toList();
     }
 
     @Test
     void findsSpanishTyposAndSuggestsTheWord() {
-        List<SpellChecker.Misspelling> found = CHECKER.check("nostoros queremos", "es");
+        List<SpellChecker.Misspelling> found = CHECKER.check("nostoros queremos", List.of("es"));
         assertEquals(1, found.size());
         assertEquals("nostoros", found.get(0).word());
         assertEquals("nosotros", found.get(0).suggestions().get(0));
@@ -40,6 +44,13 @@ class SpellCheckerTest {
     }
 
     @Test
+    void englishAcceptsAmericanAndBritishSpelling() {
+        assertTrue(wrong("colour / color", SpellChecker.ENGLISH).isEmpty());
+        assertTrue(wrong("to organise / to organize", SpellChecker.ENGLISH).isEmpty());
+        assertEquals(List.of("colur"), wrong("colur", SpellChecker.ENGLISH));
+    }
+
+    @Test
     void takesCapitalisedWordsInsideAsNames() {
         assertTrue(wrong("Yo soy Nini", "es").isEmpty());
         // a lower-case country is still a mistake
@@ -48,6 +59,6 @@ class SpellCheckerTest {
 
     @Test
     void languagesWithoutADictionaryAreNotChecked() {
-        assertTrue(wrong("xyzzy", null).isEmpty());
+        assertTrue(wrong("xyzzy", (String) null).isEmpty());
     }
 }
