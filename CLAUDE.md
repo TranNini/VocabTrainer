@@ -25,7 +25,7 @@ and updates it every night. To deploy, push a new image to Docker Hub; there is 
 | Compose file | `/share/CACHEDEV1_DATA/homes/jank/compose.yaml` (project dir = `/share/CACHEDEV1_DATA/homes/jank`) |
 | App data on the NAS | `/share/CACHEDEV1_DATA/homes/jank/vocab-learning-app/` (holds `vocab/<Learner>/` and `access-code.txt`). In jank's home, because jank can't create folders in Container Station's `appdata` without sudo |
 | URL | `http://192.168.178.130:7896` (container port 8080; port 8080 on the NAS is used by QNAP itself, and 7890–7895 by other services) |
-| From the internet | `https://g3.myftp.org` (No-IP DDNS name): FRITZ!Box forwards TCP 443 to the NAS, where the `caddy` service terminates HTTPS and proxies to `vocab-learning-app:8080`. Caddyfile and certificates in `/share/CACHEDEV1_DATA/homes/jank/caddy/` |
+| From the internet | `https://vocab.kulose.de` (netcup DNS: `home` A record = home public IP, `vocab` CNAME → `home.kulose.de`; the old No-IP name `g3.myftp.org` still works). FRITZ!Box forwards TCP 443 (IPv4 only) to the NAS, where the `caddy` service terminates HTTPS and proxies to `vocab-learning-app:8080`. Caddyfile and certificates in `/share/CACHEDEV1_DATA/homes/jank/caddy/` |
 | Auto update | `update.sh` in the compose dir, run by root cron at 05:00 daily (entry in `/etc/config/crontab`), log in `~/logs/update-compose/cron.log`. It runs `docker compose up -d --no-deps --pull always <svc>` for every **running** service |
 
 ### Release a new version
@@ -74,9 +74,12 @@ Docker Desktop must be running. The NAS picks up the image at the next 05:00 run
       - /share/CACHEDEV1_DATA/homes/jank/caddy/config:/config
 ```
 
-The Caddyfile is just `g3.myftp.org { reverse_proxy vocab-learning-app:8080 }`. Caddy gets and renews the
+The Caddyfile is just `vocab.kulose.de, g3.myftp.org { reverse_proxy vocab-learning-app:8080 }`; reload it after a change
+with `docker exec caddy caddy reload --config /etc/caddy/Caddyfile`. A new project gets a CNAME in netcup
+(e.g. `trades` → `home.kulose.de.`) and its own block in the Caddyfile. Caddy gets and renews the
 certificate itself (TLS-ALPN challenge on port 443, so no port 80 is needed; port 80 on the NAS is QNAP's).
-Check it with `docker logs caddy`. Port 7896 should only be reachable at home, not forwarded in the FRITZ!Box.
+Check it with `docker logs caddy`.
+The `home` record holds the public IP, which Telekom changes; keep it in sync (manually in the netcup CCP for now). Port 7896 should only be reachable at home, not forwarded in the FRITZ!Box.
 
 ### First-time setup on the NAS
 
