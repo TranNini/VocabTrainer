@@ -47,7 +47,8 @@ Categories (general, verbs, sentences, or your own) and a category filter for th
     seldom) and weren't asked for 14 days, the longest not asked first
 Edit and delete saved vocabulary
 Alphabetical list in the order of each language, with letter sections
-Buttons for special letters (á, ñ, è, …)
+Buttons for special letters under every field, for the language of that field (also on the translation side):
+    Spanish á é í ó ú ñ ü ¿ ¡ and Á É Í Ó Ú Ñ Ü, German ä ö ü ß Ä Ö Ü, Vietnamese letters and tone marks
 Link to a dictionary for every word (SpanishDict for Spanish, VDict for Vietnamese, Wiktionary for others)
 
 Vietnamese extras:

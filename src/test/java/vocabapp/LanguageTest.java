@@ -59,4 +59,13 @@ class LanguageTest {
         assertEquals(List.of("de"), Language.forName("Deutsch").getSpellDictionaries());
         assertEquals(List.of("es"), Language.forName("Español").getSpellDictionaries());
     }
+
+    @Test
+    void spanishLettersOnBothSides() {
+        List<String> letters = List.of("á", "é", "í", "ó", "ú", "ñ", "ü", "¿", "¡", "Á", "É", "Í", "Ó", "Ú", "Ñ", "Ü");
+        assertEquals(letters, Language.forName("Spanish").getSpecialLetters());
+        // Spanish as the translation: German into Spanisch
+        assertEquals(letters, Language.forName("German").translatedInto(Language.forName("Spanisch"))
+                .getTranslation().getSpecialLetters());
+    }
 }
