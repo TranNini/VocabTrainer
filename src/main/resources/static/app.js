@@ -161,7 +161,6 @@ async function loadLearners(selectName) {
     if (!wanted) {
         learner = null;
         fillLearnerSelect();
-        $("learner").value = ADD_LEARNER;
         showMessage("Add your name to start.");
         return;
     }
@@ -179,8 +178,12 @@ function fillLearnerSelect() {
         options.push(el("option", {value: RENAME_LEARNER, textContent: `Rename ${learner}…`}),
             el("option", {value: DELETE_LEARNER, textContent: `Delete ${learner}…`}));
     }
+    if (!learner) {
+        // as for languages: "Add learner…" mustn't be selected, or picking it does nothing
+        options.unshift(el("option", {value: "", textContent: "Who's learning?", disabled: true}));
+    }
     $("learner").replaceChildren(...options);
-    $("learner").value = learner ?? ADD_LEARNER;
+    $("learner").value = learner ?? "";
 }
 
 async function switchLearner(name) {
@@ -271,7 +274,7 @@ async function deleteLearner() {
 async function addLearner() {
     const name = prompt("What's the name of the new learner?");
     if (!name) {
-        $("learner").value = learner ?? ADD_LEARNER;
+        $("learner").value = learner ?? "";
         return;
     }
     try {
@@ -279,7 +282,7 @@ async function addLearner() {
         await loadLearners(added.name);
         showMessage(`Hi ${added.name}! Add the first language you want to learn.`);
     } catch (error) {
-        $("learner").value = learner ?? ADD_LEARNER;
+        $("learner").value = learner ?? "";
         showMessage(error.message, true);
     }
 }
@@ -307,7 +310,9 @@ async function loadLanguages(selectName) {
         $("quiz-question").hidden = true;
         $("quiz-summary").hidden = true;
         $("quiz-setup").hidden = false;
-        select.value = ADD_LANGUAGE;
+        // "Add language…" mustn't be the selected option, or picking it is no change and does nothing
+        select.prepend(el("option", {value: "", textContent: "No language yet", disabled: true}));
+        select.value = "";
         showMessage("Add the first language you want to learn.");
         return;
     }
@@ -348,7 +353,7 @@ async function refreshLanguage() {
 async function addLanguage() {
     const name = prompt("Which language do you want to learn? (its English name, e.g. Italian)");
     if (!name) {
-        $("language").value = language?.name ?? ADD_LANGUAGE;
+        $("language").value = language?.name ?? "";
         return;
     }
     try {
@@ -356,7 +361,7 @@ async function addLanguage() {
         await loadLanguages(added.name);
         showMessage(`${added.name} added. Start by adding some vocab.`);
     } catch (error) {
-        $("language").value = language?.name ?? ADD_LANGUAGE;
+        $("language").value = language?.name ?? "";
         showMessage(error.message, true);
     }
 }
