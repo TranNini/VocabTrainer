@@ -73,9 +73,10 @@ function langUrl(path) {
 const MARK_NAMES = {"\u0300": "huyền", "\u0301": "sắc", "\u0309": "hỏi", "\u0303": "ngã", "\u0323": "nặng"};
 
 // Buttons for the language's letters that a normal keyboard lacks (á, ñ, ¿, ơ, tone marks …)
-// letters: the buttons; by default the ones of the language you learn
-function addAccentButtons(container, input, letters = language?.specialLetters ?? []) {
-    container.hidden = letters.length === 0;
+// letters: the buttons; by default the ones of the language you learn. slash: also a "/" button, for the
+// alternatives when saving vocab ("hola / buenas")
+function addAccentButtons(container, input, letters = language?.specialLetters ?? [], slash = false) {
+    container.hidden = letters.length === 0 && !slash;
     container.replaceChildren(...letters.map((letter) => {
         const isMark = /\p{M}/u.test(letter);
         // a mark on its own is invisible, so the button shows it on an "a" (it still only adds the mark)
@@ -98,6 +99,19 @@ function addAccentButtons(container, input, letters = language?.specialLetters ?
         });
         return button;
     }));
+    if (slash) {
+        const button = el("button", {type: "button", textContent: "/", title: "Another alternative: adds \" / \""});
+        button.addEventListener("mousedown", (e) => e.preventDefault());
+        button.addEventListener("click", () => {
+            const start = input.selectionStart ?? input.value.length;
+            const end = input.selectionEnd ?? input.value.length;
+            // " / " with a space on each side, but no second space after one already typed
+            const spaceBefore = start === 0 || input.value[start - 1] === " ";
+            input.setRangeText(spaceBefore ? "/ " : " / ", start, end, "end");
+            input.focus();
+        });
+        container.append(button);
+    }
 }
 
 // ---------- pronunciation ----------
@@ -372,7 +386,7 @@ async function switchLanguage(name) {
     }
     showTranslationLanguage();
     addAccentButtons($("quiz-accents"), $("quiz-answer"));
-    addAccentButtons(document.querySelector("#add-form .accents"), $("add-word"));
+    addAccentButtons(document.querySelector("#add-form .accents"), $("add-word"), language.specialLetters, true);
     $("add-recent").hidden = true;
     $("add-recent-list").replaceChildren();
     $("quiz-question").hidden = true;
@@ -393,7 +407,8 @@ function showTranslationLanguage() {
         label.textContent = language.translation;
     }
     $("bracket-hint").hidden = !isEnglish(language.translation);
-    addAccentButtons(document.querySelector("#add-form .translation-accents"), $("add-english"), language.translationLetters);
+    addAccentButtons(document.querySelector("#add-form .translation-accents"), $("add-english"),
+        language.translationLetters, true);
 }
 
 // Word count and special letters change when words are added, so fetch the language again
@@ -402,7 +417,7 @@ async function refreshLanguage() {
     language = languages.find((l) => l.name === language.name) || language;
     showTranslationLanguage();
     addAccentButtons($("quiz-accents"), $("quiz-answer"));
-    addAccentButtons(document.querySelector("#add-form .accents"), $("add-word"));
+    addAccentButtons(document.querySelector("#add-form .accents"), $("add-word"), language.specialLetters, true);
 }
 
 // The other side of the current list: spell check, letters, articles and short forms follow it
@@ -818,8 +833,8 @@ function editForm(word) {
     context.value = word.context;
     fillCategorySelect(category, word.category);
     wireCategorySelect(category, newCategory);
-    addAccentButtons(form.querySelector(".accents"), wordInput);
-    addAccentButtons(form.querySelector(".translation-accents"), english, language.translationLetters);
+    addAccentButtons(form.querySelector(".accents"), wordInput, language.specialLetters, true);
+    addAccentButtons(form.querySelector(".translation-accents"), english, language.translationLetters, true);
     addBracketShortcuts(wordInput, () => language.name);
     addBracketShortcuts(english, () => language.translation);
     form.querySelector(".extras").append(dictionaryLink(word.dictionaryUrl));
