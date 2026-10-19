@@ -116,10 +116,22 @@ function addAccentButtons(container, input, letters = language?.specialLetters ?
         });
         return button;
     }));
-    // ⇧ only if there is a letter with a capital (not ¿ ¡ or the tone marks)
-    const shiftButton = letterButtons.length === 0 ? null
+    // ⇧ for a row with letters or tone marks (not for ¿ ¡ alone); it also works for the next letter typed on the
+    // keyboard, so Vietnamese, with only tone buttons, has it too
+    const shiftButton = letterButtons.length === 0 && !letters.some((l) => /\p{M}/u.test(l)) ? null
         : el("button", {type: "button", textContent: "⇧", className: "shift", title: "The next letter as a capital"});
     if (shiftButton) {
+        // the row is built again for every language: replace the keyboard listener of the last one
+        input.removeEventListener("input", shiftListeners.get(input));
+        const keyboard = (event) => {
+            if (shift && event.inputType === "insertText" && /^\p{L}$/u.test(event.data ?? "")) {
+                const end = input.selectionStart;
+                input.setRangeText(capital(event.data), end - 1, end, "end");
+                setShift(false);
+            }
+        };
+        shiftListeners.set(input, keyboard);
+        input.addEventListener("input", keyboard);
         shiftButton.addEventListener("mousedown", (e) => e.preventDefault());
         shiftButton.addEventListener("click", () => {
             setShift(!shift);
@@ -141,6 +153,9 @@ function addAccentButtons(container, input, letters = language?.specialLetters ?
         container.append(button);
     }
 }
+
+// each field's keyboard listener for ⇧, so a new row replaces the old one
+const shiftListeners = new WeakMap();
 
 // "é" -> "É"; ß stays ß, as its capital is two letters
 function capital(letter) {

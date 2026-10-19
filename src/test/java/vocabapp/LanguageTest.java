@@ -35,7 +35,7 @@ class LanguageTest {
         Language vietnamese = Language.forName("Vietnamese");
         assertEquals("VDict", vietnamese.getDictionaryName());
         assertEquals("https://vdict.com/c%E1%BA%A3m%20%C6%A1n,2,0,0.html", vietnamese.dictionaryUrl("cảm ơn!"));
-        assertTrue(vietnamese.getSpecialLetters().containsAll(java.util.List.of("ă", "đ", "ư", "\u0301", "\u0323")));
+        assertEquals(java.util.List.of("\u0300", "\u0301", "\u0309", "\u0303", "\u0323"), vietnamese.getSpecialLetters());
         assertFalse(vietnamese.hasIpa());
     }
 

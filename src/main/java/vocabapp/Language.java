@@ -164,8 +164,8 @@ public class Language {
 
     private static Language vietnamese(String name) {
         return new Language(name, List.of(), List.of(), false,
-                // the letters, then the five tone marks (huyền, sắc, hỏi, ngã, nặng) to type after a vowel
-                List.of("ă", "â", "đ", "ê", "ô", "ơ", "ư", "\u0300", "\u0301", "\u0309", "\u0303", "\u0323"),
+                // the five tone marks (huyền, sắc, hỏi, ngã, nặng) to type after a vowel
+                List.of("\u0300", "\u0301", "\u0309", "\u0303", "\u0323"),
                 null,
                 // 2 = VDict's Vietnamese - English dictionary
                 "VDict", "https://vdict.com/%s,2,0,0.html", List.of());
