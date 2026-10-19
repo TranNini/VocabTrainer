@@ -270,7 +270,7 @@ public class VocabController {
                 v -> weights.getOrDefault(v.getWord(), QuizStats.NEW_WEIGHT), random);
         List<QuestionDto> questions = new ArrayList<>();
         for (Vocab v : vocab) {
-            Question question = Question.from(v, random);
+            Question question = Question.from(v, rules, random);
             String promptIpa = question.answerInLanguage() ? null : rules.ipa(question.prompt());
             questions.add(new QuestionDto(store(learner, language).idOf(v), question.answerInLanguage(), question.prompt(), promptIpa));
         }

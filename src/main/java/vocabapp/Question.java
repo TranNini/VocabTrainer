@@ -5,9 +5,12 @@ import java.util.Random;
 // One quiz question: shows one side of the vocab and expects the other.
 // answerInLanguage = the answer is the word in the language you learn, the prompt is English.
 public record Question(String prompt, String expected, boolean answerInLanguage) {
-    public static Question from(Vocab vocab, Random random) {
+    // The prompt is one of the alternatives; a short form like "he / she / it wants" is expanded first,
+    // so the prompt is "she wants", never just "she"
+    public static Question from(Vocab vocab, Language language, Random random) {
         boolean answerInLanguage = random.nextBoolean();
-        String prompt = AnswerChecker.pickOne(answerInLanguage ? vocab.getEnglish() : vocab.getWord(), random);
+        String side = answerInLanguage ? vocab.getEnglish() : vocab.getWord();
+        String prompt = AnswerChecker.pickOne(AnswerChecker.expandPronounShortForm(side, language), random);
         return new Question(prompt, expectedAnswer(vocab, answerInLanguage), answerInLanguage);
     }
 
