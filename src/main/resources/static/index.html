@@ -83,7 +83,7 @@
             <label for="add-word" class="lang-name"></label>
             <input id="add-word" type="text" autocapitalize="off" autocorrect="off" spellcheck="false">
             <div class="accents" data-for="add-word"></div>
-            <label for="add-english"><span class="translation-name">English</span> <span class="muted">(use / for alternatives; (s → (singular), (p → (plural))</span></label>
+            <label for="add-english"><span class="translation-name">English</span> <span class="muted">(use / for alternatives<span id="bracket-hint">; (s → (singular), (p → (plural)</span>)</span></label>
             <input id="add-english" type="text" autocapitalize="off" autocorrect="off" spellcheck="false">
             <div class="accents translation-accents" data-for="add-english"></div>
             <label for="add-context">Context <span class="muted">(optional: rules, usage, exceptions)</span></label>
@@ -172,6 +172,6 @@
 </template>
 
 <!-- ?v=2: one-time nudge for browsers still holding an old cached copy -->
-<script src="app.js?v=17"></script>
+<script src="app.js?v=18"></script>
 </body>
 </html>
