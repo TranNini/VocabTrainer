@@ -587,3 +587,32 @@ ul.plain li {
 .stats-practise li:last-child {
     border-bottom: none;
 }
+
+/* Overview: Today, 1 month, 6 months, 1 year */
+.stats-periods {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.9rem;
+}
+
+.stats-periods th, .stats-periods td {
+    padding: 6px 4px;
+    border-bottom: 1px solid var(--border);
+    text-align: right;
+}
+
+.stats-periods thead th {
+    color: var(--accent);
+    font-size: 0.8rem;
+    white-space: nowrap;
+}
+
+.stats-periods tbody th {
+    text-align: left;
+    font-weight: 500;
+    color: var(--muted);
+}
+
+.stats-periods tr:last-child th, .stats-periods tr:last-child td {
+    border-bottom: none;
+}

@@ -773,6 +773,16 @@ async function loadStats() {
         tile(stats.answered, "answered in total"),
         tile(stats.daysPractised, stats.daysPractised === 1 ? "day practised" : "days practised"));
 
+    // Today, 1 month, 6 months and 1 year side by side
+    const rows = [["Answered", (p) => p.answered], ["Right on the first try", (p) => percent(p.rightFirstTry, p.answered)],
+        ["Right in the end", (p) => percent(p.right, p.answered)], ["Days practised", (p) => p.days],
+        ["Words practised", (p) => p.words]];
+    $("stats-periods").replaceChildren(
+        el("thead", {}, el("tr", {}, el("th"), ...stats.periods.map((p) => el("th", {scope: "col", textContent: p.name})))),
+        el("tbody", {}, ...rows.map(([label, value]) => el("tr", {},
+            el("th", {scope: "row", textContent: label}),
+            ...stats.periods.map((p) => el("td", {textContent: value(p)}))))));
+
     // one column per day: the right answers at the bottom, the missed ones on top
     const most = Math.max(1, ...stats.lastDays.map((d) => d.answered));
     $("stats-days").replaceChildren(...stats.lastDays.map((d) => {

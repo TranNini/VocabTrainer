@@ -50,6 +50,23 @@ class QuizStatsTest {
     }
 
     @Test
+    void periodsCountTodayOneMonthSixMonthsAndOneYear() {
+        List<QuizLog.Entry> log = List.of(
+                entry(400, "tener", 1),                          // older than a year: only in the totals
+                entry(200, "tener", 0), entry(200, "el gato", 1), // within the year
+                entry(40, "la vaca", 2),                          // within 6 months
+                entry(29, "tener", 1), entry(29, "tener", 0),     // within the month (30 days ago is not)
+                entry(0, "el gato", 1));                          // today
+        List<QuizStats.Period> periods = QuizStats.of(log, VOCAB, TODAY).periods();
+        assertEquals(List.of("Today", "1 month", "6 months", "1 year"),
+                periods.stream().map(QuizStats.Period::name).toList());
+        assertEquals(new QuizStats.Period("Today", 1, 1, 1, 1, 1), periods.get(0));
+        assertEquals(new QuizStats.Period("1 month", 3, 2, 2, 2, 2), periods.get(1));
+        assertEquals(new QuizStats.Period("6 months", 4, 2, 3, 3, 3), periods.get(2));
+        assertEquals(new QuizStats.Period("1 year", 6, 3, 4, 4, 3), periods.get(3));
+    }
+
+    @Test
     void lastDaysHaveEveryDayUpToToday() {
         List<QuizLog.Entry> log = List.of(entry(0, "tener", 1), entry(0, "el gato", 0), entry(13, "tener", 1),
                 entry(14, "tener", 1));

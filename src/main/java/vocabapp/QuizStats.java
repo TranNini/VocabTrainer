@@ -22,6 +22,11 @@ public class QuizStats {
     public record Day(LocalDate date, int answered, int right) {
     }
 
+    // The overview for one period up to today: name = "Today", "1 month", "6 months", "1 year";
+    // words = how many different words were asked
+    public record Period(String name, int answered, int rightFirstTry, int right, int days, int words) {
+    }
+
     // tries = how often it was asked; firstTry = how often it was right on the first try
     public record WordStat(String word, String english, int tries, int firstTry) {
     }
@@ -29,8 +34,8 @@ public class QuizStats {
     // answered, rightFirstTry, right and hints count every finished question, also of words deleted since;
     // mastered + practising + notPractised = the vocab saved now
     public record Stats(int answered, int rightFirstTry, int right, int hints, int today, int streak,
-                        int daysPractised, List<Day> lastDays, int mastered, int practising, int notPractised,
-                        List<WordStat> toPractise) {
+                        int daysPractised, List<Period> periods, List<Day> lastDays, int mastered, int practising,
+                        int notPractised, List<WordStat> toPractise) {
     }
 
     private QuizStats() {
@@ -86,8 +91,13 @@ public class QuizStats {
                 .thenComparing(WordStat::tries, Comparator.reverseOrder()));
 
         int[] todayCounts = perDay.getOrDefault(today, new int[2]);
+        List<Period> periods = List.of(
+                period("Today", entries, today),
+                period("1 month", entries, today.minusMonths(1).plusDays(1)),
+                period("6 months", entries, today.minusMonths(6).plusDays(1)),
+                period("1 year", entries, today.minusYears(1).plusDays(1)));
         return new Stats(entries.size(), rightFirstTry, right, hints, todayCounts[0], streak(days, today),
-                days.size(), lastDays, mastered, practising, notPractised,
+                days.size(), periods, lastDays, mastered, practising, notPractised,
                 missed.subList(0, Math.min(TO_PRACTISE, missed.size())));
     }
 
@@ -123,6 +133,26 @@ public class QuizStats {
         List<T> ordered = new ArrayList<>(items);
         ordered.sort(Comparator.comparing(keys::get, Comparator.reverseOrder()));
         return ordered;
+    }
+
+    // Everything answered from the day "from" on (today included), e.g. 1 month = 20 Sep to 19 Oct
+    private static Period period(String name, List<QuizLog.Entry> entries, LocalDate from) {
+        int answered = 0;
+        int rightFirstTry = 0;
+        int right = 0;
+        Set<LocalDate> days = new HashSet<>();
+        Set<String> words = new HashSet<>();
+        for (QuizLog.Entry e : entries) {
+            if (e.when().toLocalDate().isBefore(from)) {
+                continue;
+            }
+            answered++;
+            rightFirstTry += e.rightFirstTry() ? 1 : 0;
+            right += e.right() ? 1 : 0;
+            days.add(e.when().toLocalDate());
+            words.add(e.word());
+        }
+        return new Period(name, answered, rightFirstTry, right, days.size(), words.size());
     }
 
     private static boolean isMastered(List<QuizLog.Entry> tries) {
