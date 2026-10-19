@@ -292,6 +292,43 @@ async function addLearner() {
     }
 }
 
+// ---------- (s and (p ----------
+
+// Typing "(s" fills in "(singular)" and "(p" "(plural)", e.g. "you have (s" -> "you have (singular)".
+// German writes them with a capital. Backspace right after it goes back to what was typed ("(sth)").
+// sideOf(input) = the language name of that field's side.
+function addBracketShortcuts(input, sideOf) {
+    let filled = null;
+    input.addEventListener("input", (event) => {
+        filled = null;
+        const letter = event.data?.toLowerCase();
+        if (event.inputType !== "insertText" || (letter !== "s" && letter !== "p")) {
+            return;
+        }
+        const end = input.selectionStart;
+        const before = input.value.slice(0, end);
+        // only at the start of a bracket: "(s" after a space, a "/" or nothing
+        if (!/(^|[\s/])\([sp]$/i.test(before)) {
+            return;
+        }
+        const german = isGerman(sideOf(input));
+        const word = {s: "singular", p: "plural"}[letter];
+        const full = "(" + (german ? word[0].toUpperCase() + word.slice(1) : word) + ")";
+        input.setRangeText(full, end - 2, end, "end");
+        filled = {typed: before.slice(-2), full, at: end - 2};
+    });
+    input.addEventListener("keydown", (event) => {
+        if (event.key === "Backspace" && filled && input.selectionStart === filled.at + filled.full.length
+            && input.value.slice(filled.at, input.selectionStart) === filled.full) {
+            event.preventDefault();
+            input.setRangeText(filled.typed, filled.at, input.selectionStart, "end");
+            filled = null;
+        }
+    });
+}
+
+const isGerman = (name) => ["german", "deutsch"].includes((name ?? "").toLowerCase());
+
 // ---------- languages ----------
 
 async function loadLanguages(selectName) {
@@ -784,6 +821,8 @@ function editForm(word) {
     wireCategorySelect(category, newCategory);
     addAccentButtons(form.querySelector(".accents"), wordInput);
     addAccentButtons(form.querySelector(".translation-accents"), english, language.translationLetters);
+    addBracketShortcuts(wordInput, () => language.name);
+    addBracketShortcuts(english, () => language.translation);
     form.querySelector(".extras").append(dictionaryLink(word.dictionaryUrl));
 
     form.addEventListener("submit", async (event) => {
@@ -950,6 +989,8 @@ $("quiz-stop").addEventListener("click", stopQuiz);
 
 $("add-form").addEventListener("submit", addVocab);
 wireCategorySelect($("add-category"), $("add-new-category"));
+addBracketShortcuts($("add-word"), () => language?.name);
+addBracketShortcuts($("add-english"), () => language?.translation);
 
 $("learner").addEventListener("change", () => {
     const actions = {[ADD_LEARNER]: addLearner, [COPY_VOCAB]: copyVocab, [RENAME_LEARNER]: renameLearner,
