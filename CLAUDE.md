@@ -81,6 +81,13 @@ with `docker exec caddy caddy reload --config /etc/caddy/Caddyfile`. A new proje
 (e.g. `trades` → `home.kulose.de.`) and its own block in the Caddyfile. Caddy gets and renews the
 certificate itself (TLS-ALPN challenge on port 443, so no port 80 is needed; port 80 on the NAS is QNAP's).
 Check it with `docker logs caddy`.
+- **Edit the Caddyfile in place** (e.g. `cat > Caddyfile`). It is mounted as a single file, so a tool that replaces
+  the file (`sed -i`, many editors) leaves Caddy on the old one: reload then says "config is unchanged". Fix with
+  `docker restart caddy`.
+- **To see whether a device reaches Caddy at all**, add `debug` to the global options and `log` to the site block
+  for a while; take both out again afterwards.
+- **Safari remembers a broken connection** (an old address, the old HTTP/3 offer): if the site works everywhere
+  else, clearing Safari's history for today fixed it.
 The `home` record holds the public IP, which Telekom changes; keep it in sync (manually in the netcup CCP for now). Port 7896 should only be reachable at home, not forwarded in the FRITZ!Box.
 
 ### First-time setup on the NAS
