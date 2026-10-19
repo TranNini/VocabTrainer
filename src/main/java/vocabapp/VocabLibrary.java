@@ -9,35 +9,44 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 
 // All languages one learner learns: one file per language in their folder, e.g. vocab/Nini/Spanish.txt,
-// and next to it the quiz results for the statistics (Spanish.log, see QuizLog). translation.cfg holds the
-// language the learner translates into ("German"); without it, English.
+// and next to it the language it is translated into (Spanish.translation, e.g. "English", see Language)
+// and the quiz results for the statistics (Spanish.log, see QuizLog)
 public class VocabLibrary {
     static final String EXTENSION = ".txt";
-    static final String TRANSLATION_FILE = "translation.cfg";
+    static final String TRANSLATION_EXTENSION = ".translation";
+    // Before word lists had their own: one translation language for all of a learner's lists
+    static final String OLD_TRANSLATION_FILE = "translation.cfg";
 
     private final Path dir;
+    // which language a list without a .translation file is translated into, from its words; null = English
+    private final Function<List<Vocab>, String> guessTranslation;
     private final Map<String, VocabStore> stores = new TreeMap<>(String.CASE_INSENSITIVE_ORDER);
     private final Map<String, Language> languages = new TreeMap<>(String.CASE_INSENSITIVE_ORDER);
     private final Map<String, QuizLog> logs = new TreeMap<>(String.CASE_INSENSITIVE_ORDER);
-    private Language.Translation translation = Language.ENGLISH;
 
     public VocabLibrary(Path dir) {
+        this(dir, null);
+    }
+
+    public VocabLibrary(Path dir, Function<List<Vocab>, String> guessTranslation) {
         this.dir = dir;
+        this.guessTranslation = guessTranslation;
         try {
             Files.createDirectories(this.dir);
-            Path translationFile = this.dir.resolve(TRANSLATION_FILE);
-            if (Files.exists(translationFile)) {
-                Language.Translation saved = Language.translation(Files.readString(translationFile));
-                translation = saved == null ? Language.ENGLISH : saved;
-            }
+            Path oldFile = this.dir.resolve(OLD_TRANSLATION_FILE);
+            String oldTranslation = Files.exists(oldFile) ? Files.readString(oldFile).trim() : null;
             try (DirectoryStream<Path> files = Files.newDirectoryStream(this.dir, "*" + EXTENSION)) {
                 for (Path file : files) {
                     String name = file.getFileName().toString();
-                    open(name.substring(0, name.length() - EXTENSION.length()));
+                    open(name.substring(0, name.length() - EXTENSION.length()), oldTranslation);
                 }
             }
+            // every list has its own .translation file now
+            Files.deleteIfExists(oldFile);
         } catch (IOException e) {
             throw new UncheckedIOException("Could not read the vocab folder " + this.dir, e);
         }
@@ -52,6 +61,7 @@ public class VocabLibrary {
         return stores.get(language);
     }
 
+    // The rules of the language, translated into the language of its list (see translatedInto)
     public synchronized Language language(String language) {
         return languages.get(language);
     }
@@ -61,41 +71,45 @@ public class VocabLibrary {
         return logs.get(language);
     }
 
-    public synchronized Language.Translation translation() {
-        return translation;
+    // The language this learner translates into most, for a new list: "German" for Kiki; English for a new learner
+    public synchronized String usualTranslation() {
+        return languages.values().stream()
+                .collect(Collectors.groupingBy(l -> l.getTranslation().getName(), Collectors.counting()))
+                .entrySet().stream().max(Map.Entry.comparingByValue())
+                .map(Map.Entry::getKey).orElse(Language.DEFAULT_TRANSLATION);
     }
 
-    // Sets the language every vocab of this learner is translated into ("German"); returns it
-    public synchronized Language.Translation setTranslation(String name) {
-        Language.Translation picked = Language.translation(name);
-        if (picked == null) {
-            throw new IllegalArgumentException("Pick one of: " + String.join(", ",
-                    Language.TRANSLATIONS.stream().map(Language.Translation::name).toList()) + ".");
-        }
-        try {
-            Files.writeString(dir.resolve(TRANSLATION_FILE), picked.name() + System.lineSeparator());
-        } catch (IOException e) {
-            throw new UncheckedIOException("Could not save the translation language in " + dir, e);
-        }
-        translation = picked;
-        languages.replaceAll((language, rules) -> rules.translatedInto(picked));
-        return picked;
-    }
-
-    // Creates an empty file for a new language; returns the saved name ("italian" -> "Italian")
+    // Creates an empty file for a new language, translated into the usual language; returns the saved name
     public synchronized String addLanguage(String name) {
+        return addLanguage(name, null);
+    }
+
+    // Creates an empty file for a new language, translated into translation (null or blank = the usual one);
+    // returns the saved name ("italian" -> "Italian")
+    public synchronized String addLanguage(String name, String translation) {
         String saved = cleanName(name, "language name");
         if (stores.containsKey(saved)) {
             throw new IllegalStateException(stores.keySet().stream()
                     .filter(saved::equalsIgnoreCase).findFirst().orElse(saved) + " already exists.");
         }
+        String into = translation == null || translation.isBlank() ? usualTranslation()
+                : cleanName(translation, "translation language");
         try {
             Files.createFile(dir.resolve(saved + EXTENSION));
         } catch (IOException e) {
             throw new UncheckedIOException("Could not create the file for " + saved, e);
         }
-        open(saved);
+        saveTranslation(saved, into);
+        open(saved, null);
         return saved;
+    }
+
+    // Sets the language the vocab of that list is translated into ("German"); returns the saved name
+    public synchronized String setTranslation(String language, String translation) {
+        String into = cleanName(translation, "translation language");
+        saveTranslation(language, into);
+        languages.put(language, Language.forName(language).translatedInto(Language.forName(into)));
+        return into;
     }
 
     // A language or learner name, also used as a file or folder name: letters, spaces and "-" only
@@ -108,9 +122,40 @@ public class VocabLibrary {
         return trimmed.substring(0, 1).toUpperCase() + trimmed.substring(1);
     }
 
-    private void open(String name) {
-        stores.put(name, new VocabStore(dir.resolve(name + EXTENSION)));
-        languages.put(name, Language.forName(name).translatedInto(translation));
+    // The translation comes from the list's .translation file; a list without one (saved before there were
+    // pairs) gets the learner's old setting, else a guess from its words, else English, and keeps it from then on
+    private void open(String name, String oldTranslation) {
+        VocabStore store = new VocabStore(dir.resolve(name + EXTENSION));
+        stores.put(name, store);
         logs.put(name, new QuizLog(dir.resolve(name + QuizLog.EXTENSION)));
+        Path file = dir.resolve(name + TRANSLATION_EXTENSION);
+        String translation = null;
+        try {
+            if (Files.exists(file)) {
+                translation = Files.readString(file).trim();
+            }
+        } catch (IOException e) {
+            throw new UncheckedIOException("Could not read " + file, e);
+        }
+        if (translation == null || translation.isEmpty()) {
+            if (oldTranslation != null && !oldTranslation.isEmpty()) {
+                translation = oldTranslation;
+            } else if (guessTranslation != null) {
+                translation = guessTranslation.apply(store.getAll());
+            }
+            if (translation == null) {
+                translation = Language.DEFAULT_TRANSLATION;
+            }
+            saveTranslation(name, translation);
+        }
+        languages.put(name, Language.forName(name).translatedInto(Language.forName(translation)));
+    }
+
+    private void saveTranslation(String language, String translation) {
+        try {
+            Files.writeString(dir.resolve(language + TRANSLATION_EXTENSION), translation + System.lineSeparator());
+        } catch (IOException e) {
+            throw new UncheckedIOException("Could not save the translation language of " + language, e);
+        }
     }
 }

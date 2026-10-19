@@ -64,7 +64,7 @@ class SpellCheckerTest {
         assertEquals("Haus", found.get(0).suggestions().get(0));
         assertTrue(wrong("das Mädchen / die Straße / Tschüss", "de").isEmpty());
         assertEquals(List.of("Strasse", "haus"), wrong("die Strasse / das haus", "de"));
-        assertEquals("de", Language.forName("german").getSpellDictionary());
+        assertEquals(List.of("de"), Language.forName("german").getSpellDictionaries());
     }
 
     private static List<String> kinds(String text, String dictionary, boolean sentences) {

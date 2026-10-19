@@ -53,7 +53,7 @@ class QuestionTest {
 
     @Test
     void neverAsksAGermanPronounOnItsOwnOnTheTranslationSide() {
-        Language spanisch = Language.forName("Spanisch").translatedInto(Language.GERMAN);
+        Language spanisch = Language.forName("Spanisch").translatedInto(Language.forName("German"));
         Vocab vocab = new Vocab("él / ella / usted tiene", "er / sie / es hat", "verbformen");
         Random random = new Random(5);
         for (int i = 0; i < 50; i++) {

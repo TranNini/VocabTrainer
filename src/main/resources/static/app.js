@@ -7,7 +7,8 @@ const ADD_LEARNER = "__add__";
 const RENAME_LEARNER = "__rename__";
 const DELETE_LEARNER = "__delete__";
 const COPY_VOCAB = "__copy__";
-const TRANSLATION = "__translation__";
+// "Change translation…" in the language menu
+const CHANGE_TRANSLATION = "__translation__";
 // "Refresh vocab" in the quiz's category menu
 const REFRESH = "__refresh__";
 let refreshDays = 14;
@@ -179,7 +180,6 @@ function fillLearnerSelect() {
         if (learnerNames.length > 1) {
             options.push(el("option", {value: COPY_VOCAB, textContent: `Copy vocab to ${learner}…`}));
         }
-        options.push(el("option", {value: TRANSLATION, textContent: `${learner} translates into…`}));
         options.push(el("option", {value: RENAME_LEARNER, textContent: `Rename ${learner}…`}),
             el("option", {value: DELETE_LEARNER, textContent: `Delete ${learner}…`}));
     }
@@ -244,19 +244,6 @@ async function copyVocab() {
         (result.skipped ? `. ${result.skipped} skipped: already in ${learner}'s list.` : "."));
 }
 
-// English or German on the other side of every vocab of this learner (see VocabLibrary.setTranslation)
-async function setTranslation() {
-    $("learner").value = learner;
-    const now = language?.translation ?? "English";
-    const name = prompt(`${learner} translates the vocab into which language? English or German`, now);
-    if (!name || name.trim().toLowerCase() === now.toLowerCase()) {
-        return;
-    }
-    const saved = await api("PUT", learnerUrl("/translation"), {name});
-    await loadLanguages(language?.name);
-    showMessage(`${learner} now translates into ${saved.name}: spell check, letters and hints follow it.`);
-}
-
 async function renameLearner() {
     const name = prompt(`New name for ${learner}:`, learner);
     $("learner").value = learner;
@@ -310,9 +297,13 @@ async function addLearner() {
 async function loadLanguages(selectName) {
     languages = await api("GET", learnerUrl("/languages"));
     const select = $("language");
+    // each word list is a pair: "Spanisch → German"
     select.replaceChildren(
-        ...languages.map((l) => el("option", {value: l.name, textContent: l.name})),
+        ...languages.map((l) => el("option", {value: l.name, textContent: `${l.name} → ${l.translation}`})),
         el("option", {value: ADD_LANGUAGE, textContent: "Add language…"}));
+    if (languages.length > 0) {
+        select.append(el("option", {value: CHANGE_TRANSLATION, textContent: "Change translation…"}));
+    }
     const wanted = languages.find((l) => l.name === selectName)
         || languages.find((l) => l.name === loadSetting("language:" + learner)) || languages[0];
     if (!wanted) {
@@ -378,16 +369,44 @@ async function refreshLanguage() {
     addAccentButtons(document.querySelector("#add-form .accents"), $("add-word"));
 }
 
+// The other side of the current list: spell check, letters, articles and short forms follow it
+async function changeTranslation() {
+    $("language").value = language.name;
+    const name = prompt(`Into which language do you translate ${language.name}? (e.g. English, German)`,
+        language.translation);
+    if (!name || name.trim().toLowerCase() === language.translation.toLowerCase()) {
+        return;
+    }
+    const changed = await api("PUT", langUrl("/translation"), {name});
+    await loadLanguages(language.name);
+    showMessage(`${changed.name} is now translated into ${changed.translation}.`);
+}
+
+// The language the learner translates into most, offered for a new list
+function usualTranslation() {
+    const counts = {};
+    for (const l of languages) {
+        counts[l.translation] = (counts[l.translation] ?? 0) + 1;
+    }
+    return Object.entries(counts).sort((a, b) => b[1] - a[1])[0]?.[0] ?? "English";
+}
+
 async function addLanguage() {
-    const name = prompt("Which language do you want to learn? (its English name, e.g. Italian)");
+    const name = prompt("Which language do you want to learn? (e.g. Spanish, English, German)");
     if (!name) {
         $("language").value = language?.name ?? "";
         return;
     }
+    const translation = prompt(`Into which language do you translate ${name.trim()}? (e.g. English, German)`,
+        usualTranslation());
+    if (!translation) {
+        $("language").value = language?.name ?? "";
+        return;
+    }
     try {
-        const added = await api("POST", learnerUrl("/languages"), {name});
+        const added = await api("POST", learnerUrl("/languages"), {name, translation});
         await loadLanguages(added.name);
-        showMessage(`${added.name} added. Start by adding some vocab.`);
+        showMessage(`${added.name} → ${added.translation} added. Start by adding some vocab.`);
     } catch (error) {
         $("language").value = language?.name ?? "";
         showMessage(error.message, true);
@@ -933,15 +952,16 @@ $("add-form").addEventListener("submit", addVocab);
 wireCategorySelect($("add-category"), $("add-new-category"));
 
 $("learner").addEventListener("change", () => {
-    const actions = {[ADD_LEARNER]: addLearner, [COPY_VOCAB]: copyVocab, [TRANSLATION]: setTranslation,
-        [RENAME_LEARNER]: renameLearner, [DELETE_LEARNER]: deleteLearner};
+    const actions = {[ADD_LEARNER]: addLearner, [COPY_VOCAB]: copyVocab, [RENAME_LEARNER]: renameLearner,
+        [DELETE_LEARNER]: deleteLearner};
     const name = $("learner").value;
     (actions[name] ? actions[name]() : switchLearner(name)).catch((error) => showMessage(error.message, true));
 });
 
 $("language").addEventListener("change", () => {
     const name = $("language").value;
-    (name === ADD_LANGUAGE ? addLanguage() : switchLanguage(name)).catch((error) => showMessage(error.message, true));
+    const action = {[ADD_LANGUAGE]: addLanguage, [CHANGE_TRANSLATION]: changeTranslation}[name];
+    (action ? action() : switchLanguage(name)).catch((error) => showMessage(error.message, true));
 });
 
 $("words-category").addEventListener("change", loadWords);

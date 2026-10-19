@@ -26,12 +26,15 @@ public class Learners {
     static final String DELETED = ".deleted";
 
     private final Path dir;
+    // recognises the translation language of word lists saved before they had one (see VocabLibrary)
+    private final SpellChecker spellChecker;
     private final Map<String, VocabLibrary> libraries = new TreeMap<>(String.CASE_INSENSITIVE_ORDER);
 
     // firstLearner gets the vocab saved before there were learners
     public Learners(@Value("${vocab.dir}") String dir, @Value("${vocab.old-file}") String oldFile,
-                    @Value("${vocab.first-learner}") String firstLearner) {
+                    @Value("${vocab.first-learner}") String firstLearner, SpellChecker spellChecker) {
         this.dir = Paths.get(dir);
+        this.spellChecker = spellChecker;
         try {
             Files.createDirectories(this.dir);
             moveOldFiles(Paths.get(oldFile), VocabLibrary.cleanName(firstLearner, "learner name"));
@@ -40,7 +43,7 @@ public class Learners {
                     String name = folder.getFileName().toString();
                     // skips folders the NAS or the Mac add, like @Recycle or .DS_Store
                     if (isName(name)) {
-                        libraries.put(name, new VocabLibrary(folder));
+                        libraries.put(name, newLibrary(folder));
                     }
                 }
             }
@@ -64,7 +67,7 @@ public class Learners {
         if (libraries.containsKey(saved)) {
             throw new IllegalStateException(savedName(saved) + " already exists.");
         }
-        libraries.put(saved, new VocabLibrary(dir.resolve(saved)));
+        libraries.put(saved, newLibrary(dir.resolve(saved)));
         return saved;
     }
 
@@ -88,7 +91,7 @@ public class Learners {
             throw new UncheckedIOException("Could not rename the folder of " + old, e);
         }
         libraries.remove(old);
-        libraries.put(saved, new VocabLibrary(dir.resolve(saved)));
+        libraries.put(saved, newLibrary(dir.resolve(saved)));
         return saved;
     }
 
@@ -108,6 +111,10 @@ public class Learners {
         }
         libraries.remove(saved);
         return true;
+    }
+
+    private VocabLibrary newLibrary(Path folder) {
+        return new VocabLibrary(folder, spellChecker == null ? null : spellChecker::guessTranslation);
     }
 
     // The saved spelling of a learner's name ("nini" -> "Nini"), or null

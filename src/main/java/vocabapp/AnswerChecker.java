@@ -58,8 +58,8 @@ public class AnswerChecker {
 
     // "el" -> "él", "She" -> "she"; null if the word is no pronoun of the language or of its translation side
     private static String pronounSpelling(String word, Language language) {
-        List<String> pronouns = new ArrayList<>(language.getTranslation().pronouns());
-        language.getSubjectPronouns().forEach(pronouns::addAll);
+        List<String> pronouns = new ArrayList<>(language.getTranslation().allPronouns());
+        pronouns.addAll(language.allPronouns());
         for (String pronoun : pronouns) {
             if (stripAccents(pronoun).equalsIgnoreCase(stripAccents(normalize(word)))) {
                 return pronoun;
@@ -149,7 +149,7 @@ public class AnswerChecker {
     // (see firstHint), then ones with one letter more each. The whole answer is never given.
     private static List<String> hints(String answer, String expected, Language language) {
         List<String> articles = new ArrayList<>(language.getArticles());
-        articles.addAll(language.getTranslation().articles());
+        articles.addAll(language.getTranslation().getArticles());
         Hint first = firstHint(answer, expected, language);
         List<String> hints = new ArrayList<>();
         String kind = first.text().equals(RIGHT) ? null : mistakeKind(normalize(answer), expected, articles);
@@ -331,7 +331,7 @@ public class AnswerChecker {
             return more;
         }
         List<String> articles = new ArrayList<>(language.getArticles());
-        articles.addAll(language.getTranslation().articles());
+        articles.addAll(language.getTranslation().getArticles());
         String cleaned = normalize(answer);
         if (ARTICLE_HINTS.contains(first.text())) {
             // the word is right, so only the article is left: its first letter ('e' for "el", 'l' for "la")
@@ -376,7 +376,7 @@ public class AnswerChecker {
             return new Hint(RIGHT, null);
         }
         List<String> articles = new ArrayList<>(language.getArticles());
-        articles.addAll(language.getTranslation().articles());
+        articles.addAll(language.getTranslation().getArticles());
         String[] typed = splitArticle(cleaned, articles);
         // Typed right so far, nearly finished or with the article ("e", "el", "to") -> one letter more.
         // Checked first, so a correct start is never mistaken for a nearly right answer.

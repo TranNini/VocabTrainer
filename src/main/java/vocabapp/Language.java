@@ -9,34 +9,14 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.function.UnaryOperator;
 
-// Everything that differs between the languages you learn. A language added in the app gets the
-// basics (alphabetical order for its locale, Wiktionary link); the extras (articles, conjugation
-// grouping, IPA, fixed special letter buttons, its own dictionary) come from rules set up here.
+// Everything that differs between languages. A word list is a pair: the language you learn, translated
+// into another one (see translatedInto); both sides use the rules of their language. A language added in the
+// app gets the basics (alphabetical order for its locale, Wiktionary link); the extras (articles, conjugation
+// grouping, IPA, fixed special letter buttons, spell check, its own dictionary) come from rules set up here,
+// for English, Spanish, German and Vietnamese.
 public class Language {
+    public static final String DEFAULT_TRANSLATION = "English";
     public static final List<String> ENGLISH_ARTICLES = List.of("the", "a", "an");
-    // For the short form "he / she / it wants" (see AnswerChecker.expandPronounShortForm)
-    public static final List<String> ENGLISH_PRONOUNS = List.of("I", "you", "he", "she", "it", "we", "they");
-    private static final List<String> GERMAN_ARTICLES =
-            List.of("der", "die", "das", "den", "dem", "des", "ein", "eine", "einen", "einem", "einer", "eines");
-    private static final List<String> GERMAN_LETTERS = List.of("ä", "ö", "ü", "ß", "Ä", "Ö", "Ü");
-
-    // The side vocab is translated into, set per learner (see VocabLibrary): its name, articles (for the
-    // article hints), pronouns (for the short form "er / sie / es hat"), spell check dictionaries and letter buttons
-    public record Translation(String name, List<String> articles, List<String> pronouns, List<String> dictionaries,
-                              List<String> letters) {
-    }
-
-    public static final Translation ENGLISH = new Translation("English", ENGLISH_ARTICLES, ENGLISH_PRONOUNS,
-            SpellChecker.ENGLISH, List.of());
-    public static final Translation GERMAN = new Translation("German", GERMAN_ARTICLES,
-            List.of("ich", "du", "er", "sie", "es", "wir", "ihr", "Sie"), List.of("de"), GERMAN_LETTERS);
-    public static final List<Translation> TRANSLATIONS = List.of(ENGLISH, GERMAN);
-
-    // "german", "Deutsch" -> GERMAN; null if the app can't translate into it
-    public static Translation translation(String name) {
-        String english = name == null ? "" : englishName(name.trim());
-        return TRANSLATIONS.stream().filter(t -> t.name().equalsIgnoreCase(english)).findFirst().orElse(null);
-    }
 
     // Locales for alphabetical order, by the English name of the language
     private static final Map<String, Locale> LOCALES = Map.ofEntries(
@@ -59,12 +39,13 @@ public class Language {
     private final UnaryOperator<String> ipa;
     private final String dictionaryName;
     private final String dictionaryUrl;
-    private final String spellDictionary;
-    private final Translation translation;
+    private final List<String> spellDictionaries;
+    // the other side of the word list; null = English
+    private final Language translation;
 
     private Language(String name, List<String> articles, List<List<String>> subjectPronouns,
                      boolean pronounsOptional, List<String> specialLetters, UnaryOperator<String> ipa,
-                     String dictionaryName, String dictionaryUrl, String spellDictionary) {
+                     String dictionaryName, String dictionaryUrl, List<String> spellDictionaries) {
         this.name = name;
         this.collator = Collator.getInstance(LOCALES.getOrDefault(englishName(name), Locale.ROOT));
         // PRIMARY ignores case and accents, so "árbol" sorts with "arbol"
@@ -76,11 +57,11 @@ public class Language {
         this.ipa = ipa;
         this.dictionaryName = dictionaryName;
         this.dictionaryUrl = dictionaryUrl;
-        this.spellDictionary = spellDictionary;
-        this.translation = ENGLISH;
+        this.spellDictionaries = spellDictionaries;
+        this.translation = null;
     }
 
-    private Language(Language language, Translation translation) {
+    private Language(Language language, Language translation) {
         this.name = language.name;
         this.collator = language.collator;
         this.articles = language.articles;
@@ -90,17 +71,23 @@ public class Language {
         this.ipa = language.ipa;
         this.dictionaryName = language.dictionaryName;
         this.dictionaryUrl = language.dictionaryUrl;
-        this.spellDictionary = language.spellDictionary;
+        this.spellDictionaries = language.spellDictionaries;
         this.translation = translation;
     }
 
-    // The same language, translated into another one (English unless the learner picked another)
-    public Language translatedInto(Translation translation) {
+    // The same language, with the vocab translated into another one ("Spanisch" into "German")
+    public Language translatedInto(Language translation) {
         return new Language(this, translation);
     }
 
-    public Translation getTranslation() {
-        return translation;
+    // The other side of the word list, with its own rules; English unless set
+    public Language getTranslation() {
+        return translation != null ? translation : DefaultTranslation.ENGLISH;
+    }
+
+    // made on first use, as Language itself has to exist first
+    private static final class DefaultTranslation {
+        static final Language ENGLISH = forName(DEFAULT_TRANSLATION);
     }
 
     // Names of a language in other languages ("Spanisch"), so it gets the same rules as its English name
@@ -110,7 +97,7 @@ public class Language {
             "vietnamesisch", "vietnamese", "tiếng việt", "vietnamese");
 
     // "Spanisch" -> "spanish": the English name, in lower case
-    private static String englishName(String name) {
+    static String englishName(String name) {
         String lower = name.toLowerCase();
         return OTHER_NAMES.getOrDefault(lower, lower);
     }
@@ -126,8 +113,22 @@ public class Language {
         if (english.equals("german")) {
             return german(name);
         }
+        if (english.equals("english")) {
+            return english(name);
+        }
         return new Language(name, List.of(), List.of(), false, List.of(), null,
-                "Wiktionary", "https://en.wiktionary.org/wiki/%s#" + name.replace(' ', '_'), null);
+                "Wiktionary", "https://en.wiktionary.org/wiki/%s#" + name.replace(' ', '_'), List.of());
+    }
+
+    // "to" counts as an article too, so "to have" sorts under H; the pronouns group "I have" under "to have"
+    // and make the short form "he / she / it has" work; American and British spelling
+    private static Language english(String name) {
+        return new Language(name,
+                List.of("the", "a", "an", "to"),
+                List.of(List.of("I"), List.of("you"), List.of("he", "she", "it"), List.of("we"), List.of("you"),
+                        List.of("they")),
+                false, List.of(), null,
+                "Wiktionary", "https://en.wiktionary.org/wiki/%s#English", SpellChecker.ENGLISH);
     }
 
     private static Language spanish(String name) {
@@ -142,7 +143,7 @@ public class Language {
                 List.of("á", "é", "í", "ó", "ú", "ñ", "ü", "¿", "¡"),
                 SpanishIpa::transcribe,
                 "SpanishDict", "https://www.spanishdict.com/translate/%s",
-                "es");
+                List.of("es"));
     }
 
     // The pronouns group the conjugations under their infinitive and make the short form
@@ -157,7 +158,7 @@ public class Language {
                 // capitals too, as every noun starts with one ("die Übung")
                 List.of("ä", "ö", "ü", "ß", "Ä", "Ö", "Ü"),
                 null,
-                "Wiktionary", "https://en.wiktionary.org/wiki/%s#German", "de");
+                "Wiktionary", "https://en.wiktionary.org/wiki/%s#German", List.of("de"));
     }
 
     private static Language vietnamese(String name) {
@@ -166,7 +167,7 @@ public class Language {
                 List.of("ă", "â", "đ", "ê", "ô", "ơ", "ư", "\u0300", "\u0301", "\u0309", "\u0303", "\u0323"),
                 null,
                 // 2 = VDict's Vietnamese - English dictionary
-                "VDict", "https://vdict.com/%s,2,0,0.html", null);
+                "VDict", "https://vdict.com/%s,2,0,0.html", List.of());
     }
 
     public String getName() {
@@ -183,6 +184,11 @@ public class Language {
 
     public List<List<String>> getSubjectPronouns() {
         return subjectPronouns;
+    }
+
+    // Every subject pronoun once, e.g. for the short form "er / sie / es hat"
+    public List<String> allPronouns() {
+        return subjectPronouns.stream().flatMap(List::stream).distinct().toList();
     }
 
     // Whether a subject pronoun at the start may be left out of an answer (Spanish, not German)
@@ -204,9 +210,10 @@ public class Language {
         return ipa == null ? null : ipa.apply(word);
     }
 
-    // The folder in src/main/resources/dictionaries for the spell check of new vocab; null = no spell check
-    public String getSpellDictionary() {
-        return spellDictionary;
+    // The folders in src/main/resources/dictionaries for the spell check of new vocab (a word is right if
+    // one of them knows it); empty = no spell check
+    public List<String> getSpellDictionaries() {
+        return spellDictionaries;
     }
 
     public String getDictionaryName() {

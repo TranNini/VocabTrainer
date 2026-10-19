@@ -20,7 +20,7 @@ class LearnersTest {
     Path dir;
 
     private Learners learners() {
-        return new Learners(dir.resolve("vocab").toString(), dir.resolve("vocab.txt").toString(), "Nini");
+        return new Learners(dir.resolve("vocab").toString(), dir.resolve("vocab.txt").toString(), "Nini", null);
     }
 
     @Test

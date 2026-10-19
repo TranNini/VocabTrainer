@@ -102,6 +102,37 @@ public class SpellChecker {
         return word.substring(0, first).toUpperCase() + word.substring(first);
     }
 
+    // The languages a word list's translation side is recognised as, with their dictionaries
+    private static final Map<String, List<String>> RECOGNISED = Map.of(
+            "English", ENGLISH, "German", List.of("de"), "Spanish", List.of("es"));
+    // enough words to tell, and quick at the start
+    private static final int WORDS_TO_GUESS = 300;
+
+    // The language most words of the translation side of the vocab are in ("German" for Kiki's Spanisch list),
+    // or null if none of the dictionaries knows more of them than another (e.g. no vocab yet)
+    public String guessTranslation(List<Vocab> vocab) {
+        Map<String, Integer> known = new HashMap<>();
+        int words = 0;
+        for (Vocab v : vocab) {
+            Matcher matcher = WORD.matcher(v.getEnglish());
+            while (matcher.find() && words < WORDS_TO_GUESS) {
+                String word = matcher.group();
+                words++;
+                RECOGNISED.forEach((language, codes) -> {
+                    if (codes.stream().map(this::load).anyMatch(hunspell -> spell(hunspell, word))) {
+                        known.merge(language, 1, Integer::sum);
+                    }
+                });
+            }
+        }
+        List<Map.Entry<String, Integer>> ranked = new ArrayList<>(known.entrySet());
+        ranked.sort(Map.Entry.<String, Integer>comparingByValue().reversed());
+        if (ranked.isEmpty() || ranked.size() > 1 && ranked.get(0).getValue().equals(ranked.get(1).getValue())) {
+            return null;
+        }
+        return ranked.get(0).getKey();
+    }
+
     // one Hunspell must not be used by two requests at once
     private static boolean spell(Hunspell hunspell, String word) {
         synchronized (hunspell) {

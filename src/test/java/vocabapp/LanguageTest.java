@@ -2,6 +2,8 @@ package vocabapp;
 
 import org.junit.jupiter.api.Test;
 
+import java.util.List;
+
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
@@ -50,11 +52,11 @@ class LanguageTest {
     void knowsLanguagesByTheirGermanAndOwnNames() {
         Language spanisch = Language.forName("Spanisch");
         assertEquals("Spanisch", spanisch.getName());
-        assertEquals("es", spanisch.getSpellDictionary());
+        assertEquals(List.of("es"), spanisch.getSpellDictionaries());
         assertTrue(spanisch.hasIpa());
         assertTrue(spanisch.arePronounsOptional());
         assertEquals("Ñ", spanisch.sectionLetter("ñandú"));
-        assertEquals("de", Language.forName("Deutsch").getSpellDictionary());
-        assertEquals("es", Language.forName("Español").getSpellDictionary());
+        assertEquals(List.of("de"), Language.forName("Deutsch").getSpellDictionaries());
+        assertEquals(List.of("es"), Language.forName("Español").getSpellDictionaries());
     }
 }

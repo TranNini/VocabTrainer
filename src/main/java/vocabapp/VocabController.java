@@ -46,6 +46,10 @@ public class VocabController {
     record NewNameRequest(String name) {
     }
 
+    // translation = the language the new list is translated into; empty = the one the learner uses most
+    record NewLanguageRequest(String name, String translation) {
+    }
+
     record CategoryDto(String name, int count) {
     }
 
@@ -137,16 +141,6 @@ public class VocabController {
         return Map.of("name", saved);
     }
 
-    // The language the learner translates into ({"name": "German"}); English if never set
-    @PutMapping("/{learner}/translation")
-    public Map<String, String> setTranslation(@PathVariable String learner, @RequestBody NewNameRequest request) {
-        try {
-            return Map.of("name", library(learner).setTranslation(request.name()).name());
-        } catch (IllegalArgumentException e) {
-            throw new ApiException(HttpStatus.BAD_REQUEST, e.getMessage());
-        }
-    }
-
     // Deletes the learner with all their languages and vocab (kept in vocab/.deleted, see Learners.delete)
     @DeleteMapping("/{learner}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
@@ -185,7 +179,9 @@ public class VocabController {
             if (from == null) {
                 throw new ApiException(HttpStatus.NOT_FOUND, request.from() + " has no " + language + ".");
             }
-            String saved = target.store(language) == null ? target.addLanguage(language) : language;
+            // a new list gets the same pair: Spanisch into German stays into German
+            String saved = target.store(language) == null
+                    ? target.addLanguage(language, source.language(language).getTranslation().getName()) : language;
             VocabStore to = target.store(saved);
             Set<String> have = new HashSet<>();
             for (Vocab v : to.getAll()) {
@@ -215,14 +211,27 @@ public class VocabController {
 
     @PostMapping("/{learner}/languages")
     @ResponseStatus(HttpStatus.CREATED)
-    public LanguageDto addLanguage(@PathVariable String learner, @RequestBody NewNameRequest request) {
+    public LanguageDto addLanguage(@PathVariable String learner, @RequestBody NewLanguageRequest request) {
         try {
-            return toDto(learner, library(learner).addLanguage(request.name()));
+            return toDto(learner, library(learner).addLanguage(request.name(), request.translation()));
         } catch (IllegalArgumentException e) {
             throw new ApiException(HttpStatus.BAD_REQUEST, e.getMessage());
         } catch (IllegalStateException e) {
             throw new ApiException(HttpStatus.CONFLICT, e.getMessage());
         }
+    }
+
+    // The language this list is translated into ({"name": "German"})
+    @PutMapping("/{learner}/languages/{language}/translation")
+    public LanguageDto setTranslation(@PathVariable String learner, @PathVariable String language,
+                                      @RequestBody NewNameRequest request) {
+        store(learner, language); // 404 for unknown languages
+        try {
+            library(learner).setTranslation(language, request.name());
+        } catch (IllegalArgumentException e) {
+            throw new ApiException(HttpStatus.BAD_REQUEST, e.getMessage());
+        }
+        return toDto(learner, language);
     }
 
     @GetMapping("/{learner}/languages/{language}/categories")
@@ -429,13 +438,13 @@ public class VocabController {
         Language rules = rules(learner, language);
         List<MisspellingDto> misspellings = new ArrayList<>();
         boolean sentences = SpellChecker.isSentenceCategory(vocab.getCategory());
-        for (SpellChecker.Misspelling m : spellChecker.check(vocab.getWord(),
-                rules.getSpellDictionary() == null ? List.of() : List.of(rules.getSpellDictionary()), sentences)) {
+        for (SpellChecker.Misspelling m : spellChecker.check(vocab.getWord(), rules.getSpellDictionaries(), sentences)) {
             misspellings.add(new MisspellingDto(m.word(), rules.getName(), m.suggestions(), m.kind()));
         }
-        Language.Translation translation = rules.getTranslation();
-        for (SpellChecker.Misspelling m : spellChecker.check(vocab.getEnglish(), translation.dictionaries(), sentences)) {
-            misspellings.add(new MisspellingDto(m.word(), translation.name(), m.suggestions(), m.kind()));
+        Language translation = rules.getTranslation();
+        for (SpellChecker.Misspelling m : spellChecker.check(vocab.getEnglish(), translation.getSpellDictionaries(),
+                sentences)) {
+            misspellings.add(new MisspellingDto(m.word(), translation.getName(), m.suggestions(), m.kind()));
         }
         if (!misspellings.isEmpty()) {
             String error = misspellings.size() == 1 ? "Check the spelling:" : "Check the spelling of these words:";
@@ -467,9 +476,9 @@ public class VocabController {
         if (letters.isEmpty()) {
             letters = specialLettersIn(all);
         }
-        Language.Translation translation = rules.getTranslation();
+        Language translation = rules.getTranslation();
         return new LanguageDto(rules.getName(), all.size(), rules.hasIpa(), letters, rules.getDictionaryName(),
-                translation.name(), translation.letters());
+                translation.getName(), translation.getSpecialLetters());
     }
 
     // Letters beyond a–z used in the saved words, e.g. "à", "è", "ç" for a new language

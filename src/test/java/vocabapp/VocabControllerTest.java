@@ -455,42 +455,46 @@ class VocabControllerTest {
     }
 
     @Test
-    void aLearnerCanTranslateIntoGerman() throws Exception {
+    void everyWordListIsAPairOfLanguages() throws Exception {
         send("POST", "/api/learners", """
-                {"name": "Germantest"}
+                {"name": "Pairtest"}
                 """).andExpect(status().isCreated());
-        send("POST", "/api/learners/Germantest/languages", """
-                {"name": "Spanisch"}
-                """).andExpect(jsonPath("$.translation").value("English"));
-        String url = "/api/learners/Germantest/languages/Spanisch/vocab";
-        String haus = """
+        // a new learner's first list: English unless asked for another
+        send("POST", "/api/learners/Pairtest/languages", """
+                {"name": "Spanisch", "translation": "deutsch"}
+                """).andExpect(jsonPath("$.translation").value("Deutsch"))
+                .andExpect(jsonPath("$.translationLetters[0]").value("ä"));
+        // the next list: the learner's usual translation language
+        send("POST", "/api/learners/Pairtest/languages", """
+                {"name": "English"}
+                """).andExpect(jsonPath("$.translation").value("Deutsch"));
+        String spanisch = "/api/learners/Pairtest/languages/Spanisch/vocab";
+        send("POST", spanisch, """
                 {"word": "la casa", "english": "das haus", "category": "general"}
-                """;
-        send("POST", url, haus)
-                .andExpect(status().isConflict())
-                .andExpect(jsonPath("$.spelling[0].language").value("English"));
-
-        send("PUT", "/api/learners/Germantest/translation", """
-                {"name": "deutsch"}
-                """).andExpect(jsonPath("$.name").value("German"));
-        mvc.perform(get("/api/learners/Germantest/languages"))
-                .andExpect(jsonPath("$[0].translation").value("German"))
-                .andExpect(jsonPath("$[0].translationLetters[0]").value("ä"));
-        send("POST", url, haus)
+                """)
                 .andExpect(status().isConflict())
                 .andExpect(jsonPath("$.spelling", hasSize(1)))
-                .andExpect(jsonPath("$.spelling[0].language").value("German"))
-                .andExpect(jsonPath("$.spelling[0].kind").value("capital"))
-                .andExpect(jsonPath("$.spelling[0].suggestions[0]").value("Haus"));
-        send("POST", url, """
-                {"word": "la casa", "english": "das Haus", "category": "general"}
-                """).andExpect(status().isCreated());
-        // kept after a restart: a new library reads translation.cfg
-        assertEquals("German", new VocabLibrary(dir.resolve("vocab/Germantest")).translation().name());
+                .andExpect(jsonPath("$.spelling[0].language").value("Deutsch"))
+                .andExpect(jsonPath("$.spelling[0].kind").value("capital"));
+        // English as the language learned: English spell check on that side, German on the other
+        send("POST", "/api/learners/Pairtest/languages/English/vocab", """
+                {"word": "the hous", "english": "das Haus", "category": "general"}
+                """)
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.spelling", hasSize(1)))
+                .andExpect(jsonPath("$.spelling[0].word").value("hous"))
+                .andExpect(jsonPath("$.spelling[0].language").value("English"));
 
-        send("PUT", "/api/learners/Germantest/translation", """
-                {"name": "Klingonisch"}
+        send("PUT", "/api/learners/Pairtest/languages/Spanisch/translation", """
+                {"name": "english"}
+                """).andExpect(jsonPath("$.translation").value("English"));
+        send("PUT", "/api/learners/Pairtest/languages/Spanisch/translation", """
+                {"name": "../x"}
                 """).andExpect(status().isBadRequest());
-        mvc.perform(delete("/api/learners/Germantest")).andExpect(status().isNoContent());
+        // kept after a restart: each list has its .translation file
+        VocabLibrary reloaded = new VocabLibrary(dir.resolve("vocab/Pairtest"));
+        assertEquals("English", reloaded.language("Spanisch").getTranslation().getName());
+        assertEquals("Deutsch", reloaded.language("English").getTranslation().getName());
+        mvc.perform(delete("/api/learners/Pairtest")).andExpect(status().isNoContent());
     }
 }
