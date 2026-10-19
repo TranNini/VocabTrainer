@@ -48,7 +48,9 @@ Categories (general, verbs, sentences, or your own) and a category filter for th
 Edit and delete saved vocabulary
 Alphabetical list in the order of each language, with letter sections
 Buttons for special letters under every field, for the language of that field (also on the translation side):
-    Spanish á é í ó ú ñ ü ¿ ¡ and Á É Í Ó Ú Ñ, German ä ö ü ß Ä Ö Ü, Vietnamese letters and tone marks
+    Spanish á é í ó ú ñ ü ¿ ¡, German ä ö ü ß, Vietnamese letters and tone marks. Small letters only: a letter
+    becomes a capital by itself at a sentence start (after . ? ! and a space, after an opening ¿ or ¡, or at
+    the start of an entry in a sentence category), else ⇧ makes the next one a capital
 Link to a dictionary for every word (SpanishDict for Spanish, VDict for Vietnamese, Wiktionary for others)
 
 Vietnamese extras:

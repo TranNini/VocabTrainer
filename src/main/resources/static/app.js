@@ -72,23 +72,40 @@ function langUrl(path) {
 // Vietnamese tone marks, typed after the vowel they belong to
 const MARK_NAMES = {"\u0300": "huyền", "\u0301": "sắc", "\u0309": "hỏi", "\u0303": "ngã", "\u0323": "nặng"};
 
-// Buttons for the language's letters that a normal keyboard lacks (á, ñ, ¿, ơ, tone marks …)
-// letters: the buttons; by default the ones of the language you learn. slash: also a "/" button, for the
-// alternatives when saving vocab ("hola / buenas")
-function addAccentButtons(container, input, letters = language?.specialLetters ?? [], slash = false) {
+// Buttons for the language's letters that a normal keyboard lacks (á, ñ, ¿, ơ, tone marks …), small letters
+// only: a letter is typed as a capital where one is certain (see needsCapital), or once after ⇧.
+// letters: by default the ones of the language you learn. slash: also a "/" button, for the alternatives when
+// saving vocab ("hola / buenas"). isSentence: whether the field holds sentences (its category), so its start
+// is a sentence start too.
+function addAccentButtons(container, input, letters = language?.specialLetters ?? [], slash = false,
+                          isSentence = () => false) {
     container.hidden = letters.length === 0 && !slash;
+    let shift = false;
+    const letterButtons = [];
+    const setShift = (on) => {
+        shift = on;
+        shiftButton?.classList.toggle("active", on);
+        for (const [button, letter] of letterButtons) {
+            button.textContent = on ? capital(letter) : letter;
+        }
+    };
     container.replaceChildren(...letters.map((letter) => {
         const isMark = /\p{M}/u.test(letter);
         // a mark on its own is invisible, so the button shows it on an "a" (it still only adds the mark)
         const button = el("button", {type: "button", textContent: isMark ? ("a" + letter).normalize("NFC") : letter,
             title: isMark ? `${MARK_NAMES[letter] ?? "mark"}: adds this mark to the letter before` : letter});
         button.classList.toggle("mark", isMark);
+        if (!isMark && capital(letter) !== letter) {
+            letterButtons.push([button, letter]);
+        }
         // keep the keyboard open on the phone
         button.addEventListener("mousedown", (e) => e.preventDefault());
         button.addEventListener("click", () => {
             const start = input.selectionStart ?? input.value.length;
             const end = input.selectionEnd ?? input.value.length;
-            input.setRangeText(letter, start, end, "end");
+            const big = !isMark && (shift || needsCapital(input.value.slice(0, start), isSentence()));
+            input.setRangeText(big ? capital(letter) : letter, start, end, "end");
+            setShift(false);
             if (isMark) {
                 // "e" + mark -> "é" as one letter, and keep the cursor after it
                 const before = input.value.slice(0, input.selectionEnd).normalize("NFC");
@@ -99,6 +116,17 @@ function addAccentButtons(container, input, letters = language?.specialLetters ?
         });
         return button;
     }));
+    // ⇧ only if there is a letter with a capital (not ¿ ¡ or the tone marks)
+    const shiftButton = letterButtons.length === 0 ? null
+        : el("button", {type: "button", textContent: "⇧", className: "shift", title: "The next letter as a capital"});
+    if (shiftButton) {
+        shiftButton.addEventListener("mousedown", (e) => e.preventDefault());
+        shiftButton.addEventListener("click", () => {
+            setShift(!shift);
+            input.focus();
+        });
+        container.append(shiftButton);
+    }
     if (slash) {
         const button = el("button", {type: "button", textContent: "/", title: "Another alternative: adds \" / \""});
         button.addEventListener("mousedown", (e) => e.preventDefault());
@@ -113,6 +141,26 @@ function addAccentButtons(container, input, letters = language?.specialLetters ?
         container.append(button);
     }
 }
+
+// "é" -> "É"; ß stays ß, as its capital is two letters
+function capital(letter) {
+    const big = letter.toUpperCase();
+    return big.length === letter.length ? big : letter;
+}
+
+// Whether the letter typed after this text starts a sentence, so it is a capital for sure: after . ? ! and a
+// space, right after an opening ¿ or ¡ there, or at the start of a sentence field (or of an alternative in it).
+// A single word at the start ("árbol" or "África"?) is left to ⇧.
+function needsCapital(before, isSentence) {
+    const start = isSentence ? /(^|[.?!…]\s+|\/\s*)[¿¡]?$/ : /(^[¿¡]|[.?!…]\s+[¿¡]?|\/\s*[¿¡])$/;
+    return start.test(before);
+}
+
+const addFormHoldsSentences = () => isSentenceCategory(readCategory($("add-category"), $("add-new-category")).category);
+
+// The categories that hold sentences (as in SpellChecker)
+const SENTENCE_CATEGORIES = ["sentences", "sentence", "sätze", "satz", "frases", "oraciones"];
+const isSentenceCategory = (name) => SENTENCE_CATEGORIES.includes((name ?? "").trim().toLowerCase());
 
 // ---------- pronunciation ----------
 
@@ -386,7 +434,8 @@ async function switchLanguage(name) {
     }
     showTranslationLanguage();
     addAccentButtons($("quiz-accents"), $("quiz-answer"));
-    addAccentButtons(document.querySelector("#add-form .accents"), $("add-word"), language.specialLetters, true);
+    addAccentButtons(document.querySelector("#add-form .accents"), $("add-word"), language.specialLetters, true,
+        addFormHoldsSentences);
     $("add-recent").hidden = true;
     $("add-recent-list").replaceChildren();
     $("quiz-question").hidden = true;
@@ -408,7 +457,7 @@ function showTranslationLanguage() {
     }
     $("bracket-hint").hidden = !isEnglish(language.translation);
     addAccentButtons(document.querySelector("#add-form .translation-accents"), $("add-english"),
-        language.translationLetters, true);
+        language.translationLetters, true, addFormHoldsSentences);
 }
 
 // Word count and special letters change when words are added, so fetch the language again
@@ -417,7 +466,8 @@ async function refreshLanguage() {
     language = languages.find((l) => l.name === language.name) || language;
     showTranslationLanguage();
     addAccentButtons($("quiz-accents"), $("quiz-answer"));
-    addAccentButtons(document.querySelector("#add-form .accents"), $("add-word"), language.specialLetters, true);
+    addAccentButtons(document.querySelector("#add-form .accents"), $("add-word"), language.specialLetters, true,
+        addFormHoldsSentences);
 }
 
 // The other side of the current list: spell check, letters, articles and short forms follow it
@@ -833,8 +883,10 @@ function editForm(word) {
     context.value = word.context;
     fillCategorySelect(category, word.category);
     wireCategorySelect(category, newCategory);
-    addAccentButtons(form.querySelector(".accents"), wordInput, language.specialLetters, true);
-    addAccentButtons(form.querySelector(".translation-accents"), english, language.translationLetters, true);
+    const holdsSentences = () => isSentenceCategory(readCategory(category, newCategory).category);
+    addAccentButtons(form.querySelector(".accents"), wordInput, language.specialLetters, true, holdsSentences);
+    addAccentButtons(form.querySelector(".translation-accents"), english, language.translationLetters, true,
+        holdsSentences);
     addBracketShortcuts(wordInput, () => language.name);
     addBracketShortcuts(english, () => language.translation);
     form.querySelector(".extras").append(dictionaryLink(word.dictionaryUrl));

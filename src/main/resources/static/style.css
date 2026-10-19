@@ -271,6 +271,13 @@ form > button.primary, .card > button.primary {
 }
 
 /* tone marks look different from letters: they change the letter before */
+/* ⇧: the next letter as a capital; lit while it waits */
+.accents button.shift.active {
+    background: var(--accent-fill);
+    color: var(--accent);
+    font-weight: 700;
+}
+
 .accents button.mark {
     background: none;
     border: 1px dashed var(--accent);

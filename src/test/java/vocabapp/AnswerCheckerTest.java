@@ -116,7 +116,7 @@ class AnswerCheckerTest {
         assertEquals("It starts with 'H'", AnswerChecker.hint("", "der Hund", german));
         assertTrue(AnswerChecker.isCorrect("der Hund", "der Hund", german));
         assertFalse(AnswerChecker.isCorrect("Hund", "der Hund", german));
-        assertEquals(List.of("ä", "ö", "ü", "ß", "Ä", "Ö", "Ü"), german.getSpecialLetters());
+        assertEquals(List.of("ä", "ö", "ü", "ß"), german.getSpecialLetters());
     }
 
     @Test

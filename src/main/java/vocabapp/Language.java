@@ -140,9 +140,8 @@ public class Language {
                         List.of("ellos", "ellas", "ustedes")),
                 // Spanish often leaves the pronoun out: "tengo" is right for "yo tengo"
                 true,
-                // capitals too, for the start of a sentence ("Él", "¿Ángel?"); not Ü, as ü only follows a g
-                // inside a word ("pingüino")
-                List.of("á", "é", "í", "ó", "ú", "ñ", "ü", "¿", "¡", "Á", "É", "Í", "Ó", "Ú", "Ñ"),
+                // small letters only: the page has a ⇧ button and capitalises the start of a sentence itself
+                List.of("á", "é", "í", "ó", "ú", "ñ", "ü", "¿", "¡"),
                 SpanishIpa::transcribe,
                 "SpanishDict", "https://www.spanishdict.com/translate/%s",
                 List.of("es"));
@@ -157,8 +156,8 @@ public class Language {
                 List.of(List.of("ich"), List.of("du"), List.of("er", "sie", "es"), List.of("wir"), List.of("ihr"),
                         List.of("sie", "Sie")),
                 false,
-                // capitals too, as every noun starts with one ("die Übung")
-                List.of("ä", "ö", "ü", "ß", "Ä", "Ö", "Ü"),
+                // small letters only: the page has a ⇧ button for nouns ("die Übung")
+                List.of("ä", "ö", "ü", "ß"),
                 null,
                 "Wiktionary", "https://en.wiktionary.org/wiki/%s#German", List.of("de"));
     }
