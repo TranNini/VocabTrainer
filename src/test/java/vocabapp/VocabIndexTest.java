@@ -153,9 +153,13 @@ class VocabIndexTest {
         // the same meaning: one alternative of each side is enough, case and punctuation don't matter
         assertEquals(List.of(tinhCach), index.duplicatesOf("Tính cách!", "personality", null));
         assertEquals(List.of(hola), index.duplicatesOf("hola / buenas", "Hi", null));
-        // a typo in a longer word is still the same; short words and accents must match
+        // a missing accent or a typo in a longer word is still the same
         assertEquals(List.of(tinhCach), index.duplicatesOf("tính cách", "personalty", null));
-        assertEquals(List.of(), index.duplicatesOf("tinh cach", "personality", null));
+        assertEquals(List.of(tinhCach), index.duplicatesOf("tinh cach", "personality", null));
+        assertEquals(List.of(hola), index.duplicatesOf("hóla", "hi", null));
+        // other meanings stay apart: "ma = ghost" next to "má = mother", short words need more than a typo
+        VocabIndex ma = new VocabIndex(List.of(new Vocab("má", "mother", "general")), vietnamese);
+        assertEquals(List.of(), ma.duplicatesOf("ma", "ghost", null));
         assertEquals(List.of(), index.duplicatesOf("hola", "hey", null));
         // editing an entry isn't a duplicate of itself
         assertEquals(List.of(), index.duplicatesOf("tính cách", "character", tinhCach));

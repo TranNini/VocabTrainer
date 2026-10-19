@@ -52,7 +52,7 @@ public class VocabIndex {
 
     // Saved vocab with the same meaning: the same word and the same translation, in any category ("nhân vật =
     // character" is no duplicate of "tính cách = character / personality"). Alternatives count on their own,
-    // case and punctuation don't matter, accents do ("tu" ≠ "tú"), a typo in a longer word doesn't (see isSame).
+    // case, punctuation and accents don't matter, nor does a typo in a longer word (see isSame).
     // except = the vocab being edited, which isn't a duplicate of itself.
     public List<Vocab> duplicatesOf(String word, String english, Vocab except) {
         List<Vocab> duplicates = new ArrayList<>();
@@ -77,13 +77,17 @@ public class VocabIndex {
         return false;
     }
 
-    // The same, or one letter apart in words of 5 letters or more ("personality" / "personalty"); short words
-    // must be equal, as one letter often makes another word there ("ma" / "má", "tu" / "tú")
+    // The same apart from accents ("tinh cach" / "tính cách"), or also one letter apart in words of 5 letters or
+    // more ("personality" / "personalty"). As both sides of an entry must match, "ma = ghost" and "má = mother"
+    // stay two entries.
     private static boolean isSame(String a, String b) {
         if (a.isEmpty() || b.isEmpty()) {
             return false;
         }
-        return a.equals(b) || Math.min(a.length(), b.length()) >= 5 && AnswerChecker.editDistance(a, b) <= 1;
+        String plainA = AnswerChecker.stripAccents(a);
+        String plainB = AnswerChecker.stripAccents(b);
+        return plainA.equals(plainB)
+                || Math.min(plainA.length(), plainB.length()) >= 5 && AnswerChecker.editDistance(plainA, plainB) <= 1;
     }
 
     // category null = all categories

@@ -649,7 +649,7 @@ public class AnswerChecker {
         return pattern.toString();
     }
 
-    private static String stripAccents(String text) {
+    static String stripAccents(String text) {
         return Normalizer.normalize(text, Normalizer.Form.NFD).replaceAll("\\p{M}", "");
     }
 
