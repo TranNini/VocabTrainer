@@ -451,8 +451,8 @@ public class VocabController {
         }
     }
 
-    // 409 listing every saved vocab with the same word or translation: a duplicate is never saved. Brackets
-    // tell entries apart ("you have (singular)" and "you have (plural)").
+    // 409 listing every saved vocab with the same meaning (the same word and translation, see
+    // VocabIndex.duplicatesOf): a duplicate is never saved
     private void checkDuplicates(String learner, String language, Vocab vocab, Vocab except) {
         VocabIndex index = index(learner, language);
         List<VocabDto> duplicates = new ArrayList<>();

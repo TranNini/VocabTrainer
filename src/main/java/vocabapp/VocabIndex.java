@@ -50,29 +50,40 @@ public class VocabIndex {
         return findCategory(trimmed);
     }
 
-    // Saved vocab with the same word or the same English, in any category. Alternatives count on their own
-    // ("hola/buenas" is a duplicate of "hola"); case and punctuation don't matter, accents do ("tu" ≠ "tú").
+    // Saved vocab with the same meaning: the same word and the same translation, in any category ("nhân vật =
+    // character" is no duplicate of "tính cách = character / personality"). Alternatives count on their own,
+    // case and punctuation don't matter, accents do ("tu" ≠ "tú"), a typo in a longer word doesn't (see isSame).
     // except = the vocab being edited, which isn't a duplicate of itself.
     public List<Vocab> duplicatesOf(String word, String english, Vocab except) {
         List<Vocab> duplicates = new ArrayList<>();
         for (Vocab v : all) {
-            if (v != except && (sharesOption(v.getWord(), word) || sharesOption(v.getEnglish(), english))) {
+            if (v != except && sharesOption(v.getWord(), word) && sharesOption(v.getEnglish(), english)) {
                 duplicates.add(v);
             }
         }
         return duplicates;
     }
 
+    // Whether one alternative of a is the same as one of b, also with a typo (see isSame)
     private static boolean sharesOption(String a, String b) {
         for (String optionA : a.split("/")) {
             for (String optionB : b.split("/")) {
-                String cleaned = AnswerChecker.normalize(optionA);
-                if (!cleaned.isEmpty() && cleaned.equalsIgnoreCase(AnswerChecker.normalize(optionB))) {
+                String cleanA = AnswerChecker.normalize(optionA).toLowerCase();
+                if (isSame(cleanA, AnswerChecker.normalize(optionB).toLowerCase())) {
                     return true;
                 }
             }
         }
         return false;
+    }
+
+    // The same, or one letter apart in words of 5 letters or more ("personality" / "personalty"); short words
+    // must be equal, as one letter often makes another word there ("ma" / "má", "tu" / "tú")
+    private static boolean isSame(String a, String b) {
+        if (a.isEmpty() || b.isEmpty()) {
+            return false;
+        }
+        return a.equals(b) || Math.min(a.length(), b.length()) >= 5 && AnswerChecker.editDistance(a, b) <= 1;
     }
 
     // category null = all categories

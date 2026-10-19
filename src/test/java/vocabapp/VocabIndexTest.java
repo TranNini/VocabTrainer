@@ -141,18 +141,24 @@ class VocabIndexTest {
     }
 
     @Test
-    void findsAllDuplicatesByWordOrEnglish() {
+    void aDuplicateHasTheSameWordAndTranslation() {
+        Language vietnamese = Language.forName("Vietnamese");
+        Vocab tinhCach = new Vocab("tính cách", "character / personality", "general");
         Vocab hola = new Vocab("¡Hola!", "hello/hi", "Sentences");
-        Vocab tu = new Vocab("tú", "you", "general");
-        Vocab tienes = new Vocab("tú tienes", "you have", "verbs");
-        Vocab tenéis = new Vocab("vosotros tenéis", "you have", "verbs");
-        VocabIndex index = new VocabIndex(List.of(hola, tu, tienes, tenéis), SPANISH);
+        VocabIndex index = new VocabIndex(List.of(tinhCach, hola), vietnamese);
 
-        assertEquals(List.of(hola), index.duplicatesOf("hola", "x", null));
-        assertEquals(List.of(hola), index.duplicatesOf("buenas", "Hi", null));
-        assertEquals(List.of(tienes, tenéis), index.duplicatesOf("usted tiene", "you have", null));
-        assertEquals(List.of(tenéis), index.duplicatesOf("tú tienes", "you have", tienes));
-        assertEquals(List.of(), index.duplicatesOf("tu", "your", null));
+        // another word with the same translation, or the same word with another translation: not a duplicate
+        assertEquals(List.of(), index.duplicatesOf("nhân vật", "character", null));
+        assertEquals(List.of(), index.duplicatesOf("tính cách", "temper", null));
+        // the same meaning: one alternative of each side is enough, case and punctuation don't matter
+        assertEquals(List.of(tinhCach), index.duplicatesOf("Tính cách!", "personality", null));
+        assertEquals(List.of(hola), index.duplicatesOf("hola / buenas", "Hi", null));
+        // a typo in a longer word is still the same; short words and accents must match
+        assertEquals(List.of(tinhCach), index.duplicatesOf("tính cách", "personalty", null));
+        assertEquals(List.of(), index.duplicatesOf("tinh cach", "personality", null));
+        assertEquals(List.of(), index.duplicatesOf("hola", "hey", null));
+        // editing an entry isn't a duplicate of itself
+        assertEquals(List.of(), index.duplicatesOf("tính cách", "character", tinhCach));
     }
 
     @Test

@@ -220,25 +220,24 @@ class VocabControllerTest {
         add("tú tienes", "you have", "verbs");
         int id = add("ir", "to go", "verbs");
         send("POST", SPANISH + "/vocab", """
-                {"word": "vosotros tenéis", "english": "You have", "category": "verbs"}
+                {"word": "Tú tienes", "english": "You have", "category": "general"}
                 """)
                 .andExpect(status().isConflict())
                 .andExpect(jsonPath("$.error").value("Not saved: this is already in the list."))
                 .andExpect(jsonPath("$.duplicates", hasSize(1)))
                 .andExpect(jsonPath("$.duplicates[0].word").value("tú tienes"));
-        // no way around it any more
+        // no way around it
         send("POST", SPANISH + "/vocab", """
-                {"word": "vosotros tenéis", "english": "you have", "category": "verbs", "duplicate": true, "spellingChecked": true}
+                {"word": "tú tienes", "english": "you have", "category": "verbs", "duplicate": true, "spellingChecked": true}
                 """)
                 .andExpect(status().isConflict());
         send("PUT", SPANISH + "/vocab/" + id, """
-                {"word": "tú tienes", "english": "to go", "category": "verbs"}
+                {"word": "tú tienes", "english": "you have", "category": "verbs"}
                 """)
-                .andExpect(status().isConflict())
-                .andExpect(jsonPath("$.duplicates", hasSize(1)));
-        // brackets tell them apart; editing an entry is no duplicate of itself
+                .andExpect(status().isConflict());
+        // another word with the same translation is no duplicate, nor is the same word with another meaning
         send("POST", SPANISH + "/vocab", """
-                {"word": "vosotros tenéis", "english": "you have (plural)", "category": "verbs"}
+                {"word": "vosotros tenéis", "english": "you have", "category": "verbs"}
                 """)
                 .andExpect(status().isCreated());
         send("PUT", SPANISH + "/vocab/" + id, """

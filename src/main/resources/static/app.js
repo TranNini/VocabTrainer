@@ -610,7 +610,7 @@ async function saveVocab(method, url, vocab) {
         } else if (error.data.duplicates) {
             // never saved twice: say which entry it is, and keep the input for a change
             const list = error.data.duplicates.map((d) => `• ${d.word} = ${d.english} [${d.category}]`).join("\n");
-            alert(`${error.message}\n\n${list}\n\nChange the word or its translation, e.g. with (singular) / (plural).`);
+            alert(`${error.message}\n\n${list}\n\nIt has the same word and translation. Change one of them if you meant something else.`);
             throw new Error(error.message);
         }
         throw new Error("Not saved.");

@@ -690,6 +690,11 @@ public class AnswerChecker {
         return distance <= allowed;
     }
 
+    // How many letters to change, add or remove to turn a into b ("gato" -> "gatto": 1)
+    static int editDistance(String a, String b) {
+        return editDistances(a, b)[a.length()][b.length()];
+    }
+
     // dp[i][j] = how many letters to change, add or remove to turn the first i letters of a
     // into the first j letters of b (Levenshtein distance)
     private static int[][] editDistances(String a, String b) {
