@@ -153,7 +153,8 @@ class VocabControllerTest {
                 .andExpect(jsonPath("$.hints").value(2))
                 .andExpect(jsonPath("$.today").value(2))
                 .andExpect(jsonPath("$.streak").value(1))
-                .andExpect(jsonPath("$.lastDays", hasSize(14)))
+                .andExpect(jsonPath("$.charts", hasSize(4)))
+                .andExpect(jsonPath("$.charts[1].bars[-1].answered").value(2))
                 .andExpect(jsonPath("$.practising").value(1))
                 .andExpect(jsonPath("$.toPractise[0].word").value("tener"));
         // an edited word keeps its results

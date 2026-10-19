@@ -29,7 +29,7 @@ Up to 3 tries per answer, with two different hints per try: one after every wron
     missing or too many, letters swapped, an accent, ü or ñ missing); otherwise the next letter of the right start
 Score at the end of the quiz
 Stats per learner and language (Stats tab): days in a row, answered today, right on the first try and in
-    the end, an overview of today / 1 month / 6 months / 1 year, the last 14 days as a chart, words mastered (right on the first try 3 times in a row), practising
+    the end, an overview of today / 1 month / 6 months / 1 year, a chart of the answers for today (by hour), 1 month (by day), 6 months (by week) or 1 year (by month), words mastered (right on the first try 3 times in a row), practising
     and not practised yet, and the words missed most
 Add multiple answer choices using '/'
 What is written in brackets can be left out in quiz answers: "you have" is right for "you have (singular)"

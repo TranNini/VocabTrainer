@@ -755,10 +755,16 @@ function editForm(word) {
 
 // ---------- stats ----------
 
+// the stats on screen, so picking another chart period needs no new request
+let statsShown = null;
+
 const percent = (part, whole) => whole ? Math.round(100 * part / whole) + "%" : "–";
 
 async function loadStats() {
-    const stats = await api("GET", langUrl("/stats"));
+    renderStats(await api("GET", langUrl("/stats")));
+}
+
+function renderStats(stats) {
     $("stats-who").textContent = `· ${learner} · ${language.name}`;
     $("stats-empty").hidden = stats.answered > 0;
     $("stats-empty").textContent = `No quiz answers yet. Your stats start with your first quiz.`;
@@ -783,19 +789,19 @@ async function loadStats() {
             el("th", {scope: "row", textContent: label}),
             ...stats.periods.map((p) => el("td", {textContent: value(p)}))))));
 
-    // one column per day: the right answers at the bottom, the missed ones on top
-    const most = Math.max(1, ...stats.lastDays.map((d) => d.answered));
-    $("stats-days").replaceChildren(...stats.lastDays.map((d) => {
-        const [y, m, day] = d.date.split("-").map(Number);
-        const date = new Date(y, m - 1, day);
-        const column = el("div", {className: "day", title: `${date.toLocaleDateString()}: ${d.right} of ${d.answered} right`},
-            el("div", {className: "bar"},
-                el("span", {className: "missed", style: `height: ${100 * (d.answered - d.right) / most}%`}),
-                el("span", {className: "right", style: `height: ${100 * d.right / most}%`})),
-            el("small", {className: "muted", textContent: date.toLocaleDateString(undefined, {weekday: "narrow"})}));
-        return column;
+    // the chart of the period picked above it (remembered on this device)
+    statsShown = stats;
+    const picked = stats.charts.find((c) => c.name === loadSetting("chart")) ?? stats.charts[1];
+    $("stats-chart-periods").replaceChildren(...stats.charts.map((chart) => {
+        const button = el("button", {type: "button", textContent: chart.name, className: chart === picked ? "active" : ""});
+        button.setAttribute("aria-pressed", chart === picked);
+        button.addEventListener("click", () => {
+            saveSetting("chart", chart.name);
+            renderStats(statsShown);
+        });
+        return button;
     }));
-    $("stats-days").setAttribute("aria-label", `Answers per day, the last ${stats.lastDays.length} days`);
+    drawChart(picked);
 
     const total = stats.mastered + stats.practising + stats.notPractised;
     const parts = [["mastered", stats.mastered, "mastered (right on the first try 3 times in a row)"],
@@ -810,6 +816,43 @@ async function loadStats() {
     $("stats-practise").replaceChildren(...stats.toPractise.map((w) => el("li", {},
         el("strong", {textContent: w.word}), ` = ${w.english} `,
         el("span", {className: "muted", textContent: `· ${w.firstTry} of ${w.tries} right on the first try`}))));
+}
+
+// One column per hour, day, week or month: the right answers at the bottom, the others on top.
+// Only some columns get a label, so they never run into each other.
+function drawChart(chart) {
+    const bars = chart.bars;
+    const most = Math.max(1, ...bars.map((b) => b.answered));
+    const date = (bar) => new Date(bar.start);
+    const every = {hour: 6, day: 7, week: 4, month: 1}[chart.unit];
+    const label = {
+        hour: (d) => String(d.getHours()),
+        day: (d) => String(d.getDate()),
+        week: (d) => d.toLocaleDateString(undefined, {day: "numeric", month: "short"}),
+        month: (d) => d.toLocaleDateString(undefined, {month: "narrow"}),
+    }[chart.unit];
+    const when = {
+        hour: (d) => `${d.getHours()}:00–${d.getHours() + 1}:00`,
+        day: (d) => d.toLocaleDateString(undefined, {weekday: "short", day: "numeric", month: "short"}),
+        week: (d) => `Week from ${d.toLocaleDateString(undefined, {day: "numeric", month: "short"})}`,
+        month: (d) => d.toLocaleDateString(undefined, {month: "long", year: "numeric"}),
+    }[chart.unit];
+    const chartBox = $("stats-days");
+    // minmax(0, 1fr): every column equally wide, also the ones with a label
+    chartBox.style.gridTemplateColumns = `repeat(${bars.length}, minmax(0, 1fr))`;
+    chartBox.classList.toggle("many", bars.length > 14);
+    chartBox.replaceChildren(...bars.map((bar, i) => {
+        const d = date(bar);
+        // hours from midnight (0, 6, 12, 18); the others back from the newest column, so it always has one
+        const labelled = (chart.unit === "hour" ? i : bars.length - 1 - i) % every === 0;
+        return el("div", {className: "day", title: `${when(d)}: ${bar.right} of ${bar.answered} right`},
+            el("div", {className: "bar"},
+                el("span", {className: "missed", style: `height: ${100 * (bar.answered - bar.right) / most}%`}),
+                el("span", {className: "right", style: `height: ${100 * bar.right / most}%`})),
+            el("small", {className: "muted", textContent: labelled ? label(d) : ""}));
+    }));
+    const total = bars.reduce((sum, b) => sum + b.answered, 0);
+    chartBox.setAttribute("aria-label", `${total} answers, ${chart.name}, one column per ${chart.unit}`);
 }
 
 // ---------- start ----------

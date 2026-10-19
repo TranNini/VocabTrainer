@@ -10,7 +10,7 @@
     <link rel="icon" href="icon.svg" type="image/svg+xml">
     <link rel="apple-touch-icon" href="apple-touch-icon.png">
     <title>Vocab Trainer</title>
-    <link rel="stylesheet" href="style.css?v=9">
+    <link rel="stylesheet" href="style.css?v=10">
 </head>
 <body>
 <header class="top">
@@ -125,8 +125,13 @@
             <table id="stats-periods" class="stats-periods"></table>
         </div>
         <div class="card">
-            <h3>Last 14 days</h3>
+            <h3>Answers</h3>
+            <div id="stats-chart-periods" class="segmented" role="group" aria-label="Period"></div>
             <div id="stats-days" class="stats-days" role="img"></div>
+            <ul class="stats-legend chart-legend plain">
+                <li><span class="swatch mastered"></span>right</li>
+                <li><span class="swatch practising"></span>not right</li>
+            </ul>
         </div>
         <div class="card">
             <h3>Your words</h3>
@@ -165,6 +170,6 @@
 </template>
 
 <!-- ?v=2: one-time nudge for browsers still holding an old cached copy -->
-<script src="app.js?v=11"></script>
+<script src="app.js?v=12"></script>
 </body>
 </html>

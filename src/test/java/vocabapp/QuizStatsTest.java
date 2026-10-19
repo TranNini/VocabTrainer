@@ -67,14 +67,44 @@ class QuizStatsTest {
     }
 
     @Test
-    void lastDaysHaveEveryDayUpToToday() {
-        List<QuizLog.Entry> log = List.of(entry(0, "tener", 1), entry(0, "el gato", 0), entry(13, "tener", 1),
-                entry(14, "tener", 1));
-        List<QuizStats.Day> days = QuizStats.of(log, VOCAB, TODAY).lastDays();
-        assertEquals(14, days.size());
-        assertEquals(TODAY.minusDays(13), days.get(0).date());
+    void chartsHaveABarPerHourDayWeekAndMonth() {
+        List<QuizLog.Entry> log = List.of(
+                new QuizLog.Entry(TODAY.atTime(9, 15), "tener", true, 1, 0),
+                new QuizLog.Entry(TODAY.atTime(9, 50), "el gato", true, 0, 0),
+                new QuizLog.Entry(TODAY.atTime(18, 0), "tener", true, 1, 0),
+                entry(29, "tener", 1), entry(30, "tener", 1), // 30 days ago is before the month
+                entry(181, "la vaca", 1), entry(182, "la vaca", 1), // the 26 weeks start 181 days ago
+                entry(300, "el gato", 1));
+        List<QuizStats.Chart> charts = QuizStats.of(log, VOCAB, TODAY).charts();
+        assertEquals(List.of("hour", "day", "week", "month"), charts.stream().map(QuizStats.Chart::unit).toList());
+
+        List<QuizStats.Bar> hours = charts.get(0).bars();
+        assertEquals(24, hours.size());
+        assertEquals(new QuizStats.Bar(TODAY.atTime(9, 0), 2, 1), hours.get(9));
+        assertEquals(1, hours.get(18).answered());
+
+        List<QuizStats.Bar> days = charts.get(1).bars();
+        assertEquals(30, days.size()); // 20 Sep to 19 Oct
+        assertEquals(TODAY.minusDays(29).atStartOfDay(), days.get(0).start());
         assertEquals(1, days.get(0).answered());
-        assertEquals(new QuizStats.Day(TODAY, 2, 1), days.get(13));
+        assertEquals(3, days.get(29).answered());
+
+        List<QuizStats.Bar> weeks = charts.get(2).bars();
+        assertEquals(26, weeks.size());
+        assertEquals(TODAY.minusDays(181).atStartOfDay(), weeks.get(0).start());
+        assertEquals(1, weeks.get(0).answered()); // la vaca 181 days ago, not 182
+        assertEquals(TODAY.minusDays(6).atStartOfDay(), weeks.get(25).start());
+        assertEquals(3, weeks.get(25).answered());
+
+        List<QuizStats.Bar> months = charts.get(3).bars();
+        assertEquals(12, months.size());
+        assertEquals(LocalDate.of(2025, 11, 1).atStartOfDay(), months.get(0).start());
+        assertEquals(LocalDate.of(2026, 10, 1).atStartOfDay(), months.get(11).start());
+        assertEquals(3, months.get(11).answered()); // today; 29 and 30 days ago are in September
+        assertEquals(2, months.get(10).answered());
+        assertEquals(0, months.get(0).answered());
+        assertEquals(1, months.get(1).answered()); // 300 days ago = 23 Dec 2025
+        assertEquals(2, months.get(5).answered()); // la vaca, both in April
     }
 
     @Test

@@ -1,6 +1,7 @@
 package vocabapp;
 
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashMap;
@@ -14,12 +15,19 @@ import java.util.function.ToDoubleFunction;
 
 // The statistics of the Stats tab, worked out from a learner's quiz log (see QuizLog) and their vocab
 public class QuizStats {
-    static final int DAYS = 14;
+    static final int WEEKS = 26;
+    static final int MONTHS = 12;
     // a word counts as mastered once it was right on the first try this many times in a row (the last tries)
     static final int MASTERED_IN_A_ROW = 3;
     static final int TO_PRACTISE = 8;
 
-    public record Day(LocalDate date, int answered, int right) {
+    // One bar of a chart: start = when its hour, day, week or month starts (the week ending today, the month
+    // on its 1st), e.g. "2026-10-19T14:00"
+    public record Bar(LocalDateTime start, int answered, int right) {
+    }
+
+    // name = "Today", "1 month", "6 months", "1 year"; unit = what one bar is: "hour", "day", "week", "month"
+    public record Chart(String name, String unit, List<Bar> bars) {
     }
 
     // The overview for one period up to today: name = "Today", "1 month", "6 months", "1 year";
@@ -34,7 +42,7 @@ public class QuizStats {
     // answered, rightFirstTry, right and hints count every finished question, also of words deleted since;
     // mastered + practising + notPractised = the vocab saved now
     public record Stats(int answered, int rightFirstTry, int right, int hints, int today, int streak,
-                        int daysPractised, List<Period> periods, List<Day> lastDays, int mastered, int practising,
+                        int daysPractised, List<Period> periods, List<Chart> charts, int mastered, int practising,
                         int notPractised, List<WordStat> toPractise) {
     }
 
@@ -46,7 +54,6 @@ public class QuizStats {
         int right = 0;
         int hints = 0;
         Set<LocalDate> days = new HashSet<>();
-        Map<LocalDate, int[]> perDay = new HashMap<>();
         Map<String, List<QuizLog.Entry>> perWord = new HashMap<>();
         for (QuizLog.Entry e : entries) {
             rightFirstTry += e.rightFirstTry() ? 1 : 0;
@@ -54,16 +61,7 @@ public class QuizStats {
             hints += e.hints();
             LocalDate day = e.when().toLocalDate();
             days.add(day);
-            int[] counts = perDay.computeIfAbsent(day, d -> new int[2]);
-            counts[0]++;
-            counts[1] += e.right() ? 1 : 0;
             perWord.computeIfAbsent(e.word(), w -> new ArrayList<>()).add(e);
-        }
-
-        List<Day> lastDays = new ArrayList<>();
-        for (LocalDate day = today.minusDays(DAYS - 1); !day.isAfter(today); day = day.plusDays(1)) {
-            int[] counts = perDay.getOrDefault(day, new int[2]);
-            lastDays.add(new Day(day, counts[0], counts[1]));
         }
 
         int mastered = 0;
@@ -90,14 +88,13 @@ public class QuizStats {
         missed.sort(Comparator.comparingDouble((WordStat w) -> (double) w.firstTry() / w.tries())
                 .thenComparing(WordStat::tries, Comparator.reverseOrder()));
 
-        int[] todayCounts = perDay.getOrDefault(today, new int[2]);
         List<Period> periods = List.of(
                 period("Today", entries, today),
                 period("1 month", entries, today.minusMonths(1).plusDays(1)),
                 period("6 months", entries, today.minusMonths(6).plusDays(1)),
                 period("1 year", entries, today.minusYears(1).plusDays(1)));
-        return new Stats(entries.size(), rightFirstTry, right, hints, todayCounts[0], streak(days, today),
-                days.size(), periods, lastDays, mastered, practising, notPractised,
+        return new Stats(entries.size(), rightFirstTry, right, hints, periods.get(0).answered(), streak(days, today),
+                days.size(), periods, charts(entries, today), mastered, practising, notPractised,
                 missed.subList(0, Math.min(TO_PRACTISE, missed.size())));
     }
 
@@ -133,6 +130,54 @@ public class QuizStats {
         List<T> ordered = new ArrayList<>(items);
         ordered.sort(Comparator.comparing(keys::get, Comparator.reverseOrder()));
         return ordered;
+    }
+
+    // A chart for each period of the overview: today by hour, the month by day, 6 months by week (26 weeks,
+    // the last one ending today), the year by month (this month and the 11 before)
+    private static List<Chart> charts(List<QuizLog.Entry> entries, LocalDate today) {
+        LocalDateTime midnight = today.atStartOfDay();
+        List<LocalDateTime> hours = new ArrayList<>();
+        for (int h = 0; h < 24; h++) {
+            hours.add(midnight.plusHours(h));
+        }
+        List<LocalDateTime> days = new ArrayList<>();
+        for (LocalDate day = today.minusMonths(1).plusDays(1); !day.isAfter(today); day = day.plusDays(1)) {
+            days.add(day.atStartOfDay());
+        }
+        List<LocalDateTime> weeks = new ArrayList<>();
+        for (int w = WEEKS - 1; w >= 0; w--) {
+            weeks.add(midnight.minusDays(7L * w + 6));
+        }
+        List<LocalDateTime> months = new ArrayList<>();
+        for (int m = MONTHS - 1; m >= 0; m--) {
+            months.add(today.withDayOfMonth(1).minusMonths(m).atStartOfDay());
+        }
+        LocalDateTime end = midnight.plusDays(1);
+        return List.of(chart("Today", "hour", hours, end, entries), chart("1 month", "day", days, end, entries),
+                chart("6 months", "week", weeks, end, entries), chart("1 year", "month", months, end, entries));
+    }
+
+    // Each entry goes to the last bar that starts before it; entries before the first bar or from "end" on are left out
+    private static Chart chart(String name, String unit, List<LocalDateTime> starts, LocalDateTime end,
+                               List<QuizLog.Entry> entries) {
+        int[] answered = new int[starts.size()];
+        int[] right = new int[starts.size()];
+        for (QuizLog.Entry e : entries) {
+            if (e.when().isBefore(starts.get(0)) || !e.when().isBefore(end)) {
+                continue;
+            }
+            int bar = starts.size() - 1;
+            while (e.when().isBefore(starts.get(bar))) {
+                bar--;
+            }
+            answered[bar]++;
+            right[bar] += e.right() ? 1 : 0;
+        }
+        List<Bar> bars = new ArrayList<>();
+        for (int i = 0; i < starts.size(); i++) {
+            bars.add(new Bar(starts.get(i), answered[i], right[i]));
+        }
+        return new Chart(name, unit, bars);
     }
 
     // Everything answered from the day "from" on (today included), e.g. 1 month = 20 Sep to 19 Oct
