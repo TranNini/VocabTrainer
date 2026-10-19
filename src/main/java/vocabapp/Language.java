@@ -45,7 +45,7 @@ public class Language {
                      boolean pronounsOptional, List<String> specialLetters, UnaryOperator<String> ipa,
                      String dictionaryName, String dictionaryUrl, String spellDictionary) {
         this.name = name;
-        this.collator = Collator.getInstance(LOCALES.getOrDefault(name.toLowerCase(), Locale.ROOT));
+        this.collator = Collator.getInstance(LOCALES.getOrDefault(englishName(name), Locale.ROOT));
         // PRIMARY ignores case and accents, so "árbol" sorts with "arbol"
         this.collator.setStrength(Collator.PRIMARY);
         this.articles = articles;
@@ -58,14 +58,27 @@ public class Language {
         this.spellDictionary = spellDictionary;
     }
 
+    // Names of a language in other languages ("Spanisch"), so it gets the same rules as its English name
+    private static final Map<String, String> OTHER_NAMES = Map.of(
+            "spanisch", "spanish", "español", "spanish", "espanol", "spanish",
+            "deutsch", "german", "alemán", "german",
+            "vietnamesisch", "vietnamese", "tiếng việt", "vietnamese");
+
+    // "Spanisch" -> "spanish": the English name, in lower case
+    private static String englishName(String name) {
+        String lower = name.toLowerCase();
+        return OTHER_NAMES.getOrDefault(lower, lower);
+    }
+
     public static Language forName(String name) {
-        if (name.equalsIgnoreCase("spanish")) {
+        String english = englishName(name);
+        if (english.equals("spanish")) {
             return spanish(name);
         }
-        if (name.equalsIgnoreCase("vietnamese")) {
+        if (english.equals("vietnamese")) {
             return vietnamese(name);
         }
-        if (name.equalsIgnoreCase("german")) {
+        if (english.equals("german")) {
             return german(name);
         }
         return new Language(name, List.of(), List.of(), false, List.of(), null,

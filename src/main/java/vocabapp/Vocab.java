@@ -5,6 +5,12 @@ package vocabapp;
 public class Vocab {
     public static final String DEFAULT_CATEGORY = "general";
     public static final String VERBS_CATEGORY = "verbs";
+    // categories whose conjugations are grouped under their infinitive, also in German and Spanish
+    private static final java.util.Set<String> VERB_CATEGORIES = java.util.Set.of("verbs", "verben", "verbformen", "verbos");
+
+    public static boolean isVerbCategory(String category) {
+        return category != null && VERB_CATEGORIES.contains(category.trim().toLowerCase());
+    }
 
     private final String word;
     private final String english;

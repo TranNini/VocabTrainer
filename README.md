@@ -49,7 +49,7 @@ Vietnamese extras:
 
 Spanish extras:
     Articles (el, la, …) are ignored when sorting and give "Don't forget the article!" hints
-    Verb conjugations are grouped under their infinitive and folded away; the button on the infinitive
+    Verb conjugations (in the category verbs, verben, verbformen or verbos) are grouped under their infinitive and folded away; the button on the infinitive
         (e.g. "6 ▾") shows them. A search shows the matching forms open
     A subject pronoun at the start (yo, tú, él …) is optional in quiz answers, for conjugations and
         sentences: "tengo" is right for "yo tengo", "tengo una pregunta" for "yo tengo una pregunta".
@@ -104,6 +104,8 @@ Adding verb conjugations (Spanish):
     saved right before them.
 
 Giving a new language its extras:
+    A language named in German or in itself (Spanisch, Español, Deutsch, Vietnamesisch) gets the same
+    extras as its English name.
     A language added in the app works right away. Articles, conjugation grouping, IPA,
     fixed special letter buttons and its own dictionary are set up in Language.java
     (see how Spanish is done there).

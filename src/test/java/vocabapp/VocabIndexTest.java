@@ -49,6 +49,20 @@ class VocabIndexTest {
     }
 
     @Test
+    void groupsConjugationsInGermanVerbCategoriesForSpanischToo() {
+        Language spanisch = Language.forName("Spanisch");
+        Vocab tener = new Vocab("tener", "haben", "verbformen");
+        Vocab tengo = new Vocab("yo tengo", "ich habe", "verbformen");
+        Vocab tienes = new Vocab("tú tienes", "du hast", "verbformen");
+        Vocab leer = new Vocab("leer", "lesen", "verben");
+        VocabIndex index = new VocabIndex(List.of(leer, tener, tienes, tengo), spanisch);
+        assertEquals(List.of("leer", "tener", "yo tengo", "tú tienes"), spanish(index.search(null, "")));
+        assertTrue(index.isConjugation(tengo));
+        assertTrue(Vocab.isVerbCategory("Verben"));
+        assertTrue(!Vocab.isVerbCategory("sätze"));
+    }
+
+    @Test
     void singleLetterGivesSection() {
         Vocab abuela = general("la abuela");
         Vocab arbol = general("árbol");

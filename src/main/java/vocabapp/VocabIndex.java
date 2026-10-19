@@ -144,7 +144,7 @@ public class VocabIndex {
         Map<Vocab, Vocab> infinitives = new HashMap<>();
         Vocab currentInfinitive = null;
         for (Vocab v : all) {
-            if (!v.getCategory().equalsIgnoreCase(Vocab.VERBS_CATEGORY)) {
+            if (!Vocab.isVerbCategory(v.getCategory())) {
                 continue;
             }
             if (pronounRank(v) == 0) {
@@ -158,7 +158,7 @@ public class VocabIndex {
 
     // 0 = not a conjugation, 1 = first pronoun (yo) and so on; always 0 for languages without pronoun rules
     private int pronounRank(Vocab v) {
-        if (!v.getCategory().equalsIgnoreCase(Vocab.VERBS_CATEGORY)) {
+        if (!Vocab.isVerbCategory(v.getCategory())) {
             return 0;
         }
         String firstWord = AnswerChecker.normalize(v.getWord()).split("[ /,]", 2)[0];

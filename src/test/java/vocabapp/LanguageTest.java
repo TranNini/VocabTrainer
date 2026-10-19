@@ -45,4 +45,16 @@ class LanguageTest {
         assertEquals("E", Language.forName("French").sectionLetter("école"));
         assertEquals("#", Language.forName("French").sectionLetter(""));
     }
+
+    @Test
+    void knowsLanguagesByTheirGermanAndOwnNames() {
+        Language spanisch = Language.forName("Spanisch");
+        assertEquals("Spanisch", spanisch.getName());
+        assertEquals("es", spanisch.getSpellDictionary());
+        assertTrue(spanisch.hasIpa());
+        assertTrue(spanisch.arePronounsOptional());
+        assertEquals("Ñ", spanisch.sectionLetter("ñandú"));
+        assertEquals("de", Language.forName("Deutsch").getSpellDictionary());
+        assertEquals("es", Language.forName("Español").getSpellDictionary());
+    }
 }
