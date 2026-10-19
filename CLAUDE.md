@@ -88,7 +88,12 @@ Check it with `docker logs caddy`.
   for a while; take both out again afterwards.
 - **Safari remembers a broken connection** (an old address, the old HTTP/3 offer): if the site works everywhere
   else, clearing Safari's history for today fixed it.
-The `home` record holds the public IP, which Telekom changes; keep it in sync (manually in the netcup CCP for now). Port 7896 should only be reachable at home, not forwarded in the FRITZ!Box.
+The `home` record holds the public IP, which Telekom changes. The `ddns-updater` service (same compose.yaml,
+image `qmcgaw/ddns-updater`) checks it every 5 minutes and updates it through netcup's **legacy** DNS API
+(kulose.de has the classic "DNS" tab; the new REST API keys are only for CloudDNS domains). Its config with the
+customer number, legacy API key and API password is `/share/CACHEDEV1_DATA/homes/jank/ddns-updater/config.json`
+(mode 600, never commit or print it). Status page at home: `http://192.168.178.130:7898` (not forwarded).
+If netcup switches the legacy API off or moves the domain to CloudDNS, ddns-updater needs replacing. Port 7896 should only be reachable at home, not forwarded in the FRITZ!Box.
 
 ### First-time setup on the NAS
 
