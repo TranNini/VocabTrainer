@@ -168,6 +168,22 @@ class VocabControllerTest {
     }
 
     @Test
+    void refreshQuizHasTheWordsNotAskedForAWhile() throws Exception {
+        add("tener", "to have", "verbs");
+        add("ir", "to go", "verbs");
+        QuizLog log = library.log("Spanish");
+        log.add(new QuizLog.Entry(java.time.LocalDateTime.now().minusDays(20), "tener", true, 1, 0));
+        log.add(new QuizLog.Entry(java.time.LocalDateTime.now().minusDays(1), "ir", true, 1, 0));
+        mvc.perform(get(SPANISH + "/quiz/refresh"))
+                .andExpect(jsonPath("$.count").value(1))
+                .andExpect(jsonPath("$.days").value(QuizStats.REFRESH_AFTER_DAYS));
+        mvc.perform(get(SPANISH + "/quiz?refresh=true"))
+                .andExpect(jsonPath("$", hasSize(1)))
+                .andExpect(jsonPath("$[0].prompt").value(org.hamcrest.Matchers.oneOf("tener", "to have")));
+        mvc.perform(get(SPANISH + "/quiz")).andExpect(jsonPath("$", hasSize(2)));
+    }
+
+    @Test
     void asksBeforeSavingAMisspelledWord() throws Exception {
         send("POST", SPANISH + "/vocab", """
                 {"word": "nostoros queremos", "english": "we wnat", "category": "verbs", "newCategory": true}

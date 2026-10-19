@@ -161,6 +161,23 @@ class QuizStatsTest {
     }
 
     @Test
+    void refreshesWordsRightLatelyThatWerentAskedForTwoWeeks() {
+        List<QuizLog.Entry> log = List.of(
+                entry(40, "tener", 0), entry(30, "tener", 1), entry(30, "tener", 1), entry(30, "tener", 1),
+                entry(30, "tener", 1), entry(30, "tener", 1), // the miss is older than the last 5 tries
+                entry(20, "yo tengo", 1),
+                entry(14, "el gato", 1),  // 14 days ago is long enough
+                entry(13, "la vaca", 1)); // 13 days isn't
+        List<String> words = QuizStats.toRefresh(log, VOCAB, TODAY).stream().map(Vocab::getWord).toList();
+        assertEquals(List.of("tener", "yo tengo", "el gato"), words); // the longest not asked first
+
+        // a miss among the last tries, or no tries at all: not to refresh, it's practised anyway
+        List<QuizLog.Entry> missed = List.of(entry(30, "tener", 1), entry(20, "tener", 2));
+        assertTrue(QuizStats.toRefresh(missed, VOCAB, TODAY).isEmpty());
+        assertTrue(QuizStats.toRefresh(List.of(), VOCAB, TODAY).isEmpty());
+    }
+
+    @Test
     void logSavesReadsAndRenames(@TempDir Path dir) throws Exception {
         QuizLog log = new QuizLog(dir.resolve("Spanish.log"));
         assertTrue(log.entries().isEmpty());

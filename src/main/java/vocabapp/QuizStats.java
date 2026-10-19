@@ -119,6 +119,28 @@ public class QuizStats {
         return weights;
     }
 
+    // "Refresh vocab": the words that were right on the first try every time lately (so the practice order
+    // asks them seldom) and weren't asked for REFRESH_AFTER_DAYS days; the longest not asked first
+    static final int REFRESH_AFTER_DAYS = 14;
+
+    public static List<Vocab> toRefresh(List<QuizLog.Entry> entries, List<Vocab> vocab, LocalDate today) {
+        Map<String, Double> weights = practiceWeights(entries);
+        Map<String, LocalDateTime> lastAsked = new HashMap<>();
+        for (QuizLog.Entry e : entries) {
+            lastAsked.merge(e.word(), e.when(), (a, b) -> a.isAfter(b) ? a : b);
+        }
+        LocalDate before = today.minusDays(REFRESH_AFTER_DAYS - 1);
+        List<Vocab> refresh = new ArrayList<>();
+        for (Vocab v : vocab) {
+            LocalDateTime last = lastAsked.get(v.getWord());
+            if (last != null && weights.get(v.getWord()) == 1.0 && last.toLocalDate().isBefore(before)) {
+                refresh.add(v);
+            }
+        }
+        refresh.sort(Comparator.comparing(v -> lastAsked.get(v.getWord())));
+        return refresh;
+    }
+
     // A random order in which heavier items tend to come first, so a quiz that is stopped early still
     // asked the words that need practice; every item stays in it once (weighted random sampling:
     // key = random ^ (1 / weight), highest key first)

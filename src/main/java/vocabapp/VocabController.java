@@ -261,13 +261,22 @@ public class VocabController {
     }
 
     // All vocab in the category, shuffled, each asked in a random direction
+    // refresh = only the words to refresh (see QuizStats.toRefresh), the longest not asked first; else the
+    // category (empty = all), with the words that need practice tending to come first
     @GetMapping("/{learner}/languages/{language}/quiz")
-    public List<QuestionDto> quiz(@PathVariable String learner, @PathVariable String language, @RequestParam(defaultValue = "") String category) {
+    public List<QuestionDto> quiz(@PathVariable String learner, @PathVariable String language,
+                                  @RequestParam(defaultValue = "") String category,
+                                  @RequestParam(defaultValue = "false") boolean refresh) {
         Language rules = rules(learner, language);
-        // the words that need practice tend to come first (see QuizStats.practiceWeights)
-        Map<String, Double> weights = QuizStats.practiceWeights(library(learner).log(language).entries());
-        List<Vocab> vocab = QuizStats.practiceOrder(index(learner, language).inCategory(blankToNull(category)),
-                v -> weights.getOrDefault(v.getWord(), QuizStats.NEW_WEIGHT), random);
+        List<QuizLog.Entry> log = library(learner).log(language).entries();
+        List<Vocab> vocab;
+        if (refresh) {
+            vocab = QuizStats.toRefresh(log, store(learner, language).getAll(), LocalDate.now());
+        } else {
+            Map<String, Double> weights = QuizStats.practiceWeights(log);
+            vocab = QuizStats.practiceOrder(index(learner, language).inCategory(blankToNull(category)),
+                    v -> weights.getOrDefault(v.getWord(), QuizStats.NEW_WEIGHT), random);
+        }
         List<QuestionDto> questions = new ArrayList<>();
         for (Vocab v : vocab) {
             Question question = Question.from(v, rules, random);
@@ -275,6 +284,17 @@ public class VocabController {
             questions.add(new QuestionDto(store(learner, language).idOf(v), question.answerInLanguage(), question.prompt(), promptIpa));
         }
         return questions;
+    }
+
+    record RefreshDto(int count, int days) {
+    }
+
+    // How many words "Refresh vocab" has now, for the quiz menu
+    @GetMapping("/{learner}/languages/{language}/quiz/refresh")
+    public RefreshDto refreshCount(@PathVariable String learner, @PathVariable String language) {
+        List<Vocab> words = QuizStats.toRefresh(library(learner).log(language).entries(),
+                store(learner, language).getAll(), LocalDate.now());
+        return new RefreshDto(words.size(), QuizStats.REFRESH_AFTER_DAYS);
     }
 
     @PostMapping("/{learner}/languages/{language}/quiz/check")

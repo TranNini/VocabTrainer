@@ -7,6 +7,9 @@ const ADD_LEARNER = "__add__";
 const RENAME_LEARNER = "__rename__";
 const DELETE_LEARNER = "__delete__";
 const COPY_VOCAB = "__copy__";
+// "Refresh vocab" in the quiz's category menu
+const REFRESH = "__refresh__";
+let refreshDays = 14;
 
 let learner = null; // whose vocab is shown: each learner has their own languages and words
 let languages = [];
@@ -379,6 +382,15 @@ async function loadCategories() {
             ...categories.map((c) => el("option", {value: c.name, textContent: `${c.name} (${c.count})`})));
         select.value = categories.some((c) => c.name === previous) ? previous : "";
     }
+    // the quiz also offers the words to refresh (see QuizStats.toRefresh)
+    const refresh = await api("GET", langUrl("/quiz/refresh"));
+    const previous = $("quiz-category").dataset.picked;
+    $("quiz-category").options[0].after(el("option", {value: REFRESH, textContent: `Refresh vocab (${refresh.count})`,
+        title: `Words right on the first try lately that weren't asked for ${refresh.days} days`}));
+    refreshDays = refresh.days;
+    if (previous === REFRESH) {
+        $("quiz-category").value = REFRESH;
+    }
     fillCategorySelect($("add-category"), $("add-category").value || "general");
 }
 
@@ -471,9 +483,12 @@ function showView(name) {
 const quiz = {questions: [], index: 0, attempt: 1, correct: 0, asked: 0, shownHints: [], hints: 0};
 
 async function startQuiz() {
-    quiz.questions = await api("GET", langUrl("/quiz?category=" + encodeURIComponent($("quiz-category").value)));
+    const refresh = $("quiz-category").value === REFRESH;
+    quiz.questions = await api("GET", langUrl(refresh ? "/quiz?refresh=true"
+        : "/quiz?category=" + encodeURIComponent($("quiz-category").value)));
     if (quiz.questions.length === 0) {
-        showMessage("No vocab saved yet. Add some first.");
+        showMessage(refresh ? `Nothing to refresh right now. Words come here once they were right on the first try `
+            + `lately and weren't asked for ${refreshDays} days.` : "No vocab saved yet. Add some first.");
         return;
     }
     Object.assign(quiz, {index: 0, correct: 0, asked: 0});
@@ -865,6 +880,8 @@ $("quiz-start").addEventListener("click", startQuiz);
 $("quiz-again").addEventListener("click", () => {
     $("quiz-summary").hidden = true;
     $("quiz-setup").hidden = false;
+    // the quiz just played changes what there is to refresh
+    loadCategories().catch((error) => showMessage(error.message, true));
 });
 $("quiz-form").addEventListener("submit", (event) => {
     event.preventDefault();
@@ -894,6 +911,8 @@ $("language").addEventListener("change", () => {
 });
 
 $("words-category").addEventListener("change", loadWords);
+// kept, so reloading the menu (a new count) keeps "Refresh vocab" picked
+$("quiz-category").addEventListener("change", () => $("quiz-category").dataset.picked = $("quiz-category").value);
 $("words-search").addEventListener("input", () => {
     clearTimeout(searchTimer);
     searchTimer = setTimeout(loadWords, 200);

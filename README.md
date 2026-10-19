@@ -34,6 +34,8 @@ Stats per learner and language (Stats tab): days in a row, answered today, right
 Add multiple answer choices using '/'
 What is written in brackets can be left out in quiz answers: "you have" is right for "you have (singular)"
 Categories (general, verbs, sentences, or your own) and a category filter for the quiz
+"Refresh vocab" in the quiz menu: the words that were right on the first try lately (so the quiz asks them
+    seldom) and weren't asked for 14 days, the longest not asked first
 Edit and delete saved vocabulary
 Alphabetical list in the order of each language, with letter sections
 Buttons for special letters (á, ñ, è, …)
