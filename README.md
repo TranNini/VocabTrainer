@@ -39,8 +39,8 @@ Stats per learner and language (Stats tab): days in a row, answered today, right
     the end, an overview of today / 1 month / 6 months / 1 year, a chart of the answers for today (by hour), 1 month (by day), 6 months (by week) or 1 year (by month), words mastered (right on the first try 3 times in a row), practising
     and not practised yet, and the words missed most
 Add multiple answer choices using '/'
-Typing (s or (p in the Add and edit fields fills in (singular) or (plural), but not on a German side, whose
-    forms differ anyway (du hast, ihr habt); Backspace right after it goes back to what was typed
+Typing (s or (p in an English field (Add and edit) fills in (singular) or (plural), as "you have" is both;
+    Spanish and German forms differ anyway. Backspace right after it goes back to what was typed
 What is written in brackets can be left out in quiz answers: "you have" is right for "you have (singular)"
 Categories (general, verbs, sentences, or your own) and a category filter for the quiz
 "Refresh vocab" in the quiz menu: the words that were right on the first try lately (so the quiz asks them

@@ -295,14 +295,14 @@ async function addLearner() {
 // ---------- (s and (p ----------
 
 // Typing "(s" fills in "(singular)" and "(p" "(plural)", e.g. "you have (s" -> "you have (singular)".
-// Not on a German side: its forms differ anyway ("du hast", "ihr habt"). Backspace right after it goes back
-// to what was typed ("(sth)"). sideOf(input) = the language name of that field's side.
+// Only in English, where "you have" is both; Spanish and German forms differ anyway ("tienes", "tenéis").
+// Backspace right after it goes back to what was typed ("(sth)"). sideOf(input) = the language of that field.
 function addBracketShortcuts(input, sideOf) {
     let filled = null;
     input.addEventListener("input", (event) => {
         filled = null;
         const letter = event.data?.toLowerCase();
-        if (event.inputType !== "insertText" || (letter !== "s" && letter !== "p") || isGerman(sideOf(input))) {
+        if (event.inputType !== "insertText" || (letter !== "s" && letter !== "p") || !isEnglish(sideOf(input))) {
             return;
         }
         const end = input.selectionStart;
@@ -325,7 +325,7 @@ function addBracketShortcuts(input, sideOf) {
     });
 }
 
-const isGerman = (name) => ["german", "deutsch"].includes((name ?? "").toLowerCase());
+const isEnglish = (name) => ["english", "englisch", "inglés", "ingles"].includes((name ?? "").toLowerCase());
 
 // ---------- languages ----------
 
@@ -392,7 +392,7 @@ function showTranslationLanguage() {
     for (const label of document.querySelectorAll(".translation-name")) {
         label.textContent = language.translation;
     }
-    $("bracket-hint").hidden = isGerman(language.translation);
+    $("bracket-hint").hidden = !isEnglish(language.translation);
     addAccentButtons(document.querySelector("#add-form .translation-accents"), $("add-english"), language.translationLetters);
 }
 
