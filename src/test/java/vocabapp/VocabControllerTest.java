@@ -12,6 +12,7 @@ import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.ResultActions;
 
+import java.nio.file.Files;
 import java.nio.file.Path;
 
 import static org.hamcrest.Matchers.hasSize;
@@ -48,7 +49,7 @@ class VocabControllerTest {
     VocabLibrary library;
 
     @BeforeEach
-    void emptySpanish() {
+    void emptySpanish() throws Exception {
         if (learners.library("Nini") == null) {
             learners.add("Nini");
         }
@@ -60,6 +61,7 @@ class VocabControllerTest {
         for (Vocab v : store.getAll()) {
             store.remove(v);
         }
+        Files.deleteIfExists(dir.resolve("vocab/Nini/Spanish" + QuizLog.EXTENSION));
     }
 
     private ResultActions send(String method, String url, String json) throws Exception {
@@ -128,6 +130,40 @@ class VocabControllerTest {
         send("POST", SPANISH + "/vocab", """
                 {"word": "ir;x", "english": "to go", "category": "verbs"}
                 """).andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void quizResultsShowInTheStats() throws Exception {
+        int id = add("tener", "to have", "verbs");
+        String wrong = """
+                {"id": %d, "answerInLanguage": true, "answer": "tango", "attempt": %d, "shown": [], "hints": 1}
+                """;
+        send("POST", SPANISH + "/quiz/check", wrong.formatted(id, 1)).andExpect(jsonPath("$.finished").value(false));
+        send("POST", SPANISH + "/quiz/check", """
+                {"id": %d, "answerInLanguage": true, "answer": "tener", "attempt": 2, "shown": [], "hints": 1}
+                """.formatted(id)).andExpect(jsonPath("$.correct").value(true));
+        for (int attempt = 1; attempt <= AnswerChecker.MAX_ATTEMPTS; attempt++) {
+            send("POST", SPANISH + "/quiz/check", wrong.formatted(id, attempt));
+        }
+        mvc.perform(get(SPANISH + "/stats"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.answered").value(2))
+                .andExpect(jsonPath("$.right").value(1))
+                .andExpect(jsonPath("$.rightFirstTry").value(0))
+                .andExpect(jsonPath("$.hints").value(2))
+                .andExpect(jsonPath("$.today").value(2))
+                .andExpect(jsonPath("$.streak").value(1))
+                .andExpect(jsonPath("$.lastDays", hasSize(14)))
+                .andExpect(jsonPath("$.practising").value(1))
+                .andExpect(jsonPath("$.toPractise[0].word").value("tener"));
+        // an edited word keeps its results
+        send("PUT", SPANISH + "/vocab/" + id, """
+                {"word": "tener", "english": "to have / to own", "category": "verbs"}
+                """).andExpect(status().isOk());
+        send("PUT", SPANISH + "/vocab/" + id, """
+                {"word": "tenér", "english": "to have", "category": "verbs", "spellingChecked": true}
+                """).andExpect(status().isOk());
+        mvc.perform(get(SPANISH + "/stats")).andExpect(jsonPath("$.toPractise[0].word").value("tenér"));
     }
 
     @Test

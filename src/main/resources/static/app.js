@@ -282,6 +282,9 @@ async function switchLanguage(name) {
     if (!$("view-words").hidden) {
         await loadWords();
     }
+    if (!$("view-stats").hidden) {
+        await loadStats();
+    }
 }
 
 // Word count and special letters change when words are added, so fetch the language again
@@ -385,7 +388,7 @@ async function saveVocab(method, url, vocab) {
 // ---------- tabs ----------
 
 function showView(name) {
-    if (!["quiz", "add", "words"].includes(name)) {
+    if (!["quiz", "add", "words", "stats"].includes(name)) {
         name = "quiz";
     }
     history.replaceState(null, "", "#" + name);
@@ -398,6 +401,9 @@ function showView(name) {
     if (name === "words") {
         loadWords();
     }
+    if (name === "stats") {
+        loadStats().catch((error) => showMessage(error.message, true));
+    }
     if (name === "add") {
         $("add-word").focus();
     }
@@ -406,7 +412,8 @@ function showView(name) {
 // ---------- quiz ----------
 
 // shownHints = the hints shown for the current question, so the hint button never repeats one
-const quiz = {questions: [], index: 0, attempt: 1, correct: 0, asked: 0, shownHints: []};
+// hints = how often the hint button was pressed for this question, for the statistics
+const quiz = {questions: [], index: 0, attempt: 1, correct: 0, asked: 0, shownHints: [], hints: 0};
 
 async function startQuiz() {
     quiz.questions = await api("GET", langUrl("/quiz?category=" + encodeURIComponent($("quiz-category").value)));
@@ -425,6 +432,7 @@ function showQuestion() {
     const question = quiz.questions[quiz.index];
     quiz.attempt = 1;
     quiz.shownHints = [];
+    quiz.hints = 0;
     $("quiz-progress").textContent = `${quiz.index + 1} / ${quiz.questions.length}`;
     $("quiz-score").textContent = `${quiz.correct} correct`;
     $("quiz-direction").textContent = question.answerInLanguage ? `In ${language.name}:` : "In English:";
@@ -460,7 +468,7 @@ async function checkAnswer() {
     }
     const result = await api("POST", langUrl("/quiz/check"), {
         id: question.id, answerInLanguage: question.answerInLanguage, answer, attempt: quiz.attempt,
-        shown: quiz.shownHints,
+        shown: quiz.shownHints, hints: quiz.hints,
     });
     const feedback = $("quiz-feedback");
     feedback.textContent = result.feedback;
@@ -503,6 +511,7 @@ function setHintButton(enabled) {
 // A hint that fits what is typed so far and wasn't shown yet (see AnswerChecker.hint); doesn't use up a try
 async function showHint() {
     setHintButton(false);
+    quiz.hints++;
     const question = quiz.questions[quiz.index];
     const hint = await api("POST", langUrl("/quiz/hint"), {
         id: question.id, answerInLanguage: question.answerInLanguage, answer: $("quiz-answer").value,
@@ -687,6 +696,55 @@ function editForm(word) {
         }
     });
     return form;
+}
+
+// ---------- stats ----------
+
+const percent = (part, whole) => whole ? Math.round(100 * part / whole) + "%" : "–";
+
+async function loadStats() {
+    const stats = await api("GET", langUrl("/stats"));
+    $("stats-who").textContent = `· ${learner} · ${language.name}`;
+    $("stats-empty").hidden = stats.answered > 0;
+    $("stats-empty").textContent = `No quiz answers yet. Your stats start with your first quiz.`;
+
+    const tile = (value, label) => el("div", {className: "stat"},
+        el("strong", {textContent: value}), el("span", {className: "muted", textContent: label}));
+    $("stats-numbers").replaceChildren(
+        tile(stats.streak, stats.streak === 1 ? "day in a row" : "days in a row"),
+        tile(stats.today, "answered today"),
+        tile(percent(stats.rightFirstTry, stats.answered), "right on the first try"),
+        tile(percent(stats.right, stats.answered), "right in the end"),
+        tile(stats.answered, "answered in total"),
+        tile(stats.daysPractised, stats.daysPractised === 1 ? "day practised" : "days practised"));
+
+    // one column per day: the right answers at the bottom, the missed ones on top
+    const most = Math.max(1, ...stats.lastDays.map((d) => d.answered));
+    $("stats-days").replaceChildren(...stats.lastDays.map((d) => {
+        const [y, m, day] = d.date.split("-").map(Number);
+        const date = new Date(y, m - 1, day);
+        const column = el("div", {className: "day", title: `${date.toLocaleDateString()}: ${d.right} of ${d.answered} right`},
+            el("div", {className: "bar"},
+                el("span", {className: "missed", style: `height: ${100 * (d.answered - d.right) / most}%`}),
+                el("span", {className: "right", style: `height: ${100 * d.right / most}%`})),
+            el("small", {className: "muted", textContent: date.toLocaleDateString(undefined, {weekday: "narrow"})}));
+        return column;
+    }));
+    $("stats-days").setAttribute("aria-label", `Answers per day, the last ${stats.lastDays.length} days`);
+
+    const total = stats.mastered + stats.practising + stats.notPractised;
+    const parts = [["mastered", stats.mastered, "mastered (right on the first try 3 times in a row)"],
+        ["practising", stats.practising, "practising"], ["new", stats.notPractised, "not practised yet"]];
+    $("stats-progress").replaceChildren(...parts.filter(([, n]) => n > 0).map(([kind, n]) =>
+        el("span", {className: kind, style: `flex: ${n}`})));
+    $("stats-legend").replaceChildren(...parts.map(([kind, n, label]) =>
+        el("li", {}, el("span", {className: "swatch " + kind}), `${n} ${label}`)));
+    $("stats-progress").setAttribute("aria-label", `${stats.mastered} of ${total} words mastered`);
+
+    $("stats-practise-card").hidden = stats.toPractise.length === 0;
+    $("stats-practise").replaceChildren(...stats.toPractise.map((w) => el("li", {},
+        el("strong", {textContent: w.word}), ` = ${w.english} `,
+        el("span", {className: "muted", textContent: `· ${w.firstTry} of ${w.tries} right on the first try`}))));
 }
 
 // ---------- start ----------

@@ -10,13 +10,15 @@ import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
 
-// All languages one learner learns: one file per language in their folder, e.g. vocab/Nini/Spanish.txt
+// All languages one learner learns: one file per language in their folder, e.g. vocab/Nini/Spanish.txt,
+// and next to it the quiz results for the statistics (Spanish.log, see QuizLog)
 public class VocabLibrary {
     static final String EXTENSION = ".txt";
 
     private final Path dir;
     private final Map<String, VocabStore> stores = new TreeMap<>(String.CASE_INSENSITIVE_ORDER);
     private final Map<String, Language> languages = new TreeMap<>(String.CASE_INSENSITIVE_ORDER);
+    private final Map<String, QuizLog> logs = new TreeMap<>(String.CASE_INSENSITIVE_ORDER);
 
     public VocabLibrary(Path dir) {
         this.dir = dir;
@@ -44,6 +46,11 @@ public class VocabLibrary {
 
     public synchronized Language language(String language) {
         return languages.get(language);
+    }
+
+    // The quiz results in that language; null if there is no such language
+    public synchronized QuizLog log(String language) {
+        return logs.get(language);
     }
 
     // Creates an empty file for a new language; returns the saved name ("italian" -> "Italian")
@@ -75,5 +82,6 @@ public class VocabLibrary {
     private void open(String name) {
         stores.put(name, new VocabStore(dir.resolve(name + EXTENSION)));
         languages.put(name, Language.forName(name));
+        logs.put(name, new QuizLog(dir.resolve(name + QuizLog.EXTENSION)));
     }
 }

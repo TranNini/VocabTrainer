@@ -15,6 +15,8 @@ import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.text.Normalizer;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -59,7 +61,8 @@ public class VocabController {
     record QuestionDto(int id, boolean answerInLanguage, String prompt, String promptIpa) {
     }
 
-    record CheckRequest(int id, boolean answerInLanguage, String answer, int attempt, List<String> shown) {
+    // hints = how many hints the hint button gave for this question, for the statistics
+    record CheckRequest(int id, boolean answerInLanguage, String answer, int attempt, List<String> shown, int hints) {
     }
 
     // finished = no more tries for this question; once finished, answer = the full answer with all
@@ -198,6 +201,7 @@ public class VocabController {
         checkSpelling(learner, language, request, updated);
         checkDuplicates(learner, language, request, updated, existing);
         store(learner, language).replace(existing, updated);
+        library(learner).log(language).renameWord(existing.getWord(), updated.getWord());
         return toDto(learner, language, updated, index(learner, language));
     }
 
@@ -232,6 +236,7 @@ public class VocabController {
         String dictionaryUrl = rules.dictionaryUrl(vocab.getWord());
         String context = vocab.getContext();
         if (AnswerChecker.isCorrect(answer, expected, rules)) {
+            logResult(learner, language, vocab, request, request.attempt());
             return new CheckResult(true, "Correct!", AnswerChecker.allOptions(expected), true, ipa, dictionaryUrl, context);
         }
         if (request.attempt() < AnswerChecker.MAX_ATTEMPTS) {
@@ -239,6 +244,7 @@ public class VocabController {
                     request.shown() == null ? List.of() : request.shown()),
                     null, false, null, null, null);
         }
+        logResult(learner, language, vocab, request, 0);
         return new CheckResult(false, "Not quite.", AnswerChecker.allOptions(expected), true, ipa, dictionaryUrl, context);
     }
 
@@ -250,6 +256,19 @@ public class VocabController {
         String answer = request.answer() == null ? "" : request.answer();
         List<String> shown = request.shown() == null ? List.of() : request.shown();
         return new HintResult(AnswerChecker.hint(answer, expected, rules(learner, language), shown));
+    }
+
+    // The Stats tab: what the learner practised in this language and how it went
+    @GetMapping("/{learner}/languages/{language}/stats")
+    public QuizStats.Stats stats(@PathVariable String learner, @PathVariable String language) {
+        List<Vocab> vocab = store(learner, language).getAll();
+        return QuizStats.of(library(learner).log(language).entries(), vocab, LocalDate.now());
+    }
+
+    // A finished question (right, or not right after the last try) for the statistics; rightOnTry 0 = not right
+    private void logResult(String learner, String language, Vocab vocab, CheckRequest request, int rightOnTry) {
+        library(learner).log(language).add(new QuizLog.Entry(LocalDateTime.now(), vocab.getWord(),
+                request.answerInLanguage(), rightOnTry, Math.max(0, request.hints())));
     }
 
     private VocabLibrary library(String learner) {

@@ -10,7 +10,7 @@
     <link rel="icon" href="icon.svg" type="image/svg+xml">
     <link rel="apple-touch-icon" href="apple-touch-icon.png">
     <title>Vocab Trainer</title>
-    <link rel="stylesheet" href="style.css?v=7">
+    <link rel="stylesheet" href="style.css?v=8">
 </head>
 <body>
 <header class="top">
@@ -112,12 +112,35 @@
         </div>
         <div id="words-list"></div>
     </section>
+
+    <!-- Stats -->
+    <section id="view-stats" class="view" hidden>
+        <div class="card">
+            <h2>Stats <span id="stats-who" class="muted"></span></h2>
+            <p id="stats-empty" class="muted" hidden></p>
+            <div id="stats-numbers" class="stats-numbers"></div>
+        </div>
+        <div class="card">
+            <h3>Last 14 days</h3>
+            <div id="stats-days" class="stats-days" role="img"></div>
+        </div>
+        <div class="card">
+            <h3>Your words</h3>
+            <div id="stats-progress" class="stats-progress"></div>
+            <ul id="stats-legend" class="stats-legend plain"></ul>
+        </div>
+        <div id="stats-practise-card" class="card" hidden>
+            <h3>Words to practise</h3>
+            <ul id="stats-practise" class="stats-practise plain"></ul>
+        </div>
+    </section>
 </main>
 
 <nav class="tabs" aria-label="Sections">
     <button data-view="quiz" class="active">Quiz</button>
     <button data-view="add">Add</button>
     <button data-view="words">Words</button>
+    <button data-view="stats">Stats</button>
 </nav>
 
 <template id="edit-template">
@@ -138,6 +161,6 @@
 </template>
 
 <!-- ?v=2: one-time nudge for browsers still holding an old cached copy -->
-<script src="app.js?v=7"></script>
+<script src="app.js?v=8"></script>
 </body>
 </html>

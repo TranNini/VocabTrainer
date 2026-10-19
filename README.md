@@ -25,6 +25,9 @@ Up to 3 tries per answer, with two different hints per try: one after every wron
     hint button (once per try). A nearly right answer gets told what kind of mistake it is (a letter wrong,
     missing or too many, letters swapped, an accent, ü or ñ missing); otherwise the next letter of the right start
 Score at the end of the quiz
+Stats per learner and language (Stats tab): days in a row, answered today, right on the first try and in
+    the end, the last 14 days as a chart, words mastered (right on the first try 3 times in a row), practising
+    and not practised yet, and the words missed most
 Add multiple answer choices using '/'
 What is written in brackets can be left out in quiz answers: "you have" is right for "you have (singular)"
 Categories (general, verbs, sentences, or your own) and a category filter for the quiz
@@ -53,7 +56,7 @@ How to run:
     Run vocabapp.WebApp (in IntelliJ: open WebApp.java and click Run),
     or on the command line: mvn spring-boot:run
     Then open http://localhost:8080
-    Tabs: Quiz, Add, Words (browse, search, edit, delete)
+    Tabs: Quiz, Add, Words (browse, search, edit, delete), Stats
     Language picker at the top; "Add language…" adds a new one
 
 iPhone (same Wi-Fi as the Mac, Mac must be awake with the app running)
@@ -72,6 +75,8 @@ iPhone (same Wi-Fi as the Mac, Mac must be awake with the app running)
 Where the vocabulary is saved:
     vocab/<Learner>/<Language>.txt, e.g. vocab/Nini/Spanish.txt (not in git), one line per entry:
     word;english;category or word;english;category;context when the entry has a context note
+    Quiz results for the stats: vocab/<Learner>/<Language>.log, one line per finished question
+    (when;word;in/en;the try it was right on, 0 = not right;hints)
     Vocab saved before there were learners (vocab/Spanish.txt …, or the even older vocab.txt) is moved
     to the first learner (vocab.first-learner in application.properties) automatically on the first start.
     A deleted learner's folder is moved to vocab/.deleted/<name> <date time>; to restore it, move it back
@@ -99,6 +104,7 @@ VocabLibrary.java - all languages of one learner, one file each in their folder
 Language.java - everything that differs between languages (Spanish rules, defaults for others)
 AnswerChecker.java - checks quiz answers and gives hints
 SpellChecker.java - the spell check for new vocab
+QuizLog.java, QuizStats.java - the quiz results and the stats worked out from them
 Question.java - one quiz question (which side is asked)
 VocabIndex.java - sorting, sections, search, verb grouping and categories
 SpanishIpa.java - works out the IPA pronunciation from the Spanish spelling
