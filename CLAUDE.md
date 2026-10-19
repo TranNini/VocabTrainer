@@ -74,7 +74,9 @@ Docker Desktop must be running. The NAS picks up the image at the next 05:00 run
       - /share/CACHEDEV1_DATA/homes/jank/caddy/config:/config
 ```
 
-The Caddyfile is just `vocab.kulose.de, g3.myftp.org { reverse_proxy vocab-learning-app:8080 }`; reload it after a change
+The Caddyfile is `vocab.kulose.de, g3.myftp.org { reverse_proxy vocab-learning-app:8080 }` plus a global
+`servers { protocols h1 h2 }`: HTTP/3 is off, as it runs over UDP 443, which the FRITZ!Box doesn't forward, and
+Safari on the iPhone then couldn't connect (it remembers the HTTP/3 offer for 30 days). Reload it after a change
 with `docker exec caddy caddy reload --config /etc/caddy/Caddyfile`. A new project gets a CNAME in netcup
 (e.g. `trades` → `home.kulose.de.`) and its own block in the Caddyfile. Caddy gets and renews the
 certificate itself (TLS-ALPN challenge on port 443, so no port 80 is needed; port 80 on the NAS is QNAP's).
