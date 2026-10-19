@@ -18,9 +18,11 @@ import java.text.Normalizer;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Random;
+import java.util.Set;
 import java.util.TreeSet;
 
 @RestController
@@ -140,6 +142,54 @@ public class VocabController {
         if (!learners.delete(learner)) {
             library(learner); // 404
         }
+    }
+
+    // language = one of the other learner's languages, or empty for all of them
+    record CopyRequest(String from, String language) {
+    }
+
+    // copied and skipped count words (skipped: already in the list, also a word the other learner has
+    // twice); languages = the learner's languages that got words
+    record CopyResult(int copied, int skipped, List<String> languages) {
+    }
+
+    // Copies vocab from another learner. A language the learner doesn't have yet is added; words they
+    // already have (the same word and English) are skipped, so nothing of theirs is replaced. The quiz
+    // results stay with the other learner, so the stats start at 0.
+    @PostMapping("/{learner}/copy")
+    public CopyResult copyVocab(@PathVariable String learner, @RequestBody CopyRequest request) {
+        VocabLibrary target = library(learner);
+        VocabLibrary source = library(request.from() == null ? "" : request.from());
+        if (source == target) {
+            throw new ApiException(HttpStatus.BAD_REQUEST, "Pick another learner to copy from.");
+        }
+        List<String> languages = request.language() == null || request.language().isBlank()
+                ? source.languageNames() : List.of(request.language());
+        int copied = 0;
+        int skipped = 0;
+        List<String> copiedTo = new ArrayList<>();
+        for (String language : languages) {
+            VocabStore from = source.store(language);
+            if (from == null) {
+                throw new ApiException(HttpStatus.NOT_FOUND, request.from() + " has no " + language + ".");
+            }
+            String saved = target.store(language) == null ? target.addLanguage(language) : language;
+            VocabStore to = target.store(saved);
+            Set<String> have = new HashSet<>();
+            for (Vocab v : to.getAll()) {
+                have.add(v.getWord().toLowerCase() + ";" + v.getEnglish().toLowerCase());
+            }
+            for (Vocab v : from.getAll()) {
+                if (have.add(v.getWord().toLowerCase() + ";" + v.getEnglish().toLowerCase())) {
+                    to.add(new Vocab(v.getWord(), v.getEnglish(), v.getCategory(), v.getContext()));
+                    copied++;
+                } else {
+                    skipped++;
+                }
+            }
+            copiedTo.add(saved);
+        }
+        return new CopyResult(copied, skipped, copiedTo);
     }
 
     @GetMapping("/{learner}/languages")

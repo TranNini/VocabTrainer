@@ -7,7 +7,9 @@ on the Mac in the browser and on the iPhone. Started with Spanish; more language
 Feature:
 
 Several learners (e.g. a parent and a child), each with their own languages and vocabulary; pick
-    "who's learning" at the top, each device remembers it. The same menu adds, renames and deletes learners
+    "who's learning" at the top, each device remembers it. The same menu adds, renames and deletes learners,
+    and copies vocab from another learner (one language or all; words already in the list are skipped,
+    the other learner's quiz results aren't copied)
 Several languages, each with its own vocabulary and categories; switch at the top of the app
 Add new vocabulary with its English translation and an optional context note (rules, usage, exceptions),
     shown with the "Note" button in the word list and after each quiz question

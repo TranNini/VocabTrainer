@@ -6,6 +6,7 @@ const ADD_LANGUAGE = "__add__";
 const ADD_LEARNER = "__add__";
 const RENAME_LEARNER = "__rename__";
 const DELETE_LEARNER = "__delete__";
+const COPY_VOCAB = "__copy__";
 
 let learner = null; // whose vocab is shown: each learner has their own languages and words
 let languages = [];
@@ -172,6 +173,9 @@ function fillLearnerSelect() {
     const options = learnerNames.map((name) => el("option", {value: name, textContent: name}));
     options.push(el("option", {value: ADD_LEARNER, textContent: "Add learner…"}));
     if (learner) {
+        if (learnerNames.length > 1) {
+            options.push(el("option", {value: COPY_VOCAB, textContent: `Copy vocab to ${learner}…`}));
+        }
         options.push(el("option", {value: RENAME_LEARNER, textContent: `Rename ${learner}…`}),
             el("option", {value: DELETE_LEARNER, textContent: `Delete ${learner}…`}));
     }
@@ -184,6 +188,52 @@ async function switchLearner(name) {
     saveSetting("learner", name);
     fillLearnerSelect();
     await loadLanguages();
+}
+
+// Copies another learner's words into this learner's list (see VocabController.copyVocab)
+async function copyVocab() {
+    $("learner").value = learner;
+    const others = learnerNames.filter((name) => name !== learner);
+    const fromAnswer = prompt(`Copy vocab to ${learner} from which learner?\n\n${others.join(", ")}`,
+        others.length === 1 ? others[0] : "");
+    if (!fromAnswer) {
+        return;
+    }
+    const from = others.find((name) => name.toLowerCase() === fromAnswer.trim().toLowerCase());
+    if (!from) {
+        showMessage(`There's no other learner called '${fromAnswer.trim()}'.`, true);
+        return;
+    }
+    const theirs = await api("GET", "/api/learners/" + encodeURIComponent(from) + "/languages");
+    if (theirs.length === 0) {
+        showMessage(`${from} has no vocab yet.`, true);
+        return;
+    }
+    let chosen = theirs;
+    if (theirs.length > 1) {
+        const list = theirs.map((l) => `${l.name} (${l.count})`).join(", ");
+        const answer = prompt(`Which language? ${list}\n\nOr "all" for every language.`, "all");
+        if (!answer) {
+            return;
+        }
+        if (answer.trim().toLowerCase() !== "all") {
+            chosen = theirs.filter((l) => l.name.toLowerCase() === answer.trim().toLowerCase());
+            if (chosen.length === 0) {
+                showMessage(`${from} has no '${answer.trim()}'.`, true);
+                return;
+            }
+        }
+    }
+    const what = chosen.map((l) => `${l.count} ${l.name}`).join(" and ");
+    if (!confirm(`Copy ${what} words from ${from} to ${learner}?\n\nWords ${learner} already has are skipped, ` +
+        `so nothing is replaced. ${from}'s quiz results are not copied.`)) {
+        return;
+    }
+    const result = await api("POST", learnerUrl("/copy"),
+        {from, language: chosen.length === theirs.length && theirs.length > 1 ? "" : chosen[0].name});
+    await loadLanguages(language?.name ?? result.languages[0]);
+    showMessage(`Copied ${result.copied} ${result.copied === 1 ? "word" : "words"} from ${from}` +
+        (result.skipped ? `. ${result.skipped} skipped: already in ${learner}'s list.` : "."));
 }
 
 async function renameLearner() {
@@ -774,7 +824,8 @@ $("add-form").addEventListener("submit", addVocab);
 wireCategorySelect($("add-category"), $("add-new-category"));
 
 $("learner").addEventListener("change", () => {
-    const actions = {[ADD_LEARNER]: addLearner, [RENAME_LEARNER]: renameLearner, [DELETE_LEARNER]: deleteLearner};
+    const actions = {[ADD_LEARNER]: addLearner, [COPY_VOCAB]: copyVocab, [RENAME_LEARNER]: renameLearner,
+        [DELETE_LEARNER]: deleteLearner};
     const name = $("learner").value;
     (actions[name] ? actions[name]() : switchLearner(name)).catch((error) => showMessage(error.message, true));
 });

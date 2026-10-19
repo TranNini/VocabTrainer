@@ -382,4 +382,57 @@ class VocabControllerTest {
         mvc.perform(get("/api/learners")).andExpect(jsonPath("$[?(@ == 'Lea')]", hasSize(0)));
         mvc.perform(delete("/api/learners/Lea")).andExpect(status().isNotFound());
     }
+
+    @Test
+    void copiesVocabFromAnotherLearnerWithoutReplacingAny() throws Exception {
+        add("hablar", "to talk", "verbs");
+        add("tener", "to have", "verbs");
+        if (library.store("Vietnamese") == null) {
+            library.addLanguage("Vietnamese");
+        }
+        for (Vocab v : library.store("Vietnamese").getAll()) {
+            library.store("Vietnamese").remove(v);
+        }
+        library.store("Vietnamese").add(new Vocab("xin chào", "hello", "general"));
+        send("POST", "/api/learners", """
+                {"name": "Copytest"}
+                """).andExpect(status().isCreated());
+        String copy = "/api/learners/Copytest/copy";
+
+        // one language, into a learner who doesn't have it yet
+        send("POST", copy, """
+                {"from": "nini", "language": "Spanish"}
+                """)
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.copied").value(2))
+                .andExpect(jsonPath("$.skipped").value(0))
+                .andExpect(jsonPath("$.languages[0]").value("Spanish"));
+        mvc.perform(get("/api/learners/Copytest/languages")).andExpect(jsonPath("$", hasSize(1)));
+
+        // the learner's own words stay; what they already have is skipped
+        send("POST", "/api/learners/Copytest/languages/Spanish/vocab", """
+                {"word": "ir", "english": "to go", "category": "verbs"}
+                """).andExpect(status().isCreated());
+        add("comer", "to eat", "verbs");
+        send("POST", copy, """
+                {"from": "Nini", "language": ""}
+                """)
+                .andExpect(jsonPath("$.copied").value(2)) // comer and xin chào
+                .andExpect(jsonPath("$.skipped").value(2))
+                .andExpect(jsonPath("$.languages", hasSize(2)));
+        mvc.perform(get("/api/learners/Copytest/languages/Spanish/vocab")).andExpect(jsonPath("$", hasSize(4)));
+        mvc.perform(get("/api/learners/Copytest/languages/Vietnamese/vocab")).andExpect(jsonPath("$", hasSize(1)));
+        mvc.perform(get("/api/learners/Copytest/languages/Spanish/stats")).andExpect(jsonPath("$.answered").value(0));
+
+        send("POST", copy, """
+                {"from": "Copytest", "language": ""}
+                """).andExpect(status().isBadRequest());
+        send("POST", copy, """
+                {"from": "Nobody", "language": ""}
+                """).andExpect(status().isNotFound());
+        send("POST", copy, """
+                {"from": "Nini", "language": "French"}
+                """).andExpect(status().isNotFound());
+        mvc.perform(delete("/api/learners/Copytest")).andExpect(status().isNoContent());
+    }
 }
