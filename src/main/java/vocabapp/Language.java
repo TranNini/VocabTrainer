@@ -140,8 +140,9 @@ public class Language {
                         List.of("ellos", "ellas", "ustedes")),
                 // Spanish often leaves the pronoun out: "tengo" is right for "yo tengo"
                 true,
-                // capitals too, for the start of a sentence ("Él", "¿Ángel?")
-                List.of("á", "é", "í", "ó", "ú", "ñ", "ü", "¿", "¡", "Á", "É", "Í", "Ó", "Ú", "Ñ", "Ü"),
+                // capitals too, for the start of a sentence ("Él", "¿Ángel?"); not Ü, as ü only follows a g
+                // inside a word ("pingüino")
+                List.of("á", "é", "í", "ó", "ú", "ñ", "ü", "¿", "¡", "Á", "É", "Í", "Ó", "Ú", "Ñ"),
                 SpanishIpa::transcribe,
                 "SpanishDict", "https://www.spanishdict.com/translate/%s",
                 List.of("es"));

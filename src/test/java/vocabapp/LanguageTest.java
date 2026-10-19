@@ -62,7 +62,7 @@ class LanguageTest {
 
     @Test
     void spanishLettersOnBothSides() {
-        List<String> letters = List.of("á", "é", "í", "ó", "ú", "ñ", "ü", "¿", "¡", "Á", "É", "Í", "Ó", "Ú", "Ñ", "Ü");
+        List<String> letters = List.of("á", "é", "í", "ó", "ú", "ñ", "ü", "¿", "¡", "Á", "É", "Í", "Ó", "Ú", "Ñ");
         assertEquals(letters, Language.forName("Spanish").getSpecialLetters());
         // Spanish as the translation: German into Spanisch
         assertEquals(letters, Language.forName("German").translatedInto(Language.forName("Spanisch"))
