@@ -38,6 +38,17 @@ class VocabIndexTest {
     }
 
     @Test
+    void sortsGermanIgnoringArticlesWithUmlautsUnderTheirLetter() {
+        Language german = Language.forName("German");
+        Vocab apfel = general("der Apfel");
+        Vocab aerger = general("der Ärger");
+        VocabIndex index = new VocabIndex(List.of(general("die Zeit"), aerger, general("das Haus"), apfel,
+                general("ein Buch")), german);
+        assertEquals(List.of("der Apfel", "der Ärger", "ein Buch", "das Haus", "die Zeit"), spanish(index.search(null, "")));
+        assertEquals("A", index.sectionLetter(aerger));
+    }
+
+    @Test
     void singleLetterGivesSection() {
         Vocab abuela = general("la abuela");
         Vocab arbol = general("árbol");

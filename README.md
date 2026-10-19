@@ -55,6 +55,9 @@ Spanish extras:
     Pronunciation in IPA (Spain Spanish) on demand, worked out from the spelling
 
 German extras:
+    Articles (der, die, das, den, dem, des, ein, eine, …) are ignored when sorting and give "Don't forget
+        the article!" and "Check the article." hints
+    Buttons for ä ö ü ß Ä Ö Ü
     Short form for conjugations, as in Spanish: "er / sie / es hat" means "er hat / sie hat / es hat", so
         the quiz asks "sie hat", never just "sie". The pronoun is required in German answers ("hat" alone is wrong)
     Conjugations (ich, du, er/sie/es, wir, ihr, sie/Sie) are grouped under their infinitive

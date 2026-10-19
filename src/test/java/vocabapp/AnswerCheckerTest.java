@@ -109,6 +109,17 @@ class AnswerCheckerTest {
     }
 
     @Test
+    void germanArticlesGiveTheArticleHints() {
+        Language german = Language.forName("German");
+        assertEquals("Don't forget the article!", AnswerChecker.feedback("Hund", "der Hund", german, List.of()));
+        assertEquals("Check the article.", AnswerChecker.hint("die Hund", "der Hund", german));
+        assertEquals("It starts with 'H'", AnswerChecker.hint("", "der Hund", german));
+        assertTrue(AnswerChecker.isCorrect("der Hund", "der Hund", german));
+        assertFalse(AnswerChecker.isCorrect("Hund", "der Hund", german));
+        assertEquals(List.of("ä", "ö", "ü", "ß", "Ä", "Ö", "Ü"), german.getSpecialLetters());
+    }
+
+    @Test
     void hintsWorkWithoutThePronoun() {
         assertEquals("That's right! Press Check.", AnswerChecker.hint("tengo", "yo tengo", SPANISH));
         assertEquals("It starts with 'y'", AnswerChecker.hint("", "yo tengo", SPANISH));

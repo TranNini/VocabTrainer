@@ -90,10 +90,15 @@ public class Language {
     // The pronouns group the conjugations under their infinitive and make the short form
     // "er / sie / es hat" work; German doesn't leave them out, so "hat" alone stays wrong
     private static Language german(String name) {
-        return new Language(name, List.of(),
+        return new Language(name,
+                // all cases, so "den Hund" also sorts under H and gets the article hints
+                List.of("der", "die", "das", "den", "dem", "des", "ein", "eine", "einen", "einem", "einer", "eines"),
                 List.of(List.of("ich"), List.of("du"), List.of("er", "sie", "es"), List.of("wir"), List.of("ihr"),
                         List.of("sie", "Sie")),
-                false, List.of(), null,
+                false,
+                // capitals too, as every noun starts with one ("die Übung")
+                List.of("ä", "ö", "ü", "ß", "Ä", "Ö", "Ü"),
+                null,
                 "Wiktionary", "https://en.wiktionary.org/wiki/%s#German", "de");
     }
 
