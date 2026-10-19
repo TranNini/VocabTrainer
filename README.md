@@ -54,6 +54,12 @@ Spanish extras:
         and "he / she / it wants" means "he wants / she wants / it wants"
     Pronunciation in IPA (Spain Spanish) on demand, worked out from the spelling
 
+German extras:
+    Short form for conjugations, as in Spanish: "er / sie / es hat" means "er hat / sie hat / es hat", so
+        the quiz asks "sie hat", never just "sie". The pronoun is required in German answers ("hat" alone is wrong)
+    Conjugations (ich, du, er/sie/es, wir, ihr, sie/Sie) are grouped under their infinitive
+    Spell check with the German dictionary, also of capitalised nouns
+
 How to run:
 
     Run vocabapp.WebApp (in IntelliJ: open WebApp.java and click Run),

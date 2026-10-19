@@ -96,6 +96,19 @@ class AnswerCheckerTest {
     }
 
     @Test
+    void germanShortFormWorksButThePronounIsRequired() {
+        Language german = Language.forName("German");
+        assertTrue(AnswerChecker.isCorrect("sie hat", "er / sie / es hat", german));
+        assertTrue(AnswerChecker.isCorrect("Er hat", "er / sie / es hat", german));
+        assertFalse(AnswerChecker.isCorrect("hat", "er / sie / es hat", german));
+        assertFalse(AnswerChecker.isCorrect("sie", "er / sie / es hat", german));
+        assertFalse(AnswerChecker.isCorrect("habe", "ich habe", german));
+        assertTrue(AnswerChecker.isCorrect("ich habe", "ich habe", german));
+        // the English side works the same as for Spanish
+        assertTrue(AnswerChecker.isCorrect("she has", "he / she / it has", german));
+    }
+
+    @Test
     void hintsWorkWithoutThePronoun() {
         assertEquals("That's right! Press Check.", AnswerChecker.hint("tengo", "yo tengo", SPANISH));
         assertEquals("It starts with 'y'", AnswerChecker.hint("", "yo tengo", SPANISH));

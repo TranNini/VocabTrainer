@@ -39,4 +39,15 @@ class QuestionTest {
             assertTrue(prompt.matches("(he|she|it) wants|(él|ella|usted) quiere"), prompt);
         }
     }
+
+    @Test
+    void germanShortFormAsksThePronounWithTheVerb() {
+        Language german = Language.forName("German");
+        Vocab vocab = new Vocab("er / sie / es hat", "he / she / it has", Vocab.VERBS_CATEGORY);
+        Random random = new Random(3);
+        for (int i = 0; i < 50; i++) {
+            String prompt = Question.from(vocab, german, random).prompt();
+            assertTrue(prompt.matches("(er|sie|es) hat|(he|she|it) has"), prompt);
+        }
+    }
 }

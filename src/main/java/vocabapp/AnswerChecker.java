@@ -91,7 +91,7 @@ public class AnswerChecker {
     // first hints still lead to the saved form. Not when the answer starts with a pronoun itself: then
     // it is compared with the pronoun ("yo tienes" for "tú tienes" -> "__ tienes", not a word too many)
     static String withOptionalPronouns(String answer, String expected, Language language) {
-        if (isPronoun(normalize(answer).split(" ")[0], language)) {
+        if (!language.arePronounsOptional() || isPronoun(normalize(answer).split(" ")[0], language)) {
             return expected;
         }
         List<String> options = new ArrayList<>(List.of(expected.split("/")));

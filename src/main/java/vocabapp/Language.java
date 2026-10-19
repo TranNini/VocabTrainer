@@ -34,6 +34,7 @@ public class Language {
     private final Collator collator;
     private final List<String> articles;
     private final List<List<String>> subjectPronouns;
+    private final boolean pronounsOptional;
     private final List<String> specialLetters;
     private final UnaryOperator<String> ipa;
     private final String dictionaryName;
@@ -41,14 +42,15 @@ public class Language {
     private final String spellDictionary;
 
     private Language(String name, List<String> articles, List<List<String>> subjectPronouns,
-                     List<String> specialLetters, UnaryOperator<String> ipa, String dictionaryName, String dictionaryUrl,
-                     String spellDictionary) {
+                     boolean pronounsOptional, List<String> specialLetters, UnaryOperator<String> ipa,
+                     String dictionaryName, String dictionaryUrl, String spellDictionary) {
         this.name = name;
         this.collator = Collator.getInstance(LOCALES.getOrDefault(name.toLowerCase(), Locale.ROOT));
         // PRIMARY ignores case and accents, so "árbol" sorts with "arbol"
         this.collator.setStrength(Collator.PRIMARY);
         this.articles = articles;
         this.subjectPronouns = subjectPronouns;
+        this.pronounsOptional = pronounsOptional;
         this.specialLetters = specialLetters;
         this.ipa = ipa;
         this.dictionaryName = dictionaryName;
@@ -64,11 +66,9 @@ public class Language {
             return vietnamese(name);
         }
         if (name.equalsIgnoreCase("german")) {
-            // the basics, plus the spell check
-            return new Language(name, List.of(), List.of(), List.of(), null,
-                    "Wiktionary", "https://en.wiktionary.org/wiki/%s#German", "de");
+            return german(name);
         }
-        return new Language(name, List.of(), List.of(), List.of(), null,
+        return new Language(name, List.of(), List.of(), false, List.of(), null,
                 "Wiktionary", "https://en.wiktionary.org/wiki/%s#" + name.replace(' ', '_'), null);
     }
 
@@ -79,14 +79,26 @@ public class Language {
                 List.of(List.of("yo"), List.of("tú"), List.of("él", "ella", "usted"),
                         List.of("nosotros", "nosotras"), List.of("vosotros", "vosotras"),
                         List.of("ellos", "ellas", "ustedes")),
+                // Spanish often leaves the pronoun out: "tengo" is right for "yo tengo"
+                true,
                 List.of("á", "é", "í", "ó", "ú", "ñ", "ü", "¿", "¡"),
                 SpanishIpa::transcribe,
                 "SpanishDict", "https://www.spanishdict.com/translate/%s",
                 "es");
     }
 
+    // The pronouns group the conjugations under their infinitive and make the short form
+    // "er / sie / es hat" work; German doesn't leave them out, so "hat" alone stays wrong
+    private static Language german(String name) {
+        return new Language(name, List.of(),
+                List.of(List.of("ich"), List.of("du"), List.of("er", "sie", "es"), List.of("wir"), List.of("ihr"),
+                        List.of("sie", "Sie")),
+                false, List.of(), null,
+                "Wiktionary", "https://en.wiktionary.org/wiki/%s#German", "de");
+    }
+
     private static Language vietnamese(String name) {
-        return new Language(name, List.of(), List.of(),
+        return new Language(name, List.of(), List.of(), false,
                 // the letters, then the five tone marks (huyền, sắc, hỏi, ngã, nặng) to type after a vowel
                 List.of("ă", "â", "đ", "ê", "ô", "ơ", "ư", "\u0300", "\u0301", "\u0309", "\u0303", "\u0323"),
                 null,
@@ -108,6 +120,11 @@ public class Language {
 
     public List<List<String>> getSubjectPronouns() {
         return subjectPronouns;
+    }
+
+    // Whether a subject pronoun at the start may be left out of an answer (Spanish, not German)
+    public boolean arePronounsOptional() {
+        return pronounsOptional;
     }
 
     // Empty = no fixed list; the app then offers the special letters found in the saved words
