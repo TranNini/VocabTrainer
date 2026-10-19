@@ -58,10 +58,9 @@ public class VocabController {
     }
 
     // newCategory = true confirms that a category which doesn't exist yet should be created;
-    // duplicate = true confirms saving although the same word or English is already saved;
-    // spellingChecked = true confirms saving although a word isn't in the dictionary
+    // spellingChecked = true confirms saving although a word isn't in the dictionary (a duplicate is never saved)
     record VocabRequest(String word, String english, String category, String context, boolean newCategory,
-                        boolean duplicate, boolean spellingChecked) {
+                        boolean spellingChecked) {
     }
 
     // promptIpa is only filled in when the prompt is in the language, so it never gives the answer away
@@ -258,8 +257,8 @@ public class VocabController {
     @ResponseStatus(HttpStatus.CREATED)
     public VocabDto add(@PathVariable String learner, @PathVariable String language, @RequestBody VocabRequest request) {
         Vocab vocab = toVocab(learner, language, request);
+        checkDuplicates(learner, language, vocab, null);
         checkSpelling(learner, language, request, vocab);
-        checkDuplicates(learner, language, request, vocab, null);
         store(learner, language).add(vocab);
         return toDto(learner, language, vocab, index(learner, language));
     }
@@ -268,8 +267,8 @@ public class VocabController {
     public VocabDto update(@PathVariable String learner, @PathVariable String language, @PathVariable int id, @RequestBody VocabRequest request) {
         Vocab existing = find(learner, language, id);
         Vocab updated = toVocab(learner, language, request);
+        checkDuplicates(learner, language, updated, existing);
         checkSpelling(learner, language, request, updated);
-        checkDuplicates(learner, language, request, updated, existing);
         store(learner, language).replace(existing, updated);
         library(learner).log(language).renameWord(existing.getWord(), updated.getWord());
         return toDto(learner, language, updated, index(learner, language));
@@ -452,18 +451,17 @@ public class VocabController {
         }
     }
 
-    // 409 listing every saved vocab with the same word or English, unless the request already confirmed it
-    private void checkDuplicates(String learner, String language, VocabRequest request, Vocab vocab, Vocab except) {
-        if (request.duplicate()) {
-            return;
-        }
+    // 409 listing every saved vocab with the same word or translation: a duplicate is never saved. Brackets
+    // tell entries apart ("you have (singular)" and "you have (plural)").
+    private void checkDuplicates(String learner, String language, Vocab vocab, Vocab except) {
         VocabIndex index = index(learner, language);
         List<VocabDto> duplicates = new ArrayList<>();
         for (Vocab v : index.duplicatesOf(vocab.getWord(), vocab.getEnglish(), except)) {
             duplicates.add(toDto(learner, language, v, index));
         }
         if (!duplicates.isEmpty()) {
-            String error = duplicates.size() == 1 ? "This is already saved." : "This is already saved " + duplicates.size() + " times.";
+            String error = duplicates.size() == 1 ? "Not saved: this is already in the list."
+                    : "Not saved: this is already in the list " + duplicates.size() + " times.";
             throw new ApiException(HttpStatus.CONFLICT, Map.of("error", error, "duplicates", duplicates));
         }
     }

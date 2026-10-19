@@ -466,8 +466,8 @@ function wireCategorySelect(select, newInput) {
     });
 }
 
-// Sends the vocab; if the server says the category is new, a word may be misspelled or the vocab is
-// already saved, asks first and sends again (each can still be followed by the next)
+// Sends the vocab; if the server says the category is new or a word may be misspelled, asks first and sends
+// again (each can still be followed by the next). Vocab that is already saved is never saved again.
 async function saveVocab(method, url, vocab) {
     try {
         return await api(method, url, vocab);
@@ -492,10 +492,10 @@ async function saveVocab(method, url, vocab) {
                 return saveVocab(method, url, {...vocab, spellingChecked: true});
             }
         } else if (error.data.duplicates) {
+            // never saved twice: say which entry it is, and keep the input for a change
             const list = error.data.duplicates.map((d) => `• ${d.word} = ${d.english} [${d.category}]`).join("\n");
-            if (confirm(`${error.message}\n\n${list}\n\nSave anyway?`)) {
-                return saveVocab(method, url, {...vocab, duplicate: true});
-            }
+            alert(`${error.message}\n\n${list}\n\nChange the word or its translation, e.g. with (singular) / (plural).`);
+            throw new Error(error.message);
         }
         throw new Error("Not saved.");
     }

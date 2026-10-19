@@ -24,8 +24,8 @@ Spell check when saving: a word that isn't in the dictionary (Spanish, German, a
     'spanish' -> Spanish), and a sentence must start with a capital (an entry ending with . ? ! or in a
     category like sentences / sätze). It can still be saved (names, rare words). Works offline,
     with the open Hunspell dictionaries in src/main/resources/dictionaries (licences next to them)
-Warns before saving a duplicate (same word or same English, also one of the '/' alternatives) and lists
-    every entry it matches
+Never saves a duplicate (same word or same translation, also one of the '/' alternatives): it lists the
+    entries it matches. Brackets tell entries apart, e.g. you have (singular) / you have (plural)
 Save vocabulary locally (one file per language)
 Quiz saved vocabulary
 Randomized vocabulary order, in which the words that need practice tend to come first: the fewer of a

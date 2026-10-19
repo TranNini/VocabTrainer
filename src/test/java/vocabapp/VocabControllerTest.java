@@ -216,30 +216,36 @@ class VocabControllerTest {
     }
 
     @Test
-    void asksBeforeSavingADuplicate() throws Exception {
+    void neverSavesADuplicate() throws Exception {
         add("tú tienes", "you have", "verbs");
         int id = add("ir", "to go", "verbs");
         send("POST", SPANISH + "/vocab", """
                 {"word": "vosotros tenéis", "english": "You have", "category": "verbs"}
                 """)
                 .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.error").value("Not saved: this is already in the list."))
                 .andExpect(jsonPath("$.duplicates", hasSize(1)))
                 .andExpect(jsonPath("$.duplicates[0].word").value("tú tienes"));
+        // no way around it any more
+        send("POST", SPANISH + "/vocab", """
+                {"word": "vosotros tenéis", "english": "you have", "category": "verbs", "duplicate": true, "spellingChecked": true}
+                """)
+                .andExpect(status().isConflict());
         send("PUT", SPANISH + "/vocab/" + id, """
                 {"word": "tú tienes", "english": "to go", "category": "verbs"}
                 """)
                 .andExpect(status().isConflict())
                 .andExpect(jsonPath("$.duplicates", hasSize(1)));
+        // brackets tell them apart; editing an entry is no duplicate of itself
         send("POST", SPANISH + "/vocab", """
-                {"word": "vosotros tenéis", "english": "you have", "category": "verbs", "duplicate": true}
+                {"word": "vosotros tenéis", "english": "you have (plural)", "category": "verbs"}
                 """)
                 .andExpect(status().isCreated());
-        send("POST", SPANISH + "/vocab", """
-                {"word": "ustedes tienen", "english": "you have", "category": "verbs"}
+        send("PUT", SPANISH + "/vocab/" + id, """
+                {"word": "ir", "english": "to go", "category": "verbs", "context": "irregular"}
                 """)
-                .andExpect(status().isConflict())
-                .andExpect(jsonPath("$.error").value("This is already saved 2 times."))
-                .andExpect(jsonPath("$.duplicates", hasSize(2)));
+                .andExpect(status().isOk());
+        mvc.perform(get(SPANISH + "/vocab")).andExpect(jsonPath("$", hasSize(3)));
     }
 
     @Test
