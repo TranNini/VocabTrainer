@@ -19,7 +19,8 @@ Warns before saving a duplicate (same word or same English, also one of the '/' 
     every entry it matches
 Save vocabulary locally (one file per language)
 Quiz saved vocabulary
-Randomized vocabulary order
+Randomized vocabulary order, in which the words that need practice tend to come first: the fewer of a
+    word's last 5 tries were right on the first try, the earlier it usually comes (new words in between)
 Practice both directions (language → English and English → language)
 Up to 3 tries per answer, with two different hints per try: one after every wrong Check, and one from the
     hint button (once per try). A nearly right answer gets told what kind of mistake it is (a letter wrong,

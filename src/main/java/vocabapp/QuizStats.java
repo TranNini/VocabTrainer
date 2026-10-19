@@ -5,9 +5,12 @@ import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.IdentityHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Random;
 import java.util.Set;
+import java.util.function.ToDoubleFunction;
 
 // The statistics of the Stats tab, worked out from a learner's quiz log (see QuizLog) and their vocab
 public class QuizStats {
@@ -86,6 +89,40 @@ public class QuizStats {
         return new Stats(entries.size(), rightFirstTry, right, hints, todayCounts[0], streak(days, today),
                 days.size(), lastDays, mastered, practising, notPractised,
                 missed.subList(0, Math.min(TO_PRACTISE, missed.size())));
+    }
+
+    // The hidden side of the stats, for the quiz order: how much each word needs practice, from its last
+    // tries. 1 = right on the first try every time; up to 1 + MISSED_WEIGHT = never. Words not asked
+    // yet aren't in the map: they get NEW_WEIGHT.
+    static final int RECENT_TRIES = 5;
+    static final double MISSED_WEIGHT = 4;
+    static final double NEW_WEIGHT = 2;
+
+    public static Map<String, Double> practiceWeights(List<QuizLog.Entry> entries) {
+        Map<String, List<QuizLog.Entry>> perWord = new HashMap<>();
+        for (QuizLog.Entry e : entries) {
+            perWord.computeIfAbsent(e.word(), w -> new ArrayList<>()).add(e);
+        }
+        Map<String, Double> weights = new HashMap<>();
+        perWord.forEach((word, tries) -> {
+            List<QuizLog.Entry> recent = tries.subList(Math.max(0, tries.size() - RECENT_TRIES), tries.size());
+            long missed = recent.stream().filter(e -> !e.rightFirstTry()).count();
+            weights.put(word, 1 + MISSED_WEIGHT * missed / recent.size());
+        });
+        return weights;
+    }
+
+    // A random order in which heavier items tend to come first, so a quiz that is stopped early still
+    // asked the words that need practice; every item stays in it once (weighted random sampling:
+    // key = random ^ (1 / weight), highest key first)
+    public static <T> List<T> practiceOrder(List<T> items, ToDoubleFunction<T> weight, Random random) {
+        Map<T, Double> keys = new IdentityHashMap<>(); // two equal entries are still two items
+        for (T item : items) {
+            keys.put(item, Math.pow(random.nextDouble(), 1 / weight.applyAsDouble(item)));
+        }
+        List<T> ordered = new ArrayList<>(items);
+        ordered.sort(Comparator.comparing(keys::get, Comparator.reverseOrder()));
+        return ordered;
     }
 
     private static boolean isMastered(List<QuizLog.Entry> tries) {

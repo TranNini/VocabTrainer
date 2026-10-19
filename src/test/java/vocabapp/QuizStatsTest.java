@@ -85,6 +85,35 @@ class QuizStatsTest {
     }
 
     @Test
+    void wordsMissedLatelyWeighMore() {
+        List<QuizLog.Entry> log = List.of(
+                entry(9, "tener", 0), entry(8, "tener", 1), entry(7, "tener", 1), entry(6, "tener", 1),
+                entry(5, "tener", 1), entry(4, "tener", 1), // the miss is older than the last 5 tries
+                entry(1, "el gato", 0), entry(0, "el gato", 2),
+                entry(1, "yo tengo", 1), entry(0, "yo tengo", 0));
+        var weights = QuizStats.practiceWeights(log);
+        assertEquals(1.0, weights.get("tener"));
+        assertEquals(5.0, weights.get("el gato"));
+        assertEquals(3.0, weights.get("yo tengo"));
+        assertEquals(null, weights.get("la vaca")); // not asked yet: NEW_WEIGHT
+    }
+
+    @Test
+    void practiceOrderPutsHeavyWordsFirstMoreOftenButKeepsEveryWord() {
+        List<String> words = List.of("easy1", "easy2", "easy3", "easy4", "hard");
+        java.util.Random random = new java.util.Random(7);
+        int hardFirst = 0;
+        for (int i = 0; i < 2000; i++) {
+            List<String> order = QuizStats.practiceOrder(words, w -> w.equals("hard") ? 5 : 1, random);
+            assertEquals(5, order.size());
+            assertEquals(new java.util.HashSet<>(words), new java.util.HashSet<>(order));
+            hardFirst += order.get(0).equals("hard") ? 1 : 0;
+        }
+        // 5 / (5 + 4) of the time in theory, instead of 1 in 5 with a plain shuffle
+        assertTrue(hardFirst > 1000 && hardFirst < 1250, "hard first " + hardFirst + " times");
+    }
+
+    @Test
     void logSavesReadsAndRenames(@TempDir Path dir) throws Exception {
         QuizLog log = new QuizLog(dir.resolve("Spanish.log"));
         assertTrue(log.entries().isEmpty());

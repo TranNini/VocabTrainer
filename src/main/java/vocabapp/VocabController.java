@@ -18,7 +18,6 @@ import java.text.Normalizer;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Random;
@@ -215,8 +214,10 @@ public class VocabController {
     @GetMapping("/{learner}/languages/{language}/quiz")
     public List<QuestionDto> quiz(@PathVariable String learner, @PathVariable String language, @RequestParam(defaultValue = "") String category) {
         Language rules = rules(learner, language);
-        List<Vocab> vocab = new ArrayList<>(index(learner, language).inCategory(blankToNull(category)));
-        Collections.shuffle(vocab, random);
+        // the words that need practice tend to come first (see QuizStats.practiceWeights)
+        Map<String, Double> weights = QuizStats.practiceWeights(library(learner).log(language).entries());
+        List<Vocab> vocab = QuizStats.practiceOrder(index(learner, language).inCategory(blankToNull(category)),
+                v -> weights.getOrDefault(v.getWord(), QuizStats.NEW_WEIGHT), random);
         List<QuestionDto> questions = new ArrayList<>();
         for (Vocab v : vocab) {
             Question question = Question.from(v, random);
