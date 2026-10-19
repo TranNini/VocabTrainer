@@ -15,6 +15,7 @@ import org.springframework.test.web.servlet.ResultActions;
 import java.nio.file.Files;
 import java.nio.file.Path;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.hamcrest.Matchers.hasSize;
 import static org.hamcrest.Matchers.nullValue;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
@@ -451,5 +452,45 @@ class VocabControllerTest {
                 {"from": "Nini", "language": "French"}
                 """).andExpect(status().isNotFound());
         mvc.perform(delete("/api/learners/Copytest")).andExpect(status().isNoContent());
+    }
+
+    @Test
+    void aLearnerCanTranslateIntoGerman() throws Exception {
+        send("POST", "/api/learners", """
+                {"name": "Germantest"}
+                """).andExpect(status().isCreated());
+        send("POST", "/api/learners/Germantest/languages", """
+                {"name": "Spanisch"}
+                """).andExpect(jsonPath("$.translation").value("English"));
+        String url = "/api/learners/Germantest/languages/Spanisch/vocab";
+        String haus = """
+                {"word": "la casa", "english": "das haus", "category": "general"}
+                """;
+        send("POST", url, haus)
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.spelling[0].language").value("English"));
+
+        send("PUT", "/api/learners/Germantest/translation", """
+                {"name": "deutsch"}
+                """).andExpect(jsonPath("$.name").value("German"));
+        mvc.perform(get("/api/learners/Germantest/languages"))
+                .andExpect(jsonPath("$[0].translation").value("German"))
+                .andExpect(jsonPath("$[0].translationLetters[0]").value("ä"));
+        send("POST", url, haus)
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.spelling", hasSize(1)))
+                .andExpect(jsonPath("$.spelling[0].language").value("German"))
+                .andExpect(jsonPath("$.spelling[0].kind").value("capital"))
+                .andExpect(jsonPath("$.spelling[0].suggestions[0]").value("Haus"));
+        send("POST", url, """
+                {"word": "la casa", "english": "das Haus", "category": "general"}
+                """).andExpect(status().isCreated());
+        // kept after a restart: a new library reads translation.cfg
+        assertEquals("German", new VocabLibrary(dir.resolve("vocab/Germantest")).translation().name());
+
+        send("PUT", "/api/learners/Germantest/translation", """
+                {"name": "Klingonisch"}
+                """).andExpect(status().isBadRequest());
+        mvc.perform(delete("/api/learners/Germantest")).andExpect(status().isNoContent());
     }
 }

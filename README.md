@@ -11,6 +11,8 @@ Several learners (e.g. a parent and a child), each with their own languages and 
     and copies vocab from another learner (one language or all; words already in the list are skipped,
     the other learner's quiz results aren't copied)
 Several languages, each with its own vocabulary and categories; switch at the top of the app
+Each learner translates into English or German ("… translates into…" in the learner menu): spell check,
+    capitals, articles, the short form "er / sie / es hat" and the letter buttons (ä ö ü ß) follow it
 Add new vocabulary with its English translation and an optional context note (rules, usage, exceptions),
     shown with the "Note" button in the word list and after each quiz question
 Spell check when saving: a word that isn't in the dictionary (Spanish, German, and American or British
@@ -95,6 +97,7 @@ Where the vocabulary is saved:
     (when;word;in/en;the try it was right on, 0 = not right;hints)
     Vocab saved before there were learners (vocab/Spanish.txt …, or the even older vocab.txt) is moved
     to the first learner (vocab.first-learner in application.properties) automatically on the first start.
+    vocab/<Learner>/translation.cfg holds the language the learner translates into (German); without it, English.
     A deleted learner's folder is moved to vocab/.deleted/<name> <date time>; to restore it, move it back
     to vocab/ (named like before, without the date) and restart the app.
 

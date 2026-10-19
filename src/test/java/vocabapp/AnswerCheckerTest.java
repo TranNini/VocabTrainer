@@ -120,6 +120,18 @@ class AnswerCheckerTest {
     }
 
     @Test
+    void aGermanTranslationSideHasGermanShortFormsAndArticles() {
+        Language spanisch = Language.forName("Spanisch").translatedInto(Language.GERMAN);
+        assertTrue(AnswerChecker.isCorrect("sie hat", "er / sie / es hat", spanisch));
+        assertFalse(AnswerChecker.isCorrect("sie", "er / sie / es hat", spanisch));
+        assertEquals("Don't forget the article!", AnswerChecker.feedback("Hund", "der Hund", spanisch, List.of()));
+        // the Spanish side keeps its own rules
+        assertTrue(AnswerChecker.isCorrect("tengo", "yo tengo", spanisch));
+        assertEquals("German", spanisch.getTranslation().name());
+        assertEquals(Language.GERMAN, Language.translation("Deutsch"));
+    }
+
+    @Test
     void hintsWorkWithoutThePronoun() {
         assertEquals("That's right! Press Check.", AnswerChecker.hint("tengo", "yo tengo", SPANISH));
         assertEquals("It starts with 'y'", AnswerChecker.hint("", "yo tengo", SPANISH));

@@ -38,7 +38,9 @@ public class VocabController {
     }
 
     // ipa = whether IPA can be shown; specialLetters = buttons for letters a normal keyboard lacks
-    record LanguageDto(String name, int count, boolean ipa, List<String> specialLetters, String dictionaryName) {
+    // translation = what the learner translates into ("English", "German"), with its letter buttons
+    record LanguageDto(String name, int count, boolean ipa, List<String> specialLetters, String dictionaryName,
+                       String translation, List<String> translationLetters) {
     }
 
     record NewNameRequest(String name) {
@@ -133,6 +135,16 @@ public class VocabController {
             library(learner); // 404
         }
         return Map.of("name", saved);
+    }
+
+    // The language the learner translates into ({"name": "German"}); English if never set
+    @PutMapping("/{learner}/translation")
+    public Map<String, String> setTranslation(@PathVariable String learner, @RequestBody NewNameRequest request) {
+        try {
+            return Map.of("name", library(learner).setTranslation(request.name()).name());
+        } catch (IllegalArgumentException e) {
+            throw new ApiException(HttpStatus.BAD_REQUEST, e.getMessage());
+        }
     }
 
     // Deletes the learner with all their languages and vocab (kept in vocab/.deleted, see Learners.delete)
@@ -421,8 +433,9 @@ public class VocabController {
                 rules.getSpellDictionary() == null ? List.of() : List.of(rules.getSpellDictionary()), sentences)) {
             misspellings.add(new MisspellingDto(m.word(), rules.getName(), m.suggestions(), m.kind()));
         }
-        for (SpellChecker.Misspelling m : spellChecker.check(vocab.getEnglish(), SpellChecker.ENGLISH, sentences)) {
-            misspellings.add(new MisspellingDto(m.word(), "English", m.suggestions(), m.kind()));
+        Language.Translation translation = rules.getTranslation();
+        for (SpellChecker.Misspelling m : spellChecker.check(vocab.getEnglish(), translation.dictionaries(), sentences)) {
+            misspellings.add(new MisspellingDto(m.word(), translation.name(), m.suggestions(), m.kind()));
         }
         if (!misspellings.isEmpty()) {
             String error = misspellings.size() == 1 ? "Check the spelling:" : "Check the spelling of these words:";
@@ -454,7 +467,9 @@ public class VocabController {
         if (letters.isEmpty()) {
             letters = specialLettersIn(all);
         }
-        return new LanguageDto(rules.getName(), all.size(), rules.hasIpa(), letters, rules.getDictionaryName());
+        Language.Translation translation = rules.getTranslation();
+        return new LanguageDto(rules.getName(), all.size(), rules.hasIpa(), letters, rules.getDictionaryName(),
+                translation.name(), translation.letters());
     }
 
     // Letters beyond a–z used in the saved words, e.g. "à", "è", "ç" for a new language

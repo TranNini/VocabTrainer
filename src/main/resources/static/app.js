@@ -7,6 +7,7 @@ const ADD_LEARNER = "__add__";
 const RENAME_LEARNER = "__rename__";
 const DELETE_LEARNER = "__delete__";
 const COPY_VOCAB = "__copy__";
+const TRANSLATION = "__translation__";
 // "Refresh vocab" in the quiz's category menu
 const REFRESH = "__refresh__";
 let refreshDays = 14;
@@ -71,8 +72,8 @@ function langUrl(path) {
 const MARK_NAMES = {"\u0300": "huyền", "\u0301": "sắc", "\u0309": "hỏi", "\u0303": "ngã", "\u0323": "nặng"};
 
 // Buttons for the language's letters that a normal keyboard lacks (á, ñ, ¿, ơ, tone marks …)
-function addAccentButtons(container, input) {
-    const letters = language?.specialLetters ?? [];
+// letters: the buttons; by default the ones of the language you learn
+function addAccentButtons(container, input, letters = language?.specialLetters ?? []) {
     container.hidden = letters.length === 0;
     container.replaceChildren(...letters.map((letter) => {
         const isMark = /\p{M}/u.test(letter);
@@ -178,6 +179,7 @@ function fillLearnerSelect() {
         if (learnerNames.length > 1) {
             options.push(el("option", {value: COPY_VOCAB, textContent: `Copy vocab to ${learner}…`}));
         }
+        options.push(el("option", {value: TRANSLATION, textContent: `${learner} translates into…`}));
         options.push(el("option", {value: RENAME_LEARNER, textContent: `Rename ${learner}…`}),
             el("option", {value: DELETE_LEARNER, textContent: `Delete ${learner}…`}));
     }
@@ -240,6 +242,19 @@ async function copyVocab() {
     await loadLanguages(language?.name ?? result.languages[0]);
     showMessage(`Copied ${result.copied} ${result.copied === 1 ? "word" : "words"} from ${from}` +
         (result.skipped ? `. ${result.skipped} skipped: already in ${learner}'s list.` : "."));
+}
+
+// English or German on the other side of every vocab of this learner (see VocabLibrary.setTranslation)
+async function setTranslation() {
+    $("learner").value = learner;
+    const now = language?.translation ?? "English";
+    const name = prompt(`${learner} translates the vocab into which language? English or German`, now);
+    if (!name || name.trim().toLowerCase() === now.toLowerCase()) {
+        return;
+    }
+    const saved = await api("PUT", learnerUrl("/translation"), {name});
+    await loadLanguages(language?.name);
+    showMessage(`${learner} now translates into ${saved.name}: spell check, letters and hints follow it.`);
 }
 
 async function renameLearner() {
@@ -329,6 +344,7 @@ async function switchLanguage(name) {
     for (const label of document.querySelectorAll(".lang-name")) {
         label.textContent = name;
     }
+    showTranslationLanguage();
     addAccentButtons($("quiz-accents"), $("quiz-answer"));
     addAccentButtons(document.querySelector("#add-form .accents"), $("add-word"));
     $("add-recent").hidden = true;
@@ -345,10 +361,19 @@ async function switchLanguage(name) {
     }
 }
 
+// The other side is English or, per learner, German: its name on the labels and its letter buttons
+function showTranslationLanguage() {
+    for (const label of document.querySelectorAll(".translation-name")) {
+        label.textContent = language.translation;
+    }
+    addAccentButtons(document.querySelector("#add-form .translation-accents"), $("add-english"), language.translationLetters);
+}
+
 // Word count and special letters change when words are added, so fetch the language again
 async function refreshLanguage() {
     languages = await api("GET", learnerUrl("/languages"));
     language = languages.find((l) => l.name === language.name) || language;
+    showTranslationLanguage();
     addAccentButtons($("quiz-accents"), $("quiz-answer"));
     addAccentButtons(document.querySelector("#add-form .accents"), $("add-word"));
 }
@@ -510,14 +535,16 @@ function showQuestion() {
     quiz.hints = 0;
     $("quiz-progress").textContent = `${quiz.index + 1} / ${quiz.questions.length}`;
     $("quiz-score").textContent = `${quiz.correct} correct`;
-    $("quiz-direction").textContent = question.answerInLanguage ? `In ${language.name}:` : "In English:";
+    $("quiz-direction").textContent = `In ${question.answerInLanguage ? language.name : language.translation}:`;
     $("quiz-prompt").textContent = question.prompt;
     // promptIpa only comes with prompts in the language
     $("quiz-prompt-ipa").hidden = true;
     $("quiz-prompt-ipa-toggle").replaceChildren(...ipaButtons(question.promptIpa, $("quiz-prompt-ipa")));
     $("quiz-extras").hidden = true;
     $("quiz-answer-ipa").hidden = true;
-    $("quiz-accents").hidden = !question.answerInLanguage || language.specialLetters.length === 0;
+    // the letter buttons of the side to answer in (hidden when it has none)
+    addAccentButtons($("quiz-accents"), $("quiz-answer"),
+        question.answerInLanguage ? language.specialLetters : language.translationLetters);
     $("quiz-feedback").textContent = "";
     $("quiz-feedback").className = "feedback";
     $("quiz-full-answer").hidden = true;
@@ -730,12 +757,14 @@ function editForm(word) {
     const wordInput = form.elements.word;
     const {english, context, category, newCategory} = form.elements;
     form.querySelector(".lang-name").textContent = language.name;
+    form.querySelector(".translation-name").textContent = language.translation;
     wordInput.value = word.word;
     english.value = word.english;
     context.value = word.context;
     fillCategorySelect(category, word.category);
     wireCategorySelect(category, newCategory);
     addAccentButtons(form.querySelector(".accents"), wordInput);
+    addAccentButtons(form.querySelector(".translation-accents"), english, language.translationLetters);
     form.querySelector(".extras").append(dictionaryLink(word.dictionaryUrl));
 
     form.addEventListener("submit", async (event) => {
@@ -904,8 +933,8 @@ $("add-form").addEventListener("submit", addVocab);
 wireCategorySelect($("add-category"), $("add-new-category"));
 
 $("learner").addEventListener("change", () => {
-    const actions = {[ADD_LEARNER]: addLearner, [COPY_VOCAB]: copyVocab, [RENAME_LEARNER]: renameLearner,
-        [DELETE_LEARNER]: deleteLearner};
+    const actions = {[ADD_LEARNER]: addLearner, [COPY_VOCAB]: copyVocab, [TRANSLATION]: setTranslation,
+        [RENAME_LEARNER]: renameLearner, [DELETE_LEARNER]: deleteLearner};
     const name = $("learner").value;
     (actions[name] ? actions[name]() : switchLearner(name)).catch((error) => showMessage(error.message, true));
 });

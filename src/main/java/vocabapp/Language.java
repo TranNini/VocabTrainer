@@ -13,10 +13,30 @@ import java.util.function.UnaryOperator;
 // basics (alphabetical order for its locale, Wiktionary link); the extras (articles, conjugation
 // grouping, IPA, fixed special letter buttons, its own dictionary) come from rules set up here.
 public class Language {
-    // The translation side is always English
     public static final List<String> ENGLISH_ARTICLES = List.of("the", "a", "an");
     // For the short form "he / she / it wants" (see AnswerChecker.expandPronounShortForm)
     public static final List<String> ENGLISH_PRONOUNS = List.of("I", "you", "he", "she", "it", "we", "they");
+    private static final List<String> GERMAN_ARTICLES =
+            List.of("der", "die", "das", "den", "dem", "des", "ein", "eine", "einen", "einem", "einer", "eines");
+    private static final List<String> GERMAN_LETTERS = List.of("ä", "ö", "ü", "ß", "Ä", "Ö", "Ü");
+
+    // The side vocab is translated into, set per learner (see VocabLibrary): its name, articles (for the
+    // article hints), pronouns (for the short form "er / sie / es hat"), spell check dictionaries and letter buttons
+    public record Translation(String name, List<String> articles, List<String> pronouns, List<String> dictionaries,
+                              List<String> letters) {
+    }
+
+    public static final Translation ENGLISH = new Translation("English", ENGLISH_ARTICLES, ENGLISH_PRONOUNS,
+            SpellChecker.ENGLISH, List.of());
+    public static final Translation GERMAN = new Translation("German", GERMAN_ARTICLES,
+            List.of("ich", "du", "er", "sie", "es", "wir", "ihr", "Sie"), List.of("de"), GERMAN_LETTERS);
+    public static final List<Translation> TRANSLATIONS = List.of(ENGLISH, GERMAN);
+
+    // "german", "Deutsch" -> GERMAN; null if the app can't translate into it
+    public static Translation translation(String name) {
+        String english = name == null ? "" : englishName(name.trim());
+        return TRANSLATIONS.stream().filter(t -> t.name().equalsIgnoreCase(english)).findFirst().orElse(null);
+    }
 
     // Locales for alphabetical order, by the English name of the language
     private static final Map<String, Locale> LOCALES = Map.ofEntries(
@@ -40,6 +60,7 @@ public class Language {
     private final String dictionaryName;
     private final String dictionaryUrl;
     private final String spellDictionary;
+    private final Translation translation;
 
     private Language(String name, List<String> articles, List<List<String>> subjectPronouns,
                      boolean pronounsOptional, List<String> specialLetters, UnaryOperator<String> ipa,
@@ -56,12 +77,36 @@ public class Language {
         this.dictionaryName = dictionaryName;
         this.dictionaryUrl = dictionaryUrl;
         this.spellDictionary = spellDictionary;
+        this.translation = ENGLISH;
+    }
+
+    private Language(Language language, Translation translation) {
+        this.name = language.name;
+        this.collator = language.collator;
+        this.articles = language.articles;
+        this.subjectPronouns = language.subjectPronouns;
+        this.pronounsOptional = language.pronounsOptional;
+        this.specialLetters = language.specialLetters;
+        this.ipa = language.ipa;
+        this.dictionaryName = language.dictionaryName;
+        this.dictionaryUrl = language.dictionaryUrl;
+        this.spellDictionary = language.spellDictionary;
+        this.translation = translation;
+    }
+
+    // The same language, translated into another one (English unless the learner picked another)
+    public Language translatedInto(Translation translation) {
+        return new Language(this, translation);
+    }
+
+    public Translation getTranslation() {
+        return translation;
     }
 
     // Names of a language in other languages ("Spanisch"), so it gets the same rules as its English name
     private static final Map<String, String> OTHER_NAMES = Map.of(
             "spanisch", "spanish", "español", "spanish", "espanol", "spanish",
-            "deutsch", "german", "alemán", "german",
+            "deutsch", "german", "alemán", "german", "englisch", "english",
             "vietnamesisch", "vietnamese", "tiếng việt", "vietnamese");
 
     // "Spanisch" -> "spanish": the English name, in lower case

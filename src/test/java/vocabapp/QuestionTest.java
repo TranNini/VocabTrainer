@@ -50,4 +50,15 @@ class QuestionTest {
             assertTrue(prompt.matches("(er|sie|es) hat|(he|she|it) has"), prompt);
         }
     }
+
+    @Test
+    void neverAsksAGermanPronounOnItsOwnOnTheTranslationSide() {
+        Language spanisch = Language.forName("Spanisch").translatedInto(Language.GERMAN);
+        Vocab vocab = new Vocab("él / ella / usted tiene", "er / sie / es hat", "verbformen");
+        Random random = new Random(5);
+        for (int i = 0; i < 50; i++) {
+            String prompt = Question.from(vocab, spanisch, random).prompt();
+            assertTrue(prompt.matches("(er|sie|es) hat|(él|ella|usted) tiene"), prompt);
+        }
+    }
 }
