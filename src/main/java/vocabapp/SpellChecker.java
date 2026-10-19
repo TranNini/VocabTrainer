@@ -19,7 +19,7 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 // Spell check for new vocab, so a typo isn't learned: the open Hunspell dictionaries (the ones LibreOffice
-// uses) in src/main/resources/dictionaries/<code>/, e.g. "es" for Spanish; the English side has American
+// uses) in src/main/resources/dictionaries/<code>/, e.g. "es" for Spanish, "de" for German; the English side has American
 // and British spelling ("color" and "colour").
 // It only warns; the word can still be saved (names, rare words).
 @Component
@@ -29,6 +29,8 @@ public class SpellChecker {
     // a word, also with an apostrophe inside ("don't"); numbers and signs are skipped
     private static final Pattern WORD = Pattern.compile("[\\p{L}\\p{M}]+(?:'[\\p{L}\\p{M}]+)*");
     private static final int SUGGESTIONS = 3;
+    // languages that write every noun with a capital, so a capital inside doesn't mean a name
+    private static final Set<String> CAPITALISED_NOUNS = Set.of("de");
 
     // loaded on first use, as each takes a moment and a lot of memory
     private final Map<String, Hunspell> dictionaries = new HashMap<>();
@@ -38,20 +40,22 @@ public class SpellChecker {
     }
 
     // The words of text that are in none of the dictionaries, each once. A capitalised word that doesn't
-    // start an alternative is taken as a name ("Yo soy Nini"). Empty for no dictionaries.
+    // start an alternative is taken as a name ("Yo soy Nini"), except in German, where every noun has a
+    // capital ("das Hauss" is checked). Empty for no dictionaries.
     public List<Misspelling> check(String text, List<String> dictionaries) {
         List<Misspelling> misspellings = new ArrayList<>();
         if (text == null) {
             return misspellings;
         }
         List<Hunspell> loaded = dictionaries.stream().map(this::load).toList();
+        boolean capitalsAreNames = dictionaries.stream().noneMatch(CAPITALISED_NOUNS::contains);
         Set<String> seen = new LinkedHashSet<>();
         for (String option : text.split("/")) {
             Matcher matcher = WORD.matcher(option);
             boolean first = true;
             while (matcher.find()) {
                 String word = matcher.group();
-                boolean name = !first && Character.isUpperCase(word.codePointAt(0));
+                boolean name = capitalsAreNames && !first && Character.isUpperCase(word.codePointAt(0));
                 first = false;
                 if (name || !seen.add(word)) {
                     continue;

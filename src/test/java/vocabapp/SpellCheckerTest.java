@@ -58,6 +58,16 @@ class SpellCheckerTest {
     }
 
     @Test
+    void checksGermanAlsoTheCapitalisedNouns() {
+        List<SpellChecker.Misspelling> found = CHECKER.check("das Hauss", List.of("de"));
+        assertEquals(List.of("Hauss"), found.stream().map(SpellChecker.Misspelling::word).toList());
+        assertEquals("Haus", found.get(0).suggestions().get(0));
+        assertTrue(wrong("das Mädchen / die Straße / Tschüss", "de").isEmpty());
+        assertEquals(List.of("Strasse", "haus"), wrong("die Strasse / das haus", "de"));
+        assertEquals("de", Language.forName("german").getSpellDictionary());
+    }
+
+    @Test
     void languagesWithoutADictionaryAreNotChecked() {
         assertTrue(wrong("xyzzy", (String) null).isEmpty());
     }

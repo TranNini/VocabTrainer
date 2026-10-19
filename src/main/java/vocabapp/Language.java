@@ -63,6 +63,11 @@ public class Language {
         if (name.equalsIgnoreCase("vietnamese")) {
             return vietnamese(name);
         }
+        if (name.equalsIgnoreCase("german")) {
+            // the basics, plus the spell check
+            return new Language(name, List.of(), List.of(), List.of(), null,
+                    "Wiktionary", "https://en.wiktionary.org/wiki/%s#German", "de");
+        }
         return new Language(name, List.of(), List.of(), List.of(), null,
                 "Wiktionary", "https://en.wiktionary.org/wiki/%s#" + name.replace(' ', '_'), null);
     }
