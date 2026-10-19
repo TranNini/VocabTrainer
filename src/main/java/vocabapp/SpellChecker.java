@@ -35,14 +35,34 @@ public class SpellChecker {
     // loaded on first use, as each takes a moment and a lot of memory
     private final Map<String, Hunspell> dictionaries = new HashMap<>();
 
-    // A word that isn't in the dictionary, with the closest ones that are
-    public record Misspelling(String word, List<String> suggestions) {
+    // What is wrong with a word: SPELLING = not in the dictionary; CAPITAL = only right with a capital
+    // letter ("haus" -> Haus, "spanish" -> Spanish); SENTENCE = a sentence that starts with a small letter
+    public static final String SPELLING = "spelling";
+    public static final String CAPITAL = "capital";
+    public static final String SENTENCE = "sentence";
+
+    // A word with a mistake, with the closest right ones
+    public record Misspelling(String word, List<String> suggestions, String kind) {
+    }
+
+    // Categories whose entries are all sentences, in the languages of the app
+    private static final Set<String> SENTENCE_CATEGORIES = Set.of("sentences", "sentence", "sätze", "satz",
+            "frases", "oraciones");
+
+    public static boolean isSentenceCategory(String category) {
+        return category != null && SENTENCE_CATEGORIES.contains(category.trim().toLowerCase());
+    }
+
+    public List<Misspelling> check(String text, List<String> dictionaries) {
+        return check(text, dictionaries, false);
     }
 
     // The words of text that are in none of the dictionaries, each once. A capitalised word that doesn't
     // start an alternative is taken as a name ("Yo soy Nini"), except in German, where every noun has a
-    // capital ("das Hauss" is checked). Empty for no dictionaries.
-    public List<Misspelling> check(String text, List<String> dictionaries) {
+    // capital ("das Hauss" is checked). Also, with any or no dictionary: a sentence must start with a
+    // capital letter. A sentence is an alternative that ends with . ? ! or any alternative when sentences
+    // is true (the vocab is in a sentence category).
+    public List<Misspelling> check(String text, List<String> dictionaries, boolean sentences) {
         List<Misspelling> misspellings = new ArrayList<>();
         if (text == null) {
             return misspellings;
@@ -55,17 +75,31 @@ public class SpellChecker {
             boolean first = true;
             while (matcher.find()) {
                 String word = matcher.group();
+                boolean startsSentence = first && (sentences || option.trim().matches(".*[.?!…]$"))
+                        && Character.isLowerCase(word.codePointAt(0));
                 boolean name = capitalsAreNames && !first && Character.isUpperCase(word.codePointAt(0));
                 first = false;
                 if (name || !seen.add(word)) {
                     continue;
                 }
                 if (!loaded.isEmpty() && loaded.stream().noneMatch(hunspell -> spell(hunspell, word))) {
-                    misspellings.add(new Misspelling(word, suggest(loaded.get(0), word)));
+                    String capitalised = capitalise(word);
+                    if (!capitalised.equals(word) && loaded.stream().anyMatch(hunspell -> spell(hunspell, capitalised))) {
+                        misspellings.add(new Misspelling(word, List.of(capitalised), CAPITAL));
+                    } else {
+                        misspellings.add(new Misspelling(word, suggest(loaded.get(0), word), SPELLING));
+                    }
+                } else if (startsSentence) {
+                    misspellings.add(new Misspelling(word, List.of(capitalise(word)), SENTENCE));
                 }
             }
         }
         return misspellings;
+    }
+
+    private static String capitalise(String word) {
+        int first = word.offsetByCodePoints(0, 1);
+        return word.substring(0, first).toUpperCase() + word.substring(first);
     }
 
     // one Hunspell must not be used by two requests at once

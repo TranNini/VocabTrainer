@@ -67,6 +67,35 @@ class SpellCheckerTest {
         assertEquals("de", Language.forName("german").getSpellDictionary());
     }
 
+    private static List<String> kinds(String text, String dictionary, boolean sentences) {
+        return CHECKER.check(text, dictionary == null ? List.of() : List.of(dictionary), sentences).stream()
+                .map(m -> m.word() + " " + m.kind() + " " + m.suggestions().get(0)).toList();
+    }
+
+    @Test
+    void aWordOnlyRightWithACapitalSaysSo() {
+        assertEquals(List.of("haus capital Haus"), kinds("das haus", "de", false));
+        assertEquals(List.of("spanish capital Spanish"), kinds("spanish", "en", false));
+        assertEquals(List.of("Hauss spelling Haus"), kinds("das Hauss", "de", false));
+    }
+
+    @Test
+    void aSentenceStartsWithACapital() {
+        // a sentence: it ends with . ? ! or the vocab is in a sentence category
+        assertEquals(List.of("ich sentence Ich", "haus capital Haus"), kinds("ich habe ein haus.", "de", false));
+        assertEquals(List.of("cómo sentence Cómo"), kinds("¿cómo te llamas?", "es", false));
+        assertEquals(List.of("yo sentence Yo"), kinds("yo tengo una pregunta", "es", true));
+        assertEquals(List.of("can sentence Can"), kinds("can I go to the toilet?", "en", false));
+        assertEquals(List.of("i sentence I"), kinds("I have / i had", "en", true));
+        // no sentence: a word or phrase may start small
+        assertTrue(kinds("yo tengo", "es", false).isEmpty());
+        assertTrue(kinds("Ich habe ein Haus.", "de", false).isEmpty());
+        // also without a dictionary
+        assertEquals(List.of("tôi sentence Tôi"), kinds("tôi khỏe.", null, false));
+        assertTrue(SpellChecker.isSentenceCategory(" Sätze "));
+        assertTrue(SpellChecker.isSentenceCategory("sentences"));
+    }
+
     @Test
     void languagesWithoutADictionaryAreNotChecked() {
         assertTrue(wrong("xyzzy", (String) null).isEmpty());

@@ -437,8 +437,13 @@ async function saveVocab(method, url, vocab) {
             }
         } else if (error.data.spelling) {
             // learning a typo is worse than a moment's checking
-            const list = error.data.spelling.map((m) => `• '${m.word}' isn't in the ${m.language} dictionary` +
-                (m.suggestions.length ? `. Did you mean: ${m.suggestions.join(", ")}?` : ".")).join("\n");
+            const line = {
+                spelling: (m) => `'${m.word}' isn't in the ${m.language} dictionary` +
+                    (m.suggestions.length ? `. Did you mean: ${m.suggestions.join(", ")}?` : "."),
+                capital: (m) => `'${m.word}' is written with a capital letter in ${m.language}: ${m.suggestions[0]}`,
+                sentence: (m) => `A sentence starts with a capital letter (${m.language}): ${m.suggestions[0]} …`,
+            };
+            const list = error.data.spelling.map((m) => "• " + (line[m.kind] ?? line.spelling)(m)).join("\n");
             if (confirm(`${error.message}\n\n${list}\n\nSave anyway?`)) {
                 return saveVocab(method, url, {...vocab, spellingChecked: true});
             }

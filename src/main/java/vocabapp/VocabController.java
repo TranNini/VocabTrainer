@@ -405,7 +405,8 @@ public class VocabController {
         return new Vocab(word, english, category, context);
     }
 
-    record MisspellingDto(String word, String language, List<String> suggestions) {
+    // kind: SpellChecker.SPELLING, CAPITAL or SENTENCE
+    record MisspellingDto(String word, String language, List<String> suggestions, String kind) {
     }
 
     // 409 listing the words that aren't in the dictionary of their side, unless the request already confirmed them
@@ -415,12 +416,13 @@ public class VocabController {
         }
         Language rules = rules(learner, language);
         List<MisspellingDto> misspellings = new ArrayList<>();
+        boolean sentences = SpellChecker.isSentenceCategory(vocab.getCategory());
         for (SpellChecker.Misspelling m : spellChecker.check(vocab.getWord(),
-                rules.getSpellDictionary() == null ? List.of() : List.of(rules.getSpellDictionary()))) {
-            misspellings.add(new MisspellingDto(m.word(), rules.getName(), m.suggestions()));
+                rules.getSpellDictionary() == null ? List.of() : List.of(rules.getSpellDictionary()), sentences)) {
+            misspellings.add(new MisspellingDto(m.word(), rules.getName(), m.suggestions(), m.kind()));
         }
-        for (SpellChecker.Misspelling m : spellChecker.check(vocab.getEnglish(), SpellChecker.ENGLISH)) {
-            misspellings.add(new MisspellingDto(m.word(), "English", m.suggestions()));
+        for (SpellChecker.Misspelling m : spellChecker.check(vocab.getEnglish(), SpellChecker.ENGLISH, sentences)) {
+            misspellings.add(new MisspellingDto(m.word(), "English", m.suggestions(), m.kind()));
         }
         if (!misspellings.isEmpty()) {
             String error = misspellings.size() == 1 ? "Check the spelling:" : "Check the spelling of these words:";

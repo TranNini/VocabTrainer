@@ -15,7 +15,9 @@ Add new vocabulary with its English translation and an optional context note (ru
     shown with the "Note" button in the word list and after each quiz question
 Spell check when saving: a word that isn't in the dictionary (Spanish, German, and American or British
     English for the English side) gets a warning
-    with suggestions, e.g. 'nostoros' -> nosotros. It can still be saved (names, rare words). Works offline,
+    with suggestions, e.g. 'nostoros' -> nosotros; a word only right with a capital says so ('haus' -> Haus,
+    'spanish' -> Spanish), and a sentence must start with a capital (an entry ending with . ? ! or in a
+    category like sentences / sätze). It can still be saved (names, rare words). Works offline,
     with the open Hunspell dictionaries in src/main/resources/dictionaries (licences next to them)
 Warns before saving a duplicate (same word or same English, also one of the '/' alternatives) and lists
     every entry it matches
