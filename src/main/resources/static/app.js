@@ -582,6 +582,26 @@ function wireCategorySelect(select, newInput) {
     });
 }
 
+// A comma instead of "/" ("gut, schön") is never saved (the server refuses it too): asks whether to make it
+// "gut / schön", else nothing is saved. Not in sentences ("Oye, ¿qué haces?"), where a comma belongs.
+function commasAsAlternatives(vocab) {
+    const sentence = (text) => isSentenceCategory(vocab.category) || /[.?!…]\s*$/.test(text.trim());
+    const fixed = {...vocab};
+    for (const [field, side] of [["word", language.name], ["english", language.translation]]) {
+        const text = vocab[field] ?? "";
+        if (!text.includes(",") || sentence(text)) {
+            continue;
+        }
+        const withSlash = text.split(/\s*,\s*/).filter((part) => part.trim()).join(" / ");
+        if (!confirm(`'${text.trim()}' (${side}) has a comma. Alternatives are separated with / in the app.\n\n`
+            + `OK: save as '${withSlash}'\nCancel: don't save, to change it`)) {
+            throw new Error("Not saved: use / instead of a comma for alternatives.");
+        }
+        fixed[field] = withSlash;
+    }
+    return fixed;
+}
+
 // Sends the vocab; if the server says the category is new or a word may be misspelled, asks first and sends
 // again (each can still be followed by the next). Vocab that is already saved is never saved again.
 async function saveVocab(method, url, vocab) {
@@ -786,7 +806,7 @@ async function addVocab(event) {
         ...readCategory($("add-category"), $("add-new-category")),
     };
     try {
-        const saved = await saveVocab("POST", langUrl("/vocab"), vocab);
+        const saved = await saveVocab("POST", langUrl("/vocab"), commasAsAlternatives(vocab));
         $("add-recent").hidden = false;
         $("add-recent-list").prepend(el("li", {textContent: `${saved.word} = ${saved.english} [${saved.category}]`}));
         // keep the category, so a whole verb can be added in a row
@@ -909,12 +929,12 @@ function editForm(word) {
     form.addEventListener("submit", async (event) => {
         event.preventDefault();
         try {
-            await saveVocab("PUT", langUrl("/vocab/" + word.id), {
+            await saveVocab("PUT", langUrl("/vocab/" + word.id), commasAsAlternatives({
                 word: wordInput.value,
                 english: english.value,
                 context: context.value,
                 ...readCategory(category, newCategory),
-            });
+            }));
             showMessage(`Saved ${wordInput.value.trim()}.`);
             await loadCategories();
             await refreshLanguage();

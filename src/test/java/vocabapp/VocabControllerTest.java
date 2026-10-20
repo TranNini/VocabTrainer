@@ -216,6 +216,29 @@ class VocabControllerTest {
     }
 
     @Test
+    void aCommaIsNoSeparatorForAlternatives() throws Exception {
+        send("POST", SPANISH + "/vocab", """
+                {"word": "bonito, lindo", "english": "pretty", "category": "general"}
+                """)
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.error").value(
+                        "Use / instead of a comma for alternatives: 'bonito / lindo'. A comma is only for sentences."));
+        send("POST", SPANISH + "/vocab", """
+                {"word": "bonito", "english": "pretty,nice", "category": "general"}
+                """)
+                .andExpect(status().isBadRequest());
+        // in sentences a comma belongs: a sentence category, or an entry ending with . ? !
+        send("POST", SPANISH + "/vocab", """
+                {"word": "Oye, ¿qué haces?", "english": "Hey, what are you doing?", "category": "general", "spellingChecked": true}
+                """)
+                .andExpect(status().isCreated());
+        send("POST", SPANISH + "/vocab", """
+                {"word": "Sí, claro", "english": "Yes, of course", "category": "sentences", "newCategory": true}
+                """)
+                .andExpect(status().isCreated());
+    }
+
+    @Test
     void neverSavesADuplicate() throws Exception {
         add("tú tienes", "you have", "verbs");
         int id = add("ir", "to go", "verbs");

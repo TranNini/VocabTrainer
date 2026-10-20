@@ -39,7 +39,9 @@ Score at the end of the quiz
 Stats per learner and language (Stats tab): days in a row, answered today, right on the first try and in
     the end, an overview of today / 1 month / 6 months / 1 year, a chart of the answers for today (by hour), 1 month (by day), 6 months (by week) or 1 year (by month), words mastered (right on the first try 3 times in a row), practising
     and not practised yet, and the words missed most
-Add multiple answer choices using '/' (a / button under every field when adding or editing types " / ")
+Add multiple answer choices using '/' (a / button under every field when adding or editing types " / "); a comma
+    instead is never saved: the app offers to turn "bonito, lindo" into "bonito / lindo". Commas are fine in
+    sentences (ending with . ? ! or in a sentence category)
 Typing (s or (p in an English field (Add and edit) fills in (singular) or (plural), as "you have" is both;
     Spanish and German forms differ anyway. Backspace right after it goes back to what was typed
 What is written in brackets can be left out in quiz answers: "you have" is right for "you have (singular)"

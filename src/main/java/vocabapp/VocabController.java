@@ -422,6 +422,13 @@ public class VocabController {
             }
             category = typed;
         }
+        // alternatives are separated with "/", a comma is only for sentences ("Oye, ¿qué haces?")
+        for (String side : List.of(word, english)) {
+            if (side.contains(",") && !SpellChecker.isSentenceCategory(category) && !side.matches(".*[.?!…]$")) {
+                throw new ApiException(HttpStatus.BAD_REQUEST, "Use / instead of a comma for alternatives: '"
+                        + side.replaceAll("\\s*,\\s*", " / ") + "'. A comma is only for sentences.");
+            }
+        }
         return new Vocab(word, english, category, context);
     }
 
