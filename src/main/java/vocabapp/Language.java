@@ -91,15 +91,27 @@ public class Language {
     }
 
     // Names of a language in other languages ("Spanisch"), so it gets the same rules as its English name
-    private static final Map<String, String> OTHER_NAMES = Map.of(
-            "spanisch", "spanish", "español", "spanish", "espanol", "spanish",
-            "deutsch", "german", "alemán", "german", "englisch", "english",
-            "vietnamesisch", "vietnamese", "tiếng việt", "vietnamese");
+    // (written without accents and in lower case: "Tiếng Việt" and "Tieng Viet" are both "tieng viet")
+    private static final Map<String, String> OTHER_NAMES = Map.ofEntries(
+            // in German
+            Map.entry("spanisch", "spanish"), Map.entry("deutsch", "german"), Map.entry("englisch", "english"),
+            Map.entry("vietnamesisch", "vietnamese"),
+            // in Spanish
+            Map.entry("espanol", "spanish"), Map.entry("castellano", "spanish"), Map.entry("aleman", "german"),
+            Map.entry("ingles", "english"), Map.entry("vietnamita", "vietnamese"),
+            // in Vietnamese
+            Map.entry("tieng viet", "vietnamese"), Map.entry("tieng anh", "english"), Map.entry("tieng duc", "german"),
+            Map.entry("tieng tay ban nha", "spanish"));
 
     // "Spanisch" -> "spanish": the English name, in lower case
     static String englishName(String name) {
-        String lower = name.toLowerCase();
-        return OTHER_NAMES.getOrDefault(lower, lower);
+        String lower = name.trim().toLowerCase();
+        return OTHER_NAMES.getOrDefault(plain(lower), lower);
+    }
+
+    // "tiếng việt" -> "tieng viet" (đ -> d too, which isn't an accent in Unicode)
+    private static String plain(String name) {
+        return Normalizer.normalize(name, Normalizer.Form.NFD).replaceAll("\\p{M}", "").replace('đ', 'd');
     }
 
     public static Language forName(String name) {
@@ -177,7 +189,7 @@ public class Language {
 
     // The language in English, whatever the list is called: "Spanisch" -> "Spanish"
     public String getEnglishName() {
-        String other = OTHER_NAMES.get(name.toLowerCase());
+        String other = OTHER_NAMES.get(plain(name.trim().toLowerCase()));
         return other == null ? name : other.substring(0, 1).toUpperCase() + other.substring(1);
     }
 

@@ -622,4 +622,43 @@ class VocabControllerTest {
         }
         mvc.perform(delete("/api/learners/Listtest")).andExpect(status().isNoContent());
     }
+
+    @Test
+    void anyPairWorksVietnameseIntoGermanOrItalianWithItsLetters() throws Exception {
+        send("POST", "/api/learners", """
+                {"name": "Anypair"}
+                """).andExpect(status().isCreated());
+        send("POST", "/api/learners/Anypair/languages", """
+                {"name": "Tieng Viet", "translation": "Tiếng Đức"}
+                """)
+                .andExpect(jsonPath("$.englishName").value("Vietnamese"))
+                .andExpect(jsonPath("$.translationEnglishName").value("German"))
+                .andExpect(jsonPath("$.translationLetters[0]").value("ä"));
+        String url = "/api/learners/Anypair/languages/Tieng Viet/vocab";
+        send("POST", url, """
+                {"word": "tính cách", "english": "der Charakter", "category": "general", "newCategory": true}
+                """).andExpect(status().isCreated());
+        // German spell check on the German side, also of nouns
+        send("POST", url, """
+                {"word": "nhân vật", "english": "die figur", "category": "general"}
+                """).andExpect(status().isConflict()).andExpect(jsonPath("$.spelling[0].kind").value("capital"));
+        // a missing accent is a duplicate here too; a comma isn't saved
+        send("POST", url, """
+                {"word": "tinh cach", "english": "der Charakter", "category": "general"}
+                """).andExpect(status().isConflict()).andExpect(jsonPath("$.similar", hasSize(1)));
+        send("POST", url, """
+                {"word": "tính cách, cá tính", "english": "der Charakter", "category": "general"}
+                """).andExpect(status().isBadRequest());
+
+        // a translation side without fixed letters gets the ones of its saved words
+        send("POST", "/api/learners/Anypair/languages", """
+                {"name": "Deutsch", "translation": "Italian"}
+                """).andExpect(status().isCreated());
+        send("POST", "/api/learners/Anypair/languages/Deutsch/vocab", """
+                {"word": "der Kaffee", "english": "il caffè", "category": "general", "newCategory": true}
+                """).andExpect(status().isCreated());
+        mvc.perform(get("/api/learners/Anypair/languages"))
+                .andExpect(jsonPath("$[?(@.name == 'Deutsch')].translationLetters[0]").value("è"));
+        mvc.perform(delete("/api/learners/Anypair")).andExpect(status().isNoContent());
+    }
 }

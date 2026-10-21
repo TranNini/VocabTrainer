@@ -417,7 +417,8 @@ function addBracketShortcuts(input, sideOf) {
     });
 }
 
-const isEnglish = (name) => ["english", "englisch", "inglés", "ingles"].includes((name ?? "").toLowerCase());
+// by the language's English name from the server, so "Englisch", "Inglés" or "Tiếng Anh" count too
+const isEnglish = (englishName) => englishName === "English";
 
 // ---------- languages ----------
 
@@ -486,7 +487,7 @@ function showTranslationLanguage() {
     for (const label of document.querySelectorAll(".translation-name")) {
         label.textContent = language.translation;
     }
-    $("bracket-hint").hidden = !isEnglish(language.translation);
+    $("bracket-hint").hidden = !isEnglish(language.translationEnglishName);
     addAccentButtons(document.querySelector("#add-form .translation-accents"), $("add-english"),
         language.translationLetters, true, addFormHoldsSentences);
 }
@@ -985,8 +986,8 @@ function editForm(word) {
     addAccentButtons(form.querySelector(".accents"), wordInput, language.specialLetters, true, holdsSentences);
     addAccentButtons(form.querySelector(".translation-accents"), english, language.translationLetters, true,
         holdsSentences);
-    addBracketShortcuts(wordInput, () => language.name);
-    addBracketShortcuts(english, () => language.translation);
+    addBracketShortcuts(wordInput, () => language.englishName);
+    addBracketShortcuts(english, () => language.translationEnglishName);
     form.querySelector(".extras").append(dictionaryLink(word.dictionaryUrl));
 
     form.addEventListener("submit", (event) => {
@@ -1156,8 +1157,8 @@ $("quiz-stop").addEventListener("click", stopQuiz);
 
 $("add-form").addEventListener("submit", addVocab);
 wireCategorySelect($("add-category"), $("add-new-category"));
-addBracketShortcuts($("add-word"), () => language?.name);
-addBracketShortcuts($("add-english"), () => language?.translation);
+addBracketShortcuts($("add-word"), () => language?.englishName);
+addBracketShortcuts($("add-english"), () => language?.translationEnglishName);
 
 $("learner").addEventListener("change", () => {
     const actions = {[ADD_LEARNER]: addLearner, [COPY_VOCAB]: copyVocab, [RENAME_LEARNER]: renameLearner,

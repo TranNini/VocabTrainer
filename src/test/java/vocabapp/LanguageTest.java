@@ -68,4 +68,22 @@ class LanguageTest {
         assertEquals(letters, Language.forName("German").translatedInto(Language.forName("Spanisch"))
                 .getTranslation().getSpecialLetters());
     }
+
+    @Test
+    void knowsLanguagesByManyNamesWithOrWithoutAccents() {
+        for (String name : List.of("Vietnamese", "Vietnamesisch", "Tiếng Việt", "Tieng Viet", "tiếng việt", "Vietnamita")) {
+            assertEquals("Vietnamese", Language.forName(name).getEnglishName(), name);
+            assertEquals("VDict", Language.forName(name).getDictionaryName(), name);
+        }
+        for (String name : List.of("Deutsch", "Tiếng Đức", "Tieng Duc", "Alemán", "Aleman")) {
+            assertEquals("German", Language.forName(name).getEnglishName(), name);
+            assertEquals(List.of("de"), Language.forName(name).getSpellDictionaries(), name);
+        }
+        for (String name : List.of("Englisch", "Inglés", "Tiếng Anh")) {
+            assertEquals("English", Language.forName(name).getEnglishName(), name);
+        }
+        assertEquals("Spanish", Language.forName("Tiếng Tây Ban Nha").getEnglishName());
+        // a language the app has no rules for keeps its name
+        assertEquals("Brazilian Portuguese", Language.forName("Brazilian Portuguese").getEnglishName());
+    }
 }

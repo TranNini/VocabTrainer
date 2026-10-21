@@ -124,8 +124,10 @@ Adding verb conjugations (Spanish):
     saved right before them.
 
 Giving a new language its extras:
-    A language named in German or in itself (Spanisch, Español, Deutsch, Vietnamesisch) gets the same
-    extras as its English name.
+    A language named in German, Spanish, Vietnamese or in itself, with or without accents (Spanisch, Español,
+    Deutsch, Alemán, Tiếng Đức, Tieng Viet, Inglés, …), gets the same extras as its English name. Everything
+    else (duplicates, commas, capitals at a sentence start, ⇧, stats) works for any language; a language without
+    fixed letter buttons gets buttons for the letters beyond a-z in its saved words, on either side.
     A language added in the app works right away. Articles, conjugation grouping, IPA,
     fixed special letter buttons and its own dictionary are set up in Language.java
     (see how Spanish is done there).

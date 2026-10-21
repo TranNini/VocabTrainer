@@ -39,9 +39,10 @@ public class VocabController {
 
     // ipa = whether IPA can be shown; specialLetters = buttons for letters a normal keyboard lacks
     // englishName = the language whatever the list is called ("Spanisch" -> "Spanish"); translation = what it is
-    // translated into ("English", "German"), with its letter buttons
+    // translated into ("English", "Deutsch"), with its English name and letter buttons
     record LanguageDto(String name, String englishName, int count, boolean ipa, List<String> specialLetters,
-                       String dictionaryName, String translation, List<String> translationLetters) {
+                       String dictionaryName, String translation, String translationEnglishName,
+                       List<String> translationLetters) {
     }
 
     record NewNameRequest(String name) {
@@ -540,18 +541,24 @@ public class VocabController {
         List<Vocab> all = library.store(name).getAll();
         List<String> letters = rules.getSpecialLetters();
         if (letters.isEmpty()) {
-            letters = specialLettersIn(all);
+            letters = specialLettersIn(all.stream().map(Vocab::getWord).toList());
         }
         Language translation = rules.getTranslation();
+        // like the learned side: without a fixed set, the letters found on that side of the saved words
+        List<String> translationLetters = translation.getSpecialLetters();
+        if (translationLetters.isEmpty()) {
+            translationLetters = specialLettersIn(all.stream().map(Vocab::getEnglish).toList());
+        }
         return new LanguageDto(rules.getName(), rules.getEnglishName(), all.size(), rules.hasIpa(), letters,
-                rules.getDictionaryName(), translation.getName(), translation.getSpecialLetters());
+                rules.getDictionaryName(), translation.getName(), translation.getEnglishName(), translationLetters);
     }
 
     // Letters beyond a–z used in the saved words, e.g. "à", "è", "ç" for a new language
-    private static List<String> specialLettersIn(List<Vocab> all) {
+    // The letters beyond a-z in these texts ("caffè" -> "è"), small only (⇧ makes capitals)
+    private static List<String> specialLettersIn(List<String> texts) {
         TreeSet<String> letters = new TreeSet<>();
-        for (Vocab v : all) {
-            v.getWord().toLowerCase().codePoints()
+        for (String text : texts) {
+            text.toLowerCase().codePoints()
                     .filter(c -> Character.isLetter(c) && c > 127)
                     .forEach(c -> letters.add(Character.toString(c)));
         }
