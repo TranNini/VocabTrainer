@@ -166,6 +166,16 @@ class VocabIndexTest {
                 SPANISH);
         assertEquals(List.of(), verbs.duplicatesOf("el / ella / usted corre", "he / she / it runs", null));
         assertEquals(1, verbs.duplicatesOf("ella quiere", "she wants", null).size());
+        // the same in German, as the language learned or as the translation
+        VocabIndex german = new VocabIndex(List.of(new Vocab("er / sie / es hat", "he / she / it has", "verben"),
+                new Vocab("sie / Sie haben", "they / you have", "verben")), Language.forName("German"));
+        assertEquals(List.of(), german.duplicatesOf("er / sie / es läuft", "he / she / it runs", null));
+        assertEquals(List.of(), german.duplicatesOf("sie / Sie sind", "they / you are", null));
+        assertEquals(1, german.duplicatesOf("sie hat", "she has", null).size());
+        VocabIndex kiki = new VocabIndex(List.of(new Vocab("él / ella / usted tiene", "er / sie / es hat", "verbformen")),
+                Language.forName("Spanisch").translatedInto(Language.forName("Deutsch")));
+        assertEquals(List.of(), kiki.duplicatesOf("él / ella / usted corre", "er / sie / es läuft", null));
+        assertEquals(1, kiki.duplicatesOf("ella tiene", "sie hat", null).size());
         // editing an entry isn't a duplicate of itself
         assertEquals(List.of(), index.duplicatesOf("tính cách", "character", tinhCach));
     }

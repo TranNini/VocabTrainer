@@ -47,7 +47,8 @@ public class AnswerChecker {
         for (int i = 0; i < options.length - 1; i++) {
             String option = options[i].trim();
             String pronoun = option.contains(" ") ? null : pronounSpelling(option, language);
-            if (pronoun == null || option.equalsIgnoreCase(last[0])) {
+            // "you / you all" stays as it is; "sie / Sie haben" is two pronouns (they / you), so it is expanded
+            if (pronoun == null || option.equals(last[0])) {
                 return expected;
             }
             expanded.add(pronoun + " " + last[1]);

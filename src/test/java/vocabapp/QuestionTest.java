@@ -61,4 +61,18 @@ class QuestionTest {
             assertTrue(prompt.matches("(er|sie|es) hat|(él|ella|usted) tiene"), prompt);
         }
     }
+
+    @Test
+    void germanSieAndSieAreTwoPronouns() {
+        Language german = Language.forName("German");
+        assertEquals("sie haben/Sie haben", AnswerChecker.expandPronounShortForm("sie / Sie haben", german));
+        // "you / you all" isn't a short form: both stay
+        assertEquals("you / you all", AnswerChecker.expandPronounShortForm("you / you all", german));
+        Vocab vocab = new Vocab("sie / Sie haben", "they / you have", "verben");
+        Random random = new Random(9);
+        for (int i = 0; i < 40; i++) {
+            String prompt = Question.from(vocab, german, random).prompt();
+            assertTrue(prompt.matches("(sie|Sie) haben|(they|you) have"), prompt);
+        }
+    }
 }
