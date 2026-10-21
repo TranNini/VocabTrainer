@@ -57,11 +57,18 @@ public class VocabIndex {
     public List<Vocab> duplicatesOf(String word, String english, Vocab except) {
         List<Vocab> duplicates = new ArrayList<>();
         for (Vocab v : all) {
-            if (v != except && sharesOption(v.getWord(), word) && sharesOption(v.getEnglish(), english)) {
+            if (v != except && sharesOption(full(v.getWord()), full(word))
+                    && sharesOption(full(v.getEnglish()), full(english))) {
                 duplicates.add(v);
             }
         }
         return duplicates;
+    }
+
+    // The short form written out, as the quiz reads it: "el / ella / usted quiere" -> "él quiere / ella quiere /
+    // usted quiere", so a pronoun on its own never matches ("el / ella / usted corre" is no duplicate)
+    private String full(String text) {
+        return AnswerChecker.expandPronounShortForm(text, language);
     }
 
     // Whether one alternative of a is the same as one of b, also with a typo (see isSame)

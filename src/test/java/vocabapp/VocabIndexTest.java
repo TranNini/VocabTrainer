@@ -161,6 +161,11 @@ class VocabIndexTest {
         VocabIndex ma = new VocabIndex(List.of(new Vocab("má", "mother", "general")), vietnamese);
         assertEquals(List.of(), ma.duplicatesOf("ma", "ghost", null));
         assertEquals(List.of(), index.duplicatesOf("hola", "hey", null));
+        // a short form is read out in full: other verbs aren't duplicates, the same one is
+        VocabIndex verbs = new VocabIndex(List.of(new Vocab("el / ella / usted quiere", "he / she / it wants", "verbs")),
+                SPANISH);
+        assertEquals(List.of(), verbs.duplicatesOf("el / ella / usted corre", "he / she / it runs", null));
+        assertEquals(1, verbs.duplicatesOf("ella quiere", "she wants", null).size());
         // editing an entry isn't a duplicate of itself
         assertEquals(List.of(), index.duplicatesOf("tính cách", "character", tinhCach));
     }
