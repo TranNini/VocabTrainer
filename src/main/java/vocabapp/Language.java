@@ -175,6 +175,12 @@ public class Language {
         return name;
     }
 
+    // The language in English, whatever the list is called: "Spanisch" -> "Spanish"
+    public String getEnglishName() {
+        String other = OTHER_NAMES.get(name.toLowerCase());
+        return other == null ? name : other.substring(0, 1).toUpperCase() + other.substring(1);
+    }
+
     public Collator getCollator() {
         return collator;
     }

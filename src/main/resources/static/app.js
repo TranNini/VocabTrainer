@@ -7,8 +7,9 @@ const ADD_LEARNER = "__add__";
 const RENAME_LEARNER = "__rename__";
 const DELETE_LEARNER = "__delete__";
 const COPY_VOCAB = "__copy__";
-// "Change translation…" in the language menu
+// "Change translation…" and "Delete list…" in the language menu
 const CHANGE_TRANSLATION = "__translation__";
+const DELETE_LIST = "__delete-list__";
 // "Refresh vocab" in the quiz's category menu
 const REFRESH = "__refresh__";
 let refreshDays = 14;
@@ -309,16 +310,30 @@ async function copyVocab() {
             }
         }
     }
-    const what = chosen.map((l) => `${l.count} ${l.name}`).join(" and ");
-    if (!confirm(`Copy ${what} words from ${from} to ${learner}?\n\nWords ${learner} already has are skipped, ` +
-        `so nothing is replaced. ${from}'s quiz results are not copied.`)) {
+    // which list each one goes into: the one with the same name, or a new one; and whether this learner
+    // already learns that language as another pair ("Spanisch → Deutsch" next to a copied "Spanish → English")
+    const pair = (l) => `"${l.name} → ${l.translation}"`;
+    const lines = chosen.map((l) => {
+        const target = languages.find((t) => t.name.toLowerCase() === l.name.toLowerCase());
+        if (target) {
+            return `• ${l.count} words of ${pair(l)} into ${learner}'s list ${pair(target)}`;
+        }
+        const other = languages.find((t) => t.englishName === l.englishName);
+        return `• ${l.count} words of ${pair(l)} into a NEW list ${pair(l)} for ${learner}` + (other
+            ? `\n   (${learner} already learns ${l.englishName} as ${pair(other)}. These words are translated into `
+              + `${l.translation}, so they get their own list.)` : "");
+    });
+    if (!confirm(`Copy from ${from} to ${learner}:\n\n${lines.join("\n")}\n\nWords already in the list are skipped, `
+        + `so nothing is replaced. ${from}'s quiz results are not copied.`)) {
         return;
     }
     const result = await api("POST", learnerUrl("/copy"),
         {from, language: chosen.length === theirs.length && theirs.length > 1 ? "" : chosen[0].name});
-    await loadLanguages(language?.name ?? result.languages[0]);
-    showMessage(`Copied ${result.copied} ${result.copied === 1 ? "word" : "words"} from ${from}` +
-        (result.skipped ? `. ${result.skipped} skipped: already in ${learner}'s list.` : "."));
+    // show the list the words went into
+    await loadLanguages(result.languages[0]);
+    const into = result.languages.map((name) => pair(languages.find((l) => l.name === name))).join(" and ");
+    showMessage(`Copied ${result.copied} ${result.copied === 1 ? "word" : "words"} from ${from} into ${into}` +
+        (result.skipped ? `. ${result.skipped} skipped: already in the list.` : "."));
 }
 
 async function renameLearner() {
@@ -414,7 +429,8 @@ async function loadLanguages(selectName) {
         ...languages.map((l) => el("option", {value: l.name, textContent: `${l.name} → ${l.translation}`})),
         el("option", {value: ADD_LANGUAGE, textContent: "Add language…"}));
     if (languages.length > 0) {
-        select.append(el("option", {value: CHANGE_TRANSLATION, textContent: "Change translation…"}));
+        select.append(el("option", {value: CHANGE_TRANSLATION, textContent: "Change translation…"}),
+            el("option", {value: DELETE_LIST, textContent: "Delete list…"}));
     }
     const wanted = languages.find((l) => l.name === selectName)
         || languages.find((l) => l.name === loadSetting("language:" + learner)) || languages[0];
@@ -496,6 +512,19 @@ async function changeTranslation() {
     const changed = await api("PUT", langUrl("/translation"), {name});
     await loadLanguages(language.name);
     showMessage(`${changed.name} is now translated into ${changed.translation}.`);
+}
+
+// Deletes the current list; the NAS keeps it in vocab/.deleted, so it can be put back
+async function deleteList() {
+    $("language").value = language.name;
+    if (!confirm(`Delete ${learner}'s list "${language.name} → ${language.translation}" with its ${language.count} `
+        + `words and quiz results?\n\nIt's kept in the .deleted folder on the NAS and can be put back.`)) {
+        return;
+    }
+    const deleted = `${language.name} → ${language.translation}`;
+    await api("DELETE", langUrl(""));
+    await loadLanguages();
+    showMessage(`Deleted "${deleted}".`);
 }
 
 // The language the learner translates into most, offered for a new list
@@ -1102,7 +1131,8 @@ $("learner").addEventListener("change", () => {
 
 $("language").addEventListener("change", () => {
     const name = $("language").value;
-    const action = {[ADD_LANGUAGE]: addLanguage, [CHANGE_TRANSLATION]: changeTranslation}[name];
+    const actions = {[ADD_LANGUAGE]: addLanguage, [CHANGE_TRANSLATION]: changeTranslation, [DELETE_LIST]: deleteList};
+    const action = actions[name];
     (action ? action() : switchLanguage(name)).catch((error) => showMessage(error.message, true));
 });
 

@@ -8,11 +8,12 @@ Feature:
 
 Several learners (e.g. a parent and a child), each with their own languages and vocabulary; pick
     "who's learning" at the top, each device remembers it. The same menu adds, renames and deletes learners,
-    and copies vocab from another learner (one language or all; words already in the list are skipped,
-    the other learner's quiz results aren't copied)
+    and copies vocab from another learner (one language or all, into the list with the same name or a new one,
+    which the question says; words already in the list are skipped, the other learner's quiz results aren't copied)
 Several languages, each with its own vocabulary and categories; switch at the top of the app
 Every word list is a pair, e.g. Spanish → English or Spanisch → German or English → German, shown in the
-    language menu. Adding a language asks for both; "Change translation…" changes the second. Both sides get
+    language menu. Adding a language asks for both; "Change translation…" changes the second; "Delete list…"
+    removes a list (kept in vocab/.deleted). Both sides get
     the rules of their language (English, Spanish, German): spell check, capitals, articles, short forms like
     "he / she / it has" and "er / sie / es hat", letter buttons. Lists saved before pairs existed are recognised
     by their words (the dictionary that knows most of them)
@@ -109,6 +110,8 @@ Where the vocabulary is saved:
     Vocab saved before there were learners (vocab/Spanish.txt …, or the even older vocab.txt) is moved
     to the first learner (vocab.first-learner in application.properties) automatically on the first start.
     vocab/<Learner>/<Language>.translation holds the language that list is translated into, e.g. German.
+    A deleted list's files go to vocab/.deleted/<learner> <language> <date time>/; to restore them, move them back
+    into the learner's folder and restart the app.
     A deleted learner's folder is moved to vocab/.deleted/<name> <date time>; to restore it, move it back
     to vocab/ (named like before, without the date) and restart the app.
 

@@ -38,9 +38,10 @@ public class VocabController {
     }
 
     // ipa = whether IPA can be shown; specialLetters = buttons for letters a normal keyboard lacks
-    // translation = what the learner translates into ("English", "German"), with its letter buttons
-    record LanguageDto(String name, int count, boolean ipa, List<String> specialLetters, String dictionaryName,
-                       String translation, List<String> translationLetters) {
+    // englishName = the language whatever the list is called ("Spanisch" -> "Spanish"); translation = what it is
+    // translated into ("English", "German"), with its letter buttons
+    record LanguageDto(String name, String englishName, int count, boolean ipa, List<String> specialLetters,
+                       String dictionaryName, String translation, List<String> translationLetters) {
     }
 
     record NewNameRequest(String name) {
@@ -217,6 +218,15 @@ public class VocabController {
             throw new ApiException(HttpStatus.BAD_REQUEST, e.getMessage());
         } catch (IllegalStateException e) {
             throw new ApiException(HttpStatus.CONFLICT, e.getMessage());
+        }
+    }
+
+    // Deletes the list (kept in vocab/.deleted, see VocabLibrary.deleteLanguage)
+    @DeleteMapping("/{learner}/languages/{language}")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void deleteLanguage(@PathVariable String learner, @PathVariable String language) {
+        if (!library(learner).deleteLanguage(language)) {
+            store(learner, language); // 404
         }
     }
 
@@ -482,8 +492,8 @@ public class VocabController {
             letters = specialLettersIn(all);
         }
         Language translation = rules.getTranslation();
-        return new LanguageDto(rules.getName(), all.size(), rules.hasIpa(), letters, rules.getDictionaryName(),
-                translation.getName(), translation.getSpecialLetters());
+        return new LanguageDto(rules.getName(), rules.getEnglishName(), all.size(), rules.hasIpa(), letters,
+                rules.getDictionaryName(), translation.getName(), translation.getSpecialLetters());
     }
 
     // Letters beyond a–z used in the saved words, e.g. "à", "è", "ç" for a new language

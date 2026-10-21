@@ -16,6 +16,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.hamcrest.Matchers.hasSize;
 import static org.hamcrest.Matchers.nullValue;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
@@ -524,5 +525,34 @@ class VocabControllerTest {
         assertEquals("English", reloaded.language("Spanisch").getTranslation().getName());
         assertEquals("Deutsch", reloaded.language("English").getTranslation().getName());
         mvc.perform(delete("/api/learners/Pairtest")).andExpect(status().isNoContent());
+    }
+
+    @Test
+    void deletesAListButKeepsItInDeleted() throws Exception {
+        send("POST", "/api/learners", """
+                {"name": "Listtest"}
+                """).andExpect(status().isCreated());
+        send("POST", "/api/learners/Listtest/languages", """
+                {"name": "Spanish", "translation": "English"}
+                """).andExpect(jsonPath("$.englishName").value("Spanish"));
+        send("POST", "/api/learners/Listtest/languages", """
+                {"name": "Spanisch", "translation": "Deutsch"}
+                """).andExpect(jsonPath("$.englishName").value("Spanish"));
+        send("POST", "/api/learners/Listtest/languages/Spanish/vocab", """
+                {"word": "hablar", "english": "to talk", "category": "verbs", "newCategory": true}
+                """).andExpect(status().isCreated());
+
+        mvc.perform(delete("/api/learners/Listtest/languages/spanish")).andExpect(status().isNoContent());
+        mvc.perform(get("/api/learners/Listtest/languages"))
+                .andExpect(jsonPath("$", hasSize(1)))
+                .andExpect(jsonPath("$[0].name").value("Spanisch"));
+        mvc.perform(delete("/api/learners/Listtest/languages/Spanish")).andExpect(status().isNotFound());
+        // the files are kept, to put back by hand
+        try (var kept = Files.list(dir.resolve("vocab/" + Learners.DELETED))) {
+            Path folder = kept.filter(p -> p.getFileName().toString().startsWith("Listtest Spanish ")).findFirst().orElseThrow();
+            assertTrue(Files.readString(folder.resolve("Spanish.txt")).contains("hablar;to talk"));
+            assertTrue(Files.exists(folder.resolve("Spanish.translation")));
+        }
+        mvc.perform(delete("/api/learners/Listtest")).andExpect(status().isNoContent());
     }
 }

@@ -5,6 +5,8 @@ import java.io.UncheckedIOException;
 import java.nio.file.DirectoryStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -102,6 +104,32 @@ public class VocabLibrary {
         saveTranslation(saved, into);
         open(saved, null);
         return saved;
+    }
+
+    // Moves the list's files (words, translation language, quiz results) to
+    // vocab/.deleted/<learner> <language> <date and time>/, so it can be put back; false if there is no such list
+    public synchronized boolean deleteLanguage(String language) {
+        String saved = stores.keySet().stream().filter(language::equalsIgnoreCase).findFirst().orElse(null);
+        if (saved == null) {
+            return false;
+        }
+        String stamp = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH-mm-ss"));
+        try {
+            Path deleted = Files.createDirectories(dir.getParent().resolve(Learners.DELETED)
+                    .resolve(dir.getFileName() + " " + saved + " " + stamp));
+            for (String extension : List.of(EXTENSION, TRANSLATION_EXTENSION, QuizLog.EXTENSION)) {
+                Path file = dir.resolve(saved + extension);
+                if (Files.exists(file)) {
+                    Files.move(file, deleted.resolve(file.getFileName()));
+                }
+            }
+        } catch (IOException e) {
+            throw new UncheckedIOException("Could not delete the list " + saved, e);
+        }
+        stores.remove(saved);
+        languages.remove(saved);
+        logs.remove(saved);
+        return true;
     }
 
     // Sets the language the vocab of that list is translated into ("German"); returns the saved name
