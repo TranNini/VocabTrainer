@@ -826,8 +826,32 @@ function stopQuiz() {
 
 // ---------- add ----------
 
+// One save at a time per form: its button is locked and says "Saving…" until the app answers, so a second
+// press (or Enter) while it waits does nothing and the word isn't added twice
+async function whileSaving(form, save) {
+    if (form.dataset.saving) {
+        return;
+    }
+    const button = form.querySelector("button[type=submit]");
+    const label = button.textContent;
+    form.dataset.saving = "yes";
+    button.disabled = true;
+    button.textContent = "Saving…";
+    try {
+        await save();
+    } finally {
+        delete form.dataset.saving;
+        button.disabled = false;
+        button.textContent = label;
+    }
+}
+
 async function addVocab(event) {
     event.preventDefault();
+    await whileSaving($("add-form"), saveNewVocab);
+}
+
+async function saveNewVocab() {
     const vocab = {
         word: $("add-word").value,
         english: $("add-english").value,
@@ -955,8 +979,11 @@ function editForm(word) {
     addBracketShortcuts(english, () => language.translation);
     form.querySelector(".extras").append(dictionaryLink(word.dictionaryUrl));
 
-    form.addEventListener("submit", async (event) => {
+    form.addEventListener("submit", (event) => {
         event.preventDefault();
+        whileSaving(form, saveEdit);
+    });
+    async function saveEdit() {
         try {
             await saveVocab("PUT", langUrl("/vocab/" + word.id), commasAsAlternatives({
                 word: wordInput.value,
@@ -971,7 +998,7 @@ function editForm(word) {
         } catch (error) {
             showMessage(error.message, true);
         }
-    });
+    }
     form.querySelector("[data-action=cancel]").addEventListener("click", () => form.remove());
     form.querySelector("[data-action=delete]").addEventListener("click", async () => {
         if (!confirm(`Delete ${word.word} = ${word.english}?`)) {

@@ -3,6 +3,8 @@ package vocabapp;
 import org.apache.lucene.analysis.hunspell.Dictionary;
 import org.apache.lucene.analysis.hunspell.Hunspell;
 import org.apache.lucene.store.ByteBuffersDirectory;
+import org.springframework.boot.context.event.ApplicationReadyEvent;
+import org.springframework.context.event.EventListener;
 import org.springframework.stereotype.Component;
 
 import java.io.IOException;
@@ -55,6 +57,15 @@ public class SpellChecker {
 
     public List<Misspelling> check(String text, List<String> dictionaries) {
         return check(text, dictionaries, false);
+    }
+
+    // Loads the dictionaries in the background as soon as the app runs, so the first save isn't slow
+    // (a few seconds on the NAS), which made it look as if Add didn't react
+    @EventListener(ApplicationReadyEvent.class)
+    public void loadDictionaries() {
+        Thread loading = new Thread(() -> List.of("es", "de", "en", "en-gb").forEach(this::load), "dictionaries");
+        loading.setDaemon(true);
+        loading.start();
     }
 
     // The words of text that are in none of the dictionaries, each once. A capitalised word that doesn't

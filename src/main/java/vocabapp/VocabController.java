@@ -269,7 +269,12 @@ public class VocabController {
         Vocab vocab = toVocab(learner, language, request);
         checkDuplicates(learner, language, vocab, null);
         checkSpelling(learner, language, request, vocab);
-        store(learner, language).add(vocab);
+        VocabStore store = store(learner, language);
+        // checked again and saved in one step: of two quick presses on Add, the second is always a duplicate
+        synchronized (store) {
+            checkDuplicates(learner, language, vocab, null);
+            store.add(vocab);
+        }
         return toDto(learner, language, vocab, index(learner, language));
     }
 
@@ -279,7 +284,11 @@ public class VocabController {
         Vocab updated = toVocab(learner, language, request);
         checkDuplicates(learner, language, updated, existing);
         checkSpelling(learner, language, request, updated);
-        store(learner, language).replace(existing, updated);
+        VocabStore store = store(learner, language);
+        synchronized (store) {
+            checkDuplicates(learner, language, updated, existing);
+            store.replace(existing, updated);
+        }
         library(learner).log(language).renameWord(existing.getWord(), updated.getWord());
         return toDto(learner, language, updated, index(learner, language));
     }

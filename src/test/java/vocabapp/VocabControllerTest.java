@@ -14,6 +14,7 @@ import org.springframework.test.web.servlet.ResultActions;
 
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -237,6 +238,32 @@ class VocabControllerTest {
                 {"word": "Sí, claro", "english": "Yes, of course", "category": "sentences", "newCategory": true}
                 """)
                 .andExpect(status().isCreated());
+    }
+
+    @Test
+    void twoQuickPressesOnAddSaveTheWordOnce() throws Exception {
+        add("tener", "to have", "verbs"); // the category exists
+        String body = """
+                {"word": "comer", "english": "to eat", "category": "verbs"}
+                """;
+        java.util.concurrent.ExecutorService pool = java.util.concurrent.Executors.newFixedThreadPool(4);
+        java.util.concurrent.CountDownLatch start = new java.util.concurrent.CountDownLatch(1);
+        List<java.util.concurrent.Future<Integer>> results = new java.util.ArrayList<>();
+        for (int i = 0; i < 4; i++) {
+            results.add(pool.submit(() -> {
+                start.await();
+                return send("POST", SPANISH + "/vocab", body).andReturn().getResponse().getStatus();
+            }));
+        }
+        start.countDown();
+        List<Integer> statuses = new java.util.ArrayList<>();
+        for (var result : results) {
+            statuses.add(result.get());
+        }
+        pool.shutdown();
+        assertEquals(1, statuses.stream().filter(status -> status == 201).count(), statuses.toString());
+        assertEquals(3, statuses.stream().filter(status -> status == 409).count(), statuses.toString());
+        mvc.perform(get(SPANISH + "/vocab?q=comer")).andExpect(jsonPath("$", hasSize(1)));
     }
 
     @Test
