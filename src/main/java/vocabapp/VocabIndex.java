@@ -184,22 +184,24 @@ public class VocabIndex {
         return word;
     }
 
-    // Maps each conjugated verb ("yo tengo") to the infinitive saved before it ("tener"),
-    // since irregular forms can't be matched to their infinitive by spelling
+    // Maps each conjugated verb ("yo tengo") to its infinitive ("tener"), see Conjugations
     private Map<Vocab, Vocab> findInfinitives() {
-        Map<Vocab, Vocab> infinitives = new HashMap<>();
-        Vocab currentInfinitive = null;
-        for (Vocab v : all) {
-            if (!Vocab.isVerbCategory(v.getCategory())) {
+        List<Vocab> verbs = all.stream().filter(v -> Vocab.isVerbCategory(v.getCategory())).toList();
+        List<Vocab> infinitives = verbs.stream().filter(v -> pronounRank(v) == 0).toList();
+        Map<Vocab, Vocab> infinitiveOf = new HashMap<>();
+        Vocab previous = null;
+        for (Vocab v : verbs) {
+            if (pronounRank(v) == 0) {
+                previous = v;
                 continue;
             }
-            if (pronounRank(v) == 0) {
-                currentInfinitive = v;
-            } else if (currentInfinitive != null) {
-                infinitives.put(v, currentInfinitive);
+            // the one that fits, wherever it was saved (see Conjugations); else the one saved before
+            Vocab infinitive = Conjugations.infinitiveOf(v, infinitives, previous, language);
+            if (infinitive != null) {
+                infinitiveOf.put(v, infinitive);
             }
         }
-        return infinitives;
+        return infinitiveOf;
     }
 
     // 0 = not a conjugation, 1 = first pronoun (yo) and so on; always 0 for languages without pronoun rules

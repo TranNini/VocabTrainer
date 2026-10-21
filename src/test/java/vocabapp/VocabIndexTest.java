@@ -63,6 +63,40 @@ class VocabIndexTest {
     }
 
     @Test
+    void conjugationsGoToTheirInfinitiveWhereverTheyWereSaved() {
+        // the ser forms saved after correr and before ser, as happened; one with a mistyped translation
+        Vocab correr = verb("correr");
+        Vocab corro = new Vocab("yo corro", "I run", Vocab.VERBS_CATEGORY);
+        Vocab soy = new Vocab("yo soy", "I am", Vocab.VERBS_CATEGORY);
+        Vocab somos = new Vocab("nosotros somos", "we want", Vocab.VERBS_CATEGORY);
+        Vocab son = new Vocab("ellos / ellas / ustedes", "they are", Vocab.VERBS_CATEGORY);
+        Vocab ser = new Vocab("ser", "to be", Vocab.VERBS_CATEGORY);
+        Vocab querer = new Vocab("querer", "to want", Vocab.VERBS_CATEGORY);
+        Vocab quiero = new Vocab("yo quiero", "I want", Vocab.VERBS_CATEGORY);
+        Vocab tener = new Vocab("tener", "to have", Vocab.VERBS_CATEGORY);
+        Vocab tienes = new Vocab("tú tienes", "you have", Vocab.VERBS_CATEGORY);
+        VocabIndex index = new VocabIndex(List.of(querer, quiero, correr, corro, soy, somos, son, ser, tienes, tener),
+                SPANISH);
+        assertEquals(List.of("correr", "yo corro", "querer", "yo quiero", "ser", "yo soy", "nosotros somos",
+                "ellos / ellas / ustedes", "tener", "tú tienes"), spanish(index.search(null, "")));
+
+        // German forms into a German translation, and German as the language learned
+        Language spanisch = Language.forName("Spanisch").translatedInto(Language.forName("Deutsch"));
+        Vocab sein = new Vocab("ser", "sein", "verbformen");
+        Vocab bin = new Vocab("yo soy", "ich bin", "verbformen");
+        Vocab haben = new Vocab("tener", "haben", "verbformen");
+        Vocab hast = new Vocab("tú tienes", "du hast", "verbformen");
+        assertEquals(List.of("ser", "yo soy", "tener", "tú tienes"),
+                spanish(new VocabIndex(List.of(sein, haben, bin, hast), spanisch).search(null, "")));
+        Language german = Language.forName("German");
+        Vocab laufen = new Vocab("laufen", "to run", "verben");
+        Vocab laeuft = new Vocab("er / sie / es läuft", "he / she / it runs", "verben");
+        Vocab gehen = new Vocab("gehen", "to go", "verben");
+        assertEquals(List.of("gehen", "laufen", "er / sie / es läuft"),
+                spanish(new VocabIndex(List.of(laeuft, laufen, gehen), german).search(null, "")));
+    }
+
+    @Test
     void singleLetterGivesSection() {
         Vocab abuela = general("la abuela");
         Vocab arbol = general("árbol");

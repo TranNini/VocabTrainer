@@ -118,10 +118,11 @@ Where the vocabulary is saved:
     A deleted learner's folder is moved to vocab/.deleted/<name> <date time>; to restore it, move it back
     to vocab/ (named like before, without the date) and restart the app.
 
-Adding verb conjugations (Spanish):
-    Add the infinitive first (e.g. tener), then its forms starting with the pronoun
-    (yo tengo, tú tienes, ...) in the verbs category. They are listed under the infinitive
-    saved right before them.
+Adding verb conjugations (Spanish, German, English):
+    Add the infinitive (e.g. tener) and its forms starting with the pronoun (yo tengo, tú tienes, ...) in
+    a verb category. Each form is listed under the infinitive it fits: by its spelling (corro -> correr, tienes
+    -> tener, the irregular ser, ir, haber, sein, haben, …) and by its translation (I am -> to be, du hast ->
+    haben), in whatever order they were saved. Only if nothing fits, under the infinitive saved before it.
 
 Giving a new language its extras:
     A language named in German, Spanish, Vietnamese or in itself, with or without accents (Spanisch, Español,
