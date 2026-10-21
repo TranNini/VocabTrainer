@@ -267,6 +267,21 @@ class VocabControllerTest {
     }
 
     @Test
+    void asksBeforeSavingAnEntryThatDiffersOnlyByATypo() throws Exception {
+        add("también", "also / too", "general");
+        send("POST", SPANISH + "/vocab", """
+                {"word": "tambien", "english": "too", "category": "general", "spellingChecked": true}
+                """)
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.similar", hasSize(1)))
+                .andExpect(jsonPath("$.similar[0].word").value("también"));
+        send("POST", SPANISH + "/vocab", """
+                {"word": "tambien", "english": "too", "category": "general", "spellingChecked": true, "similarChecked": true}
+                """)
+                .andExpect(status().isCreated());
+    }
+
+    @Test
     void neverSavesADuplicate() throws Exception {
         add("tú tienes", "you have", "verbs");
         int id = add("ir", "to go", "verbs");

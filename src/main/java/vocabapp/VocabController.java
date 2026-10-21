@@ -59,9 +59,10 @@ public class VocabController {
     }
 
     // newCategory = true confirms that a category which doesn't exist yet should be created;
+    // similarChecked = true confirms saving although it is like a saved entry apart from a typo or missing accent;
     // spellingChecked = true confirms saving although a word isn't in the dictionary (a duplicate is never saved)
     record VocabRequest(String word, String english, String category, String context, boolean newCategory,
-                        boolean spellingChecked) {
+                        boolean similarChecked, boolean spellingChecked) {
     }
 
     // promptIpa is only filled in when the prompt is in the language, so it never gives the answer away
@@ -268,6 +269,7 @@ public class VocabController {
     public VocabDto add(@PathVariable String learner, @PathVariable String language, @RequestBody VocabRequest request) {
         Vocab vocab = toVocab(learner, language, request);
         checkDuplicates(learner, language, vocab, null);
+        checkSimilar(learner, language, request, vocab, null);
         checkSpelling(learner, language, request, vocab);
         VocabStore store = store(learner, language);
         // checked again and saved in one step: of two quick presses on Add, the second is always a duplicate
@@ -283,6 +285,7 @@ public class VocabController {
         Vocab existing = find(learner, language, id);
         Vocab updated = toVocab(learner, language, request);
         checkDuplicates(learner, language, updated, existing);
+        checkSimilar(learner, language, request, updated, existing);
         checkSpelling(learner, language, request, updated);
         VocabStore store = store(learner, language);
         synchronized (store) {
@@ -474,6 +477,24 @@ public class VocabController {
         if (!misspellings.isEmpty()) {
             String error = misspellings.size() == 1 ? "Check the spelling:" : "Check the spelling of these words:";
             throw new ApiException(HttpStatus.CONFLICT, Map.of("error", error, "spelling", misspellings));
+        }
+    }
+
+    // 409 listing the saved vocab that is the same apart from a typo or missing accent, unless the request
+    // already confirmed it
+    private void checkSimilar(String learner, String language, VocabRequest request, Vocab vocab, Vocab except) {
+        if (request.similarChecked()) {
+            return;
+        }
+        VocabIndex index = index(learner, language);
+        List<VocabDto> similar = new ArrayList<>();
+        for (Vocab v : index.similarTo(vocab.getWord(), vocab.getEnglish(), except)) {
+            similar.add(toDto(learner, language, v, index));
+        }
+        if (!similar.isEmpty()) {
+            throw new ApiException(HttpStatus.CONFLICT, Map.of(
+                    "error", "This looks like an entry you already have, apart from a typo or a missing accent:",
+                    "similar", similar));
         }
     }
 

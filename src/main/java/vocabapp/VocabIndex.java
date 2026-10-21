@@ -6,6 +6,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
+import java.util.function.BiPredicate;
 
 // Sorting, searching and grouping over a snapshot of the saved vocab of one language
 public class VocabIndex {
@@ -50,19 +51,31 @@ public class VocabIndex {
         return findCategory(trimmed);
     }
 
-    // Saved vocab with the same meaning: the same word and the same translation, in any category ("nhân vật =
-    // character" is no duplicate of "tính cách = character / personality"). Alternatives count on their own,
-    // case, punctuation and accents don't matter, nor does a typo in a longer word (see isSame).
-    // except = the vocab being edited, which isn't a duplicate of itself.
+    // Saved vocab with the same word and the same translation, in any category: never saved twice ("nhân vật =
+    // character" is no duplicate of "tính cách = character / personality"). One alternative per side is enough;
+    // case and punctuation don't matter, accents do. except = the vocab being edited, which isn't a duplicate
+    // of itself.
     public List<Vocab> duplicatesOf(String word, String english, Vocab except) {
-        List<Vocab> duplicates = new ArrayList<>();
+        return matching(word, english, except, String::equals);
+    }
+
+    // Saved vocab that is the same apart from a missing accent or a typo ("tinh cach = personalty" for "tính cách
+    // = character / personality"): asked about before saving, as it may be a mistake. Duplicates aren't in it.
+    public List<Vocab> similarTo(String word, String english, Vocab except) {
+        List<Vocab> similar = matching(word, english, except, VocabIndex::isAlmostSame);
+        similar.removeAll(duplicatesOf(word, english, except));
+        return similar;
+    }
+
+    private List<Vocab> matching(String word, String english, Vocab except, BiPredicate<String, String> same) {
+        List<Vocab> found = new ArrayList<>();
         for (Vocab v : all) {
-            if (v != except && sharesOption(full(v.getWord()), full(word))
-                    && sharesOption(full(v.getEnglish()), full(english))) {
-                duplicates.add(v);
+            if (v != except && sharesOption(full(v.getWord()), full(word), same)
+                    && sharesOption(full(v.getEnglish()), full(english), same)) {
+                found.add(v);
             }
         }
-        return duplicates;
+        return found;
     }
 
     // The short form written out, as the quiz reads it: "el / ella / usted quiere" -> "él quiere / ella quiere /
@@ -71,16 +84,18 @@ public class VocabIndex {
         return AnswerChecker.expandPronounShortForm(text, language);
     }
 
-    // Whether one alternative of a is the same as one of b, also with a typo (see isSame). The start of a sentence
-    // ("Yo soy... = I am...") is something else than the words alone ("yo soy = I am"), so "..." has to match too.
-    private static boolean sharesOption(String a, String b) {
+    // Whether one alternative of a is the same as one of b (after normalising: case and punctuation). The start of
+    // a sentence ("Yo soy... = I am...") is something else than the words alone ("yo soy = I am"), so "..." has
+    // to match too.
+    private static boolean sharesOption(String a, String b, BiPredicate<String, String> same) {
         for (String optionA : a.split("/")) {
             for (String optionB : b.split("/")) {
                 if (isSentenceStart(optionA) != isSentenceStart(optionB)) {
                     continue;
                 }
                 String cleanA = AnswerChecker.normalize(optionA).toLowerCase();
-                if (isSame(cleanA, AnswerChecker.normalize(optionB).toLowerCase())) {
+                String cleanB = AnswerChecker.normalize(optionB).toLowerCase();
+                if (!cleanA.isEmpty() && same.test(cleanA, cleanB)) {
                     return true;
                 }
             }
@@ -95,9 +110,9 @@ public class VocabIndex {
 
     // The same apart from accents ("tinh cach" / "tính cách"), or also one letter apart in words of 5 letters or
     // more ("personality" / "personalty"). As both sides of an entry must match, "ma = ghost" and "má = mother"
-    // stay two entries.
-    private static boolean isSame(String a, String b) {
-        if (a.isEmpty() || b.isEmpty()) {
+    // stay apart.
+    private static boolean isAlmostSame(String a, String b) {
+        if (b.isEmpty()) {
             return false;
         }
         String plainA = AnswerChecker.stripAccents(a);

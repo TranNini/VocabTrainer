@@ -631,8 +631,9 @@ function commasAsAlternatives(vocab) {
     return fixed;
 }
 
-// Sends the vocab; if the server says the category is new or a word may be misspelled, asks first and sends
-// again (each can still be followed by the next). Vocab that is already saved is never saved again.
+// Sends the vocab; if the server says the category is new, it is like a saved entry apart from a typo, or a word
+// may be misspelled, asks first and sends again (each can still be followed by the next). Vocab that is already
+// saved is never saved again.
 async function saveVocab(method, url, vocab) {
     try {
         return await api(method, url, vocab);
@@ -655,6 +656,12 @@ async function saveVocab(method, url, vocab) {
             const list = error.data.spelling.map((m) => "• " + (line[m.kind] ?? line.spelling)(m)).join("\n");
             if (confirm(`${error.message}\n\n${list}\n\nSave anyway?`)) {
                 return saveVocab(method, url, {...vocab, spellingChecked: true});
+            }
+        } else if (error.data.similar) {
+            // maybe a mistake: the same as a saved entry apart from a typo or a missing accent
+            const list = error.data.similar.map((d) => `• ${d.word} = ${d.english} [${d.category}]`).join("\n");
+            if (confirm(`${error.message}\n\n${list}\n\nSave anyway?`)) {
+                return saveVocab(method, url, {...vocab, similarChecked: true});
             }
         } else if (error.data.duplicates) {
             // never saved twice: say which entry it is, and keep the input for a change

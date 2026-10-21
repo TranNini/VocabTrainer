@@ -25,9 +25,11 @@ Spell check when saving: a word that isn't in the dictionary (Spanish, German, a
     'spanish' -> Spanish), and a sentence must start with a capital (an entry ending with . ? ! or in a
     category like sentences / sätze). It can still be saved (names, rare words). Works offline,
     with the open Hunspell dictionaries in src/main/resources/dictionaries (licences next to them)
-Never saves a duplicate (also not with two quick presses on Add: the button waits with "Saving…"): an entry with the same meaning, so the same word and the same translation (also one
-    of the '/' alternatives, and with missing accents or a one-letter typo in longer words); it lists the entries it matches.
-    Another word with the same translation is fine ("nhân vật = character" next to "tính cách = character")
+Never saves a duplicate (also not with two quick presses on Add: the button waits with "Saving…"): the same
+    word and the same translation (one '/' alternative per side is enough; capitals and punctuation don't matter,
+    accents do). If it is the same apart from a typo or a missing accent, the app asks first ("Save anyway?").
+    Another word with the same translation is fine ("nhân vật = character" next to "tính cách = character"), and
+    so are sentences that only start alike
 Save vocabulary locally (one file per language)
 Quiz saved vocabulary
 Randomized vocabulary order, in which the words that need practice tend to come first: the fewer of a
