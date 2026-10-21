@@ -176,6 +176,13 @@ class VocabIndexTest {
                 Language.forName("Spanisch").translatedInto(Language.forName("Deutsch")));
         assertEquals(List.of(), kiki.duplicatesOf("él / ella / usted corre", "er / sie / es läuft", null));
         assertEquals(1, kiki.duplicatesOf("ella tiene", "sie hat", null).size());
+        // the start of a sentence isn't the words alone; two starts are the same
+        VocabIndex soy = new VocabIndex(List.of(new Vocab("Yo soy...", "I am...", "sentences")), SPANISH);
+        assertEquals(List.of(), soy.duplicatesOf("yo soy", "I am", null));
+        assertEquals(1, soy.duplicatesOf("yo soy…", "I am…", null).size());
+        // but "!" is no difference: "Buenos días" is "¡Buenos días!"
+        VocabIndex dias = new VocabIndex(List.of(new Vocab("¡Buenos días!", "Good morning", "sentences")), SPANISH);
+        assertEquals(1, dias.duplicatesOf("Buenos días", "good morning", null).size());
         // editing an entry isn't a duplicate of itself
         assertEquals(List.of(), index.duplicatesOf("tính cách", "character", tinhCach));
     }

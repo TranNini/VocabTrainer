@@ -71,10 +71,14 @@ public class VocabIndex {
         return AnswerChecker.expandPronounShortForm(text, language);
     }
 
-    // Whether one alternative of a is the same as one of b, also with a typo (see isSame)
+    // Whether one alternative of a is the same as one of b, also with a typo (see isSame). The start of a sentence
+    // ("Yo soy... = I am...") is something else than the words alone ("yo soy = I am"), so "..." has to match too.
     private static boolean sharesOption(String a, String b) {
         for (String optionA : a.split("/")) {
             for (String optionB : b.split("/")) {
+                if (isSentenceStart(optionA) != isSentenceStart(optionB)) {
+                    continue;
+                }
                 String cleanA = AnswerChecker.normalize(optionA).toLowerCase();
                 if (isSame(cleanA, AnswerChecker.normalize(optionB).toLowerCase())) {
                     return true;
@@ -82,6 +86,11 @@ public class VocabIndex {
             }
         }
         return false;
+    }
+
+    private static boolean isSentenceStart(String option) {
+        String trimmed = option.trim();
+        return trimmed.endsWith("...") || trimmed.endsWith("…");
     }
 
     // The same apart from accents ("tinh cach" / "tính cách"), or also one letter apart in words of 5 letters or
