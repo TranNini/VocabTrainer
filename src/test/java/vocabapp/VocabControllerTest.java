@@ -267,18 +267,43 @@ class VocabControllerTest {
     }
 
     @Test
-    void asksBeforeSavingAnEntryThatDiffersOnlyByATypo() throws Exception {
-        add("también", "also / too", "general");
+    void aTypoOrMissingAccentIsADuplicateAndOneOfThemIsKept() throws Exception {
+        add("ir", "to go", "general");
         send("POST", SPANISH + "/vocab", """
-                {"word": "tambien", "english": "too", "category": "general", "spellingChecked": true}
+                {"word": "tambien", "english": "also", "category": "general", "spellingChecked": true}
+                """).andExpect(status().isCreated());
+        int tambien = library.store("Spanish").idOf(library.store("Spanish").getAll().get(1));
+        // the same apart from the accent: not saved next to it, the page asks which one to keep
+        send("POST", SPANISH + "/vocab", """
+                {"word": "también", "english": "also / too", "category": "general"}
                 """)
                 .andExpect(status().isConflict())
                 .andExpect(jsonPath("$.similar", hasSize(1)))
-                .andExpect(jsonPath("$.similar[0].word").value("también"));
+                .andExpect(jsonPath("$.similar[0].id").value(tambien));
+        // keeping the new one replaces the saved one
         send("POST", SPANISH + "/vocab", """
-                {"word": "tambien", "english": "too", "category": "general", "spellingChecked": true, "similarChecked": true}
-                """)
+                {"word": "también", "english": "also / too", "category": "general", "replaces": %d}
+                """.formatted(tambien))
                 .andExpect(status().isCreated());
+        mvc.perform(get(SPANISH + "/vocab?q=tamb"))
+                .andExpect(jsonPath("$", hasSize(1)))
+                .andExpect(jsonPath("$[0].word").value("también"));
+
+        // when editing: the edited entry stays, the similar one goes
+        int hola = add("hola", "hello", "general");
+        int ola = add("ola", "wave", "general");
+        send("PUT", SPANISH + "/vocab/" + ola, """
+                {"word": "hóla", "english": "hello", "category": "general"}
+                """)
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.similar[0].id").value(hola));
+        send("PUT", SPANISH + "/vocab/" + ola, """
+                {"word": "hóla", "english": "hello", "category": "general", "spellingChecked": true, "replaces": %d}
+                """.formatted(hola))
+                .andExpect(status().isOk());
+        mvc.perform(get(SPANISH + "/vocab?q=hello"))
+                .andExpect(jsonPath("$", hasSize(1)))
+                .andExpect(jsonPath("$[0].word").value("hóla"));
     }
 
     @Test

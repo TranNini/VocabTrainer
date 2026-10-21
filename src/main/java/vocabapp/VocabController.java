@@ -59,10 +59,11 @@ public class VocabController {
     }
 
     // newCategory = true confirms that a category which doesn't exist yet should be created;
-    // similarChecked = true confirms saving although it is like a saved entry apart from a typo or missing accent;
-    // spellingChecked = true confirms saving although a word isn't in the dictionary (a duplicate is never saved)
+    // replaces = the id of a saved entry that is the same apart from a typo or missing accent, which this one replaces
+    // (see checkSimilar); spellingChecked = true confirms saving although a word isn't in the dictionary.
+    // A duplicate is never saved.
     record VocabRequest(String word, String english, String category, String context, boolean newCategory,
-                        boolean similarChecked, boolean spellingChecked) {
+                        Integer replaces, boolean spellingChecked) {
     }
 
     // promptIpa is only filled in when the prompt is in the language, so it never gives the answer away
@@ -268,14 +269,22 @@ public class VocabController {
     @ResponseStatus(HttpStatus.CREATED)
     public VocabDto add(@PathVariable String learner, @PathVariable String language, @RequestBody VocabRequest request) {
         Vocab vocab = toVocab(learner, language, request);
+        Vocab replaced = replaced(learner, language, request);
         checkDuplicates(learner, language, vocab, null);
-        checkSimilar(learner, language, request, vocab, null);
+        checkSimilar(learner, language, vocab, null, replaced);
         checkSpelling(learner, language, request, vocab);
         VocabStore store = store(learner, language);
         // checked again and saved in one step: of two quick presses on Add, the second is always a duplicate
         synchronized (store) {
             checkDuplicates(learner, language, vocab, null);
-            store.add(vocab);
+            if (replaced == null) {
+                store.add(vocab);
+            } else {
+                store.replace(replaced, vocab);
+            }
+        }
+        if (replaced != null) {
+            library(learner).log(language).renameWord(replaced.getWord(), vocab.getWord());
         }
         return toDto(learner, language, vocab, index(learner, language));
     }
@@ -284,15 +293,23 @@ public class VocabController {
     public VocabDto update(@PathVariable String learner, @PathVariable String language, @PathVariable int id, @RequestBody VocabRequest request) {
         Vocab existing = find(learner, language, id);
         Vocab updated = toVocab(learner, language, request);
+        Vocab replaced = replaced(learner, language, request);
         checkDuplicates(learner, language, updated, existing);
-        checkSimilar(learner, language, request, updated, existing);
+        checkSimilar(learner, language, updated, existing, replaced);
         checkSpelling(learner, language, request, updated);
         VocabStore store = store(learner, language);
         synchronized (store) {
             checkDuplicates(learner, language, updated, existing);
             store.replace(existing, updated);
+            if (replaced != null && replaced != existing) {
+                store.remove(replaced);
+            }
         }
-        library(learner).log(language).renameWord(existing.getWord(), updated.getWord());
+        QuizLog log = library(learner).log(language);
+        log.renameWord(existing.getWord(), updated.getWord());
+        if (replaced != null) {
+            log.renameWord(replaced.getWord(), updated.getWord());
+        }
         return toDto(learner, language, updated, index(learner, language));
     }
 
@@ -480,22 +497,26 @@ public class VocabController {
         }
     }
 
-    // 409 listing the saved vocab that is the same apart from a typo or missing accent, unless the request
-    // already confirmed it
-    private void checkSimilar(String learner, String language, VocabRequest request, Vocab vocab, Vocab except) {
-        if (request.similarChecked()) {
-            return;
-        }
+    // 409 listing the saved vocab that is the same apart from a typo or missing accent: that counts as a duplicate
+    // too, so the page asks which one to keep. Keeping the new one sends again with the old one's id in "replaces".
+    private void checkSimilar(String learner, String language, Vocab vocab, Vocab except, Vocab replaced) {
         VocabIndex index = index(learner, language);
         List<VocabDto> similar = new ArrayList<>();
         for (Vocab v : index.similarTo(vocab.getWord(), vocab.getEnglish(), except)) {
-            similar.add(toDto(learner, language, v, index));
+            if (v != replaced) {
+                similar.add(toDto(learner, language, v, index));
+            }
         }
         if (!similar.isEmpty()) {
             throw new ApiException(HttpStatus.CONFLICT, Map.of(
-                    "error", "This looks like an entry you already have, apart from a typo or a missing accent:",
+                    "error", "This is the same as an entry you already have, apart from a typo or a missing accent.",
                     "similar", similar));
         }
+    }
+
+    // The saved entry the request replaces (see checkSimilar); null if none. It must still be there.
+    private Vocab replaced(String learner, String language, VocabRequest request) {
+        return request.replaces() == null ? null : find(learner, language, request.replaces());
     }
 
     // 409 listing every saved vocab with the same meaning (the same word and translation, see

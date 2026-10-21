@@ -27,7 +27,8 @@ Spell check when saving: a word that isn't in the dictionary (Spanish, German, a
     with the open Hunspell dictionaries in src/main/resources/dictionaries (licences next to them)
 Never saves a duplicate (also not with two quick presses on Add: the button waits with "Saving…"): the same
     word and the same translation (one '/' alternative per side is enough; capitals and punctuation don't matter,
-    accents do). If it is the same apart from a typo or a missing accent, the app asks first ("Save anyway?").
+    accents do). The same apart from a typo or a missing accent counts as a duplicate too: the app asks which of
+    the two to keep, and the new one replaces the saved one (with its quiz results) if you keep it.
     Another word with the same translation is fine ("nhân vật = character" next to "tính cách = character"), and
     so are sentences that only start alike
 Save vocabulary locally (one file per language)

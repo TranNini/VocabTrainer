@@ -658,11 +658,14 @@ async function saveVocab(method, url, vocab) {
                 return saveVocab(method, url, {...vocab, spellingChecked: true});
             }
         } else if (error.data.similar) {
-            // maybe a mistake: the same as a saved entry apart from a typo or a missing accent
-            const list = error.data.similar.map((d) => `• ${d.word} = ${d.english} [${d.category}]`).join("\n");
-            if (confirm(`${error.message}\n\n${list}\n\nSave anyway?`)) {
-                return saveVocab(method, url, {...vocab, similarChecked: true});
+            // the same apart from a typo or a missing accent counts as a duplicate: never both, so which one stays?
+            const saved = error.data.similar[0];
+            if (confirm(`${error.message}\nWhich one do you want to keep?\n\n`
+                + `Saved: ${saved.word} = ${saved.english}\nNew:   ${vocab.word.trim()} = ${vocab.english.trim()}\n\n`
+                + `OK: keep the new one (it replaces the saved one)\nCancel: keep the saved one`)) {
+                return saveVocab(method, url, {...vocab, replaces: saved.id});
             }
+            throw new Error(`Not saved: kept "${saved.word} = ${saved.english}".`);
         } else if (error.data.duplicates) {
             // never saved twice: say which entry it is, and keep the input for a change
             const list = error.data.duplicates.map((d) => `• ${d.word} = ${d.english} [${d.category}]`).join("\n");
