@@ -23,6 +23,7 @@ target/
 
 vocab.txt
 vocab/
+backups/
 
 ### NetBeans ###
 /nbproject/private/

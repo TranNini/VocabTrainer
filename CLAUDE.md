@@ -53,6 +53,8 @@ Docker Desktop must be running. The NAS picks up the image at the next 05:00 run
     volumes:
       - /share/CACHEDEV1_DATA/homes/jank/vocab-learning-app/vocab:/app/vocab
       - /share/CACHEDEV1_DATA/homes/jank/vocab-learning-app/access-code.txt:/app/access-code.txt
+      # nightly copies, kept 30 days (same disk: against mistakes, not a broken disk)
+      - /share/CACHEDEV1_DATA/homes/jank/vocab-learning-app-backups:/app/backups
 ```
 
 ### HTTPS from the internet (Caddy, in the same compose.yaml)
@@ -116,4 +118,8 @@ If netcup switches the legacy API off or moves the domain to CloudDNS, ddns-upda
   even on the NAS, connects through the bridge network, so every device needs the access code.
 - **Vocab data lives only on the NAS:** `vocab/` and `access-code.txt` are git-ignored, so the files in the NAS data dir are
   the only copy of the vocabulary entered there. Never delete that dir or remove the volume mounts.
+- **Backups:** the app copies `vocab/` and the access code every night at 03:30 (and after a start, if today
+  has none) into `vocab-learning-app-backups/<date>/`, kept 30 days. They are on the same disk as the data, so
+  they help against mistakes, not a broken disk. To restore: stop the container, copy the files back from
+  `<date>/vocab/` into `vocab-learning-app/vocab/`, start it again.
 - **Old images:** each update leaves the old image behind (`<none>`). Clean up with `docker image prune -f` on the NAS.

@@ -39,6 +39,7 @@ class VocabControllerTest {
     @DynamicPropertySource
     static void files(DynamicPropertyRegistry registry) {
         registry.add("vocab.dir", () -> dir.resolve("vocab").toString());
+        registry.add("vocab.backup-dir", () -> dir.resolve("backups").toString());
         registry.add("vocab.old-file", () -> dir.resolve("vocab.txt").toString());
         registry.add("vocab.access-code-file", () -> dir.resolve("access-code.txt").toString());
     }

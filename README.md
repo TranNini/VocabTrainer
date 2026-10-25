@@ -127,6 +127,11 @@ Where the vocabulary is saved:
     A deleted learner's folder is moved to vocab/.deleted/<name> <date time>; to restore it, move it back
     to vocab/ (named like before, without the date) and restart the app.
 
+Backups:
+    Every night at 03:30 (and right after a start, if today has none yet) the whole vocab folder and the
+    access code are copied to backups/<date>/, kept 30 days (vocab.backup-* in application.properties).
+    To get something back, stop the app, copy the files from backups/<date>/vocab/ into vocab/ and start it again.
+
 Adding verb conjugations (Spanish, German, English):
     Add the infinitive (e.g. tener) and its forms starting with the pronoun (yo tengo, tú tienes, ...) in
     a verb category. Each form is listed under the infinitive it fits: by its spelling (corro -> correr, tienes
@@ -161,6 +166,7 @@ SpanishIpa.java - works out the IPA pronunciation from the Spanish spelling
 WebApp.java - starts the app
 AccessCode.java, AccessFilter.java, LoginController.java - the access code for other devices
 StartupInfo.java - prints the iPhone address and access code on start
+VocabBackup.java - the nightly copy of the vocab folder
 VocabController.java - the web API the page talks to (/api/languages/...)
 src/main/resources/static - the web page (index.html, style.css, app.js)
 
