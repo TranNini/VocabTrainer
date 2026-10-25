@@ -140,11 +140,12 @@ public class VocabLibrary {
         return into;
     }
 
-    // A language or learner name, also used as a file or folder name: letters, spaces and "-" only
-    // (so never "../"), up to 30, starting with a capital ("italian" -> "Italian")
+    // A language or learner name, also used as a file or folder name: letters, spaces, "-" and brackets only
+    // (so never "../"), up to 30, starting with a capital ("italian" -> "Italian"). Brackets name a script:
+    // "Japanese (Hiragana)"
     static String cleanName(String name, String what) {
         String trimmed = name == null ? "" : name.trim().replaceAll(" +", " ");
-        if (!trimmed.matches("\\p{L}[\\p{L} -]{0,29}")) {
+        if (!trimmed.matches("\\p{L}[\\p{L} ()-]{0,29}")) {
             throw new IllegalArgumentException("Please use only letters for the " + what + " (up to 30).");
         }
         return trimmed.substring(0, 1).toUpperCase() + trimmed.substring(1);

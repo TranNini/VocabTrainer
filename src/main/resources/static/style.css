@@ -683,3 +683,11 @@ ul.plain li {
 .stats-periods tr:last-child th, .stats-periods tr:last-child td {
     border-bottom: none;
 }
+
+/* the reading (romaji, pinyin …) next to the word in the word list */
+.word-line .reading {
+    display: block;
+    font-weight: 400;
+    font-size: 0.85rem;
+    color: var(--muted);
+}

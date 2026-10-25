@@ -60,16 +60,21 @@ class VocabStoreTest {
     }
 
     @Test
-    void savesContextAsAFourthColumnOnlyWhenThereIsOne() throws IOException {
+    void savesContextAndReadingAsFourthAndFifthColumnOnlyWhenThereAreSome() throws IOException {
         Path file = dir.resolve("vocab.txt");
-        Files.writeString(file, "hablar;to talk;verbs\nser;to be;verbs;permanent things; e.g. origin\n");
+        Files.writeString(file, "hablar;to talk;verbs\nser;to be;verbs;permanent things, e.g. origin\n猫;cat;general;;neko\n");
         VocabStore store = new VocabStore(file);
         assertEquals("", store.getAll().get(0).getContext());
-        assertEquals("permanent things; e.g. origin", store.getAll().get(1).getContext());
+        assertEquals("permanent things, e.g. origin", store.getAll().get(1).getContext());
+        assertEquals("", store.getAll().get(1).getReading());
+        assertEquals("neko", store.getAll().get(2).getReading());
+        assertEquals("", store.getAll().get(2).getContext());
 
         store.add(new Vocab("estar", "to be", "verbs", "  temporary states "));
-        assertEquals(List.of("hablar;to talk;verbs", "ser;to be;verbs;permanent things; e.g. origin",
-                "estar;to be;verbs;temporary states"), Files.readAllLines(file));
+        store.add(new Vocab("犬", "dog", "general", "a pet", "inu"));
+        assertEquals(List.of("hablar;to talk;verbs", "ser;to be;verbs;permanent things, e.g. origin",
+                "猫;cat;general;;neko", "estar;to be;verbs;temporary states", "犬;dog;general;a pet;inu"),
+                Files.readAllLines(file));
     }
 
     @Test

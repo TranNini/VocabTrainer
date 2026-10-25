@@ -39,10 +39,11 @@ public class VocabController {
 
     // ipa = whether IPA can be shown; specialLetters = buttons for letters a normal keyboard lacks
     // englishName = the language whatever the list is called ("Spanisch" -> "Spanish"); translation = what it is
-    // translated into ("English", "Deutsch"), with its English name and letter buttons
+    // translated into ("English", "Deutsch"), with its English name and letter buttons; readingName = the row
+    // between word and translation ("Romaji"), null if the language has none, with its letter buttons
     record LanguageDto(String name, String englishName, int count, boolean ipa, List<String> specialLetters,
                        String dictionaryName, String translation, String translationEnglishName,
-                       List<String> translationLetters) {
+                       List<String> translationLetters, String readingName, List<String> readingLetters) {
     }
 
     record NewNameRequest(String name) {
@@ -55,8 +56,9 @@ public class VocabController {
     record CategoryDto(String name, int count) {
     }
 
+    // reading = "neko" for 猫 in a Japanese list, "" in languages without a reading row
     record VocabDto(int id, String word, String english, String category, String context, String section,
-                    boolean conjugation, String ipa, String dictionaryUrl) {
+                    boolean conjugation, String ipa, String dictionaryUrl, String reading) {
     }
 
     // newCategory = true confirms that a category which doesn't exist yet should be created;
@@ -64,11 +66,12 @@ public class VocabController {
     // (see checkSimilar); spellingChecked = true confirms saving although a word isn't in the dictionary.
     // A duplicate is never saved.
     record VocabRequest(String word, String english, String category, String context, boolean newCategory,
-                        Integer replaces, boolean spellingChecked) {
+                        Integer replaces, boolean spellingChecked, String reading) {
     }
 
-    // promptIpa is only filled in when the prompt is in the language, so it never gives the answer away
-    record QuestionDto(int id, boolean answerInLanguage, String prompt, String promptIpa) {
+    // promptIpa and promptReading (the romaji of a kanji prompt) are only filled in when the prompt is in the
+    // language, so they never give the answer away
+    record QuestionDto(int id, boolean answerInLanguage, String prompt, String promptIpa, String promptReading) {
     }
 
     // hints = how many hints the hint button gave for this question, for the statistics
@@ -76,9 +79,9 @@ public class VocabController {
     }
 
     // finished = no more tries for this question; once finished, answer = the full answer with all
-    // alternatives, ipa / dictionaryUrl are for the word in the language, and context is its note
+    // alternatives, ipa / dictionaryUrl / reading are for the word in the language, and context is its note
     record CheckResult(boolean correct, String feedback, String answer, boolean finished, String ipa,
-                       String dictionaryUrl, String context) {
+                       String dictionaryUrl, String context, String reading) {
     }
 
     // shown = the hints already shown for this question, so the next one says more
@@ -192,7 +195,7 @@ public class VocabController {
             }
             for (Vocab v : from.getAll()) {
                 if (have.add(v.getWord().toLowerCase() + ";" + v.getEnglish().toLowerCase())) {
-                    to.add(new Vocab(v.getWord(), v.getEnglish(), v.getCategory(), v.getContext()));
+                    to.add(new Vocab(v.getWord(), v.getEnglish(), v.getCategory(), v.getContext(), v.getReading()));
                     copied++;
                 } else {
                     skipped++;
@@ -341,7 +344,9 @@ public class VocabController {
         for (Vocab v : vocab) {
             Question question = Question.from(v, rules, random);
             String promptIpa = question.answerInLanguage() ? null : rules.ipa(question.prompt());
-            questions.add(new QuestionDto(store(learner, language).idOf(v), question.answerInLanguage(), question.prompt(), promptIpa));
+            String promptReading = question.answerInLanguage() || v.getReading().isEmpty() ? null : v.getReading();
+            questions.add(new QuestionDto(store(learner, language).idOf(v), question.answerInLanguage(),
+                    question.prompt(), promptIpa, promptReading));
         }
         return questions;
     }
@@ -366,17 +371,21 @@ public class VocabController {
         String ipa = rules.ipa(vocab.getWord());
         String dictionaryUrl = rules.dictionaryUrl(vocab.getWord());
         String context = vocab.getContext();
+        // only the kanji counts as the Japanese answer; the romaji is shown with it afterwards
+        String reading = vocab.getReading().isEmpty() ? null : vocab.getReading();
         if (AnswerChecker.isCorrect(answer, expected, rules)) {
             logResult(learner, language, vocab, request, request.attempt());
-            return new CheckResult(true, "Correct!", AnswerChecker.allOptions(expected), true, ipa, dictionaryUrl, context);
+            return new CheckResult(true, "Correct!", AnswerChecker.allOptions(expected), true, ipa, dictionaryUrl,
+                    context, reading);
         }
         if (request.attempt() < AnswerChecker.MAX_ATTEMPTS) {
             return new CheckResult(false, AnswerChecker.feedback(answer, expected, rules,
                     request.shown() == null ? List.of() : request.shown()),
-                    null, false, null, null, null);
+                    null, false, null, null, null, null);
         }
         logResult(learner, language, vocab, request, 0);
-        return new CheckResult(false, "Not quite.", AnswerChecker.allOptions(expected), true, ipa, dictionaryUrl, context);
+        return new CheckResult(false, "Not quite.", AnswerChecker.allOptions(expected), true, ipa, dictionaryUrl,
+                context, reading);
     }
 
     // The hint button; doesn't count as a try and never repeats a hint shown for this question
@@ -439,13 +448,16 @@ public class VocabController {
         String word = request.word() == null ? "" : Normalizer.normalize(request.word(), Normalizer.Form.NFC).trim();
         String english = request.english() == null ? "" : Normalizer.normalize(request.english(), Normalizer.Form.NFC).trim();
         if (word.isEmpty() || english.isEmpty()) {
-            throw new ApiException(HttpStatus.BAD_REQUEST, "Fill in both the word and the English translation.");
+            throw new ApiException(HttpStatus.BAD_REQUEST, "Fill in both the word and its translation.");
         }
-        if (word.contains(";") || english.contains(";")) {
-            throw new ApiException(HttpStatus.BAD_REQUEST, "Don't use ';' — it separates the columns in the vocab file.");
-        }
+        // the reading only for a language with a reading row (Japanese romaji, Chinese pinyin …)
+        String reading = request.reading() == null || rules(learner, language).getReadingName() == null ? ""
+                : Normalizer.normalize(request.reading(), Normalizer.Form.NFC).trim();
         // one line in the file: line breaks in the note become spaces
         String context = request.context() == null ? "" : request.context().replaceAll("\\s*[\\r\\n]+\\s*", " ").trim();
+        if (word.contains(";") || english.contains(";") || reading.contains(";") || context.contains(";")) {
+            throw new ApiException(HttpStatus.BAD_REQUEST, "Don't use ';' — it separates the columns in the vocab file.");
+        }
         if (context.length() > 500) {
             throw new ApiException(HttpStatus.BAD_REQUEST, "Keep the context under 500 characters.");
         }
@@ -463,13 +475,13 @@ public class VocabController {
             category = typed;
         }
         // alternatives are separated with "/", a comma is only for sentences ("Oye, ¿qué haces?")
-        for (String side : List.of(word, english)) {
+        for (String side : List.of(word, english, reading)) {
             if (side.contains(",") && !SpellChecker.isSentenceCategory(category) && !side.matches(".*[.?!…]$")) {
                 throw new ApiException(HttpStatus.BAD_REQUEST, "Use / instead of a comma for alternatives: '"
                         + side.replaceAll("\\s*,\\s*", " / ") + "'. A comma is only for sentences.");
             }
         }
-        return new Vocab(word, english, category, context);
+        return new Vocab(word, english, category, context, reading);
     }
 
     // kind: SpellChecker.SPELLING, CAPITAL or SENTENCE
@@ -550,16 +562,18 @@ public class VocabController {
             translationLetters = specialLettersIn(all.stream().map(Vocab::getEnglish).toList());
         }
         return new LanguageDto(rules.getName(), rules.getEnglishName(), all.size(), rules.hasIpa(), letters,
-                rules.getDictionaryName(), translation.getName(), translation.getEnglishName(), translationLetters);
+                rules.getDictionaryName(), translation.getName(), translation.getEnglishName(), translationLetters,
+                rules.getReadingName(), rules.getReadingLetters());
     }
 
-    // Letters beyond a–z used in the saved words, e.g. "à", "è", "ç" for a new language
-    // The letters beyond a-z in these texts ("caffè" -> "è"), small only (⇧ makes capitals)
+    // The Latin letters beyond a-z in these texts ("caffè" -> "è"), small only (⇧ makes capitals). Not kanji,
+    // kana or hangul: they come from the keyboard, and would be a button each.
     private static List<String> specialLettersIn(List<String> texts) {
         TreeSet<String> letters = new TreeSet<>();
         for (String text : texts) {
             text.toLowerCase().codePoints()
-                    .filter(c -> Character.isLetter(c) && c > 127)
+                    .filter(c -> Character.isLetter(c) && c > 127
+                            && Character.UnicodeScript.of(c) == Character.UnicodeScript.LATIN)
                     .forEach(c -> letters.add(Character.toString(c)));
         }
         return new ArrayList<>(letters);
@@ -568,7 +582,8 @@ public class VocabController {
     private VocabDto toDto(String learner, String language, Vocab v, VocabIndex index) {
         Language rules = library(learner).language(language);
         return new VocabDto(store(learner, language).idOf(v), v.getWord(), v.getEnglish(), v.getCategory(), v.getContext(),
-                index.sectionLetter(v), index.isConjugation(v), rules.ipa(v.getWord()), rules.dictionaryUrl(v.getWord()));
+                index.sectionLetter(v), index.isConjugation(v), rules.ipa(v.getWord()), rules.dictionaryUrl(v.getWord()),
+                v.getReading());
     }
 
     private static String blankToNull(String text) {

@@ -142,7 +142,8 @@ public class VocabIndex {
                 match = order.equals(sectionLetter(v), query);
             } else {
                 match = v.getWord().toLowerCase().contains(query.toLowerCase())
-                        || v.getEnglish().toLowerCase().contains(query.toLowerCase());
+                        || v.getEnglish().toLowerCase().contains(query.toLowerCase())
+                        || v.getReading().toLowerCase().contains(query.toLowerCase());
             }
             if (match) {
                 matches.add(v);
@@ -170,8 +171,12 @@ public class VocabIndex {
         return infinitives.getOrDefault(v, v);
     }
 
-    // "la abuela" -> "abuela", "¡Hola!" -> "Hola"
+    // "la abuela" -> "abuela", "¡Hola!" -> "Hola"; with a reading the reading ("猫" -> "neko"), so a Japanese
+    // list sorts and has sections A-Z
     private String sortKey(Vocab v) {
+        if (!v.getReading().isEmpty()) {
+            return AnswerChecker.normalize(v.getReading());
+        }
         String word = AnswerChecker.normalize(v.getWord());
         String[] words = word.split(" ", 2);
         if (words.length == 2) {

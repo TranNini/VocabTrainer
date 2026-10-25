@@ -42,6 +42,9 @@ public class Language {
     private final List<String> spellDictionaries;
     // the other side of the word list; null = English
     private final Language translation;
+    // the row between the word and its translation for languages in their own script ("Romaji"); null = none
+    private String readingName;
+    private List<String> readingLetters = List.of();
 
     private Language(String name, List<String> articles, List<List<String>> subjectPronouns,
                      boolean pronounsOptional, List<String> specialLetters, UnaryOperator<String> ipa,
@@ -73,6 +76,15 @@ public class Language {
         this.dictionaryUrl = language.dictionaryUrl;
         this.spellDictionaries = language.spellDictionaries;
         this.translation = translation;
+        this.readingName = language.readingName;
+        this.readingLetters = language.readingLetters;
+    }
+
+    // for the rules below: a reading row with its letter buttons
+    private Language withReading(String name, List<String> letters) {
+        readingName = name;
+        readingLetters = letters;
+        return this;
     }
 
     // The same language, with the vocab translated into another one ("Spanisch" into "German")
@@ -101,12 +113,23 @@ public class Language {
             Map.entry("ingles", "english"), Map.entry("vietnamita", "vietnamese"),
             // in Vietnamese
             Map.entry("tieng viet", "vietnamese"), Map.entry("tieng anh", "english"), Map.entry("tieng duc", "german"),
-            Map.entry("tieng tay ban nha", "spanish"));
+            Map.entry("tieng tay ban nha", "spanish"),
+            // Japanese, Chinese and Korean
+            Map.entry("japanisch", "japanese"), Map.entry("japones", "japanese"), Map.entry("tieng nhat", "japanese"),
+            Map.entry("日本語", "japanese"), Map.entry("chinesisch", "chinese"), Map.entry("chino", "chinese"),
+            Map.entry("mandarin", "chinese"), Map.entry("tieng trung", "chinese"), Map.entry("中文", "chinese"),
+            Map.entry("koreanisch", "korean"), Map.entry("coreano", "korean"), Map.entry("tieng han", "korean"),
+            Map.entry("한국어", "korean"));
 
     // "Spanisch" -> "spanish": the English name, in lower case
     static String englishName(String name) {
-        String lower = name.trim().toLowerCase();
+        String lower = withoutScript(name).toLowerCase();
         return OTHER_NAMES.getOrDefault(plain(lower), lower);
+    }
+
+    // "Japanese (Kanji)" -> "Japanese": the script in brackets makes a list of its own, the rules are the language's
+    private static String withoutScript(String name) {
+        return name.replaceAll("\\s*\\(.*\\)\\s*$", "").trim();
     }
 
     // "tiếng việt" -> "tieng viet" (đ -> d too, which isn't an accent in Unicode)
@@ -128,8 +151,39 @@ public class Language {
         if (english.equals("english")) {
             return english(name);
         }
+        if (english.equals("japanese")) {
+            return japanese(name);
+        }
+        if (english.equals("chinese")) {
+            return chinese(name);
+        }
+        if (english.equals("korean")) {
+            return korean(name);
+        }
         return new Language(name, List.of(), List.of(), false, List.of(), null,
                 "Wiktionary", "https://en.wiktionary.org/wiki/%s#" + name.replace(' ', '_'), List.of());
+    }
+
+    // Kanji, hiragana and katakana each in a list of their own ("Japanese (Kanji)"), all with romaji and
+    // JapanDict; the romaji row has buttons for the long vowels (ā ī ū ē ō)
+    private static Language japanese(String name) {
+        return new Language(name, List.of(), List.of(), false, List.of(), null,
+                "JapanDict", "https://www.japandict.com/?s=%s&lang=eng", List.of())
+                .withReading("Romaji", List.of("ā", "ī", "ū", "ē", "ō"));
+    }
+
+    // Hanzi with pinyin; the pinyin row has the four tone marks, to type after the vowel, and ü
+    private static Language chinese(String name) {
+        return new Language(name, List.of(), List.of(), false, List.of(), null,
+                "Wiktionary", "https://en.wiktionary.org/wiki/%s#Chinese", List.of())
+                .withReading("Pinyin", List.of("\u0304", "\u0301", "\u030C", "\u0300", "ü"));
+    }
+
+    // Hangul with its romanization (plain letters)
+    private static Language korean(String name) {
+        return new Language(name, List.of(), List.of(), false, List.of(), null,
+                "Wiktionary", "https://en.wiktionary.org/wiki/%s#Korean", List.of())
+                .withReading("Romanization", List.of());
     }
 
     // "to" counts as an article too, so "to have" sorts under H; the pronouns group "I have" under "to have"
@@ -189,8 +243,23 @@ public class Language {
 
     // The language in English, whatever the list is called: "Spanisch" -> "Spanish"
     public String getEnglishName() {
-        String other = OTHER_NAMES.get(plain(name.trim().toLowerCase()));
-        return other == null ? name : other.substring(0, 1).toUpperCase() + other.substring(1);
+        String other = OTHER_NAMES.get(plain(withoutScript(name).toLowerCase()));
+        if (other == null) {
+            other = withoutScript(name).toLowerCase();
+            if (!LOCALES.containsKey(other)) {
+                return name; // a language the app has no rules for keeps its name
+            }
+        }
+        return other.substring(0, 1).toUpperCase() + other.substring(1);
+    }
+
+    // "Romaji", "Pinyin", "Romanization": the row between the word and its translation; null = none
+    public String getReadingName() {
+        return readingName;
+    }
+
+    public List<String> getReadingLetters() {
+        return readingLetters;
     }
 
     public Collator getCollator() {

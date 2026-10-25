@@ -81,13 +81,14 @@ public class VocabStore {
                 if (line.isBlank()) {
                     continue;
                 }
-                // word;english;category;context - older lines have no category, most have no context.
-                // The context is last, so it may contain ";" itself.
-                String[] parts = line.split(";", 4);
+                // word;english;category;context;reading - older lines have no category, most have no context,
+                // only languages with a reading row (Japanese …) have a reading. Saved notes have no ";".
+                String[] parts = line.split(";", 5);
                 if (parts.length >= 2) {
                     String category = parts.length >= 3 ? parts[2].trim() : Vocab.DEFAULT_CATEGORY;
-                    String context = parts.length == 4 ? parts[3] : "";
-                    track(new Vocab(parts[0].trim(), parts[1].trim(), category, context));
+                    String context = parts.length >= 4 ? parts[3] : "";
+                    String reading = parts.length == 5 ? parts[4] : "";
+                    track(new Vocab(parts[0].trim(), parts[1].trim(), category, context, reading));
                 }
             }
         } catch (IOException e) {
@@ -99,8 +100,11 @@ public class VocabStore {
         try (BufferedWriter writer = Files.newBufferedWriter(path)) {
             for (Vocab v : vocabList) {
                 writer.write(v.getWord() + ";" + v.getEnglish() + ";" + v.getCategory());
-                if (!v.getContext().isEmpty()) {
+                if (!v.getContext().isEmpty() || !v.getReading().isEmpty()) {
                     writer.write(";" + v.getContext());
+                }
+                if (!v.getReading().isEmpty()) {
+                    writer.write(";" + v.getReading());
                 }
                 writer.newLine();
             }

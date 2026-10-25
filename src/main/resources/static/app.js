@@ -488,6 +488,13 @@ function showTranslationLanguage() {
         label.textContent = language.translation;
     }
     $("bracket-hint").hidden = !isEnglish(language.translationEnglishName);
+    // the row between word and translation for Japanese, Chinese, Korean (romaji, pinyin …)
+    $("add-reading-row").hidden = !language.readingName;
+    for (const label of document.querySelectorAll(".reading-name")) {
+        label.textContent = language.readingName ?? "";
+    }
+    addAccentButtons(document.querySelector("#add-form .reading-accents"), $("add-reading"),
+        language.readingLetters ?? [], Boolean(language.readingName));
     addAccentButtons(document.querySelector("#add-form .translation-accents"), $("add-english"),
         language.translationLetters, true, addFormHoldsSentences);
 }
@@ -617,7 +624,8 @@ function wireCategorySelect(select, newInput) {
 function commasAsAlternatives(vocab) {
     const sentence = (text) => isSentenceCategory(vocab.category) || /[.?!…]\s*$/.test(text.trim());
     const fixed = {...vocab};
-    for (const [field, side] of [["word", language.name], ["english", language.translation]]) {
+    for (const [field, side] of [["word", language.name], ["reading", language.readingName],
+        ["english", language.translation]]) {
         const text = vocab[field] ?? "";
         if (!text.includes(",") || sentence(text)) {
             continue;
@@ -734,7 +742,10 @@ function showQuestion() {
     $("quiz-prompt").textContent = question.prompt;
     // promptIpa only comes with prompts in the language
     $("quiz-prompt-ipa").hidden = true;
-    $("quiz-prompt-ipa-toggle").replaceChildren(...ipaButtons(question.promptIpa, $("quiz-prompt-ipa")));
+    // the romaji of a kanji prompt on a button, like the IPA (both show in the same line below)
+    $("quiz-prompt-ipa-toggle").replaceChildren(...ipaButtons(question.promptIpa, $("quiz-prompt-ipa")),
+        ...(question.promptReading ? [toggleButton(language.readingName, `Show the ${language.readingName.toLowerCase()}`,
+            question.promptReading, $("quiz-prompt-ipa"))] : []));
     $("quiz-extras").hidden = true;
     $("quiz-answer-ipa").hidden = true;
     // the letter buttons of the side to answer in (hidden when it has none)
@@ -779,7 +790,13 @@ async function checkAnswer() {
         // always show the complete answer, even after a correct one, so all alternatives are seen
         $("quiz-full-answer").replaceChildren(
             el("span", {className: "muted", textContent: "Answer: "}),
-            el("strong", {textContent: result.answer}));
+            el("strong", {textContent: result.answer}),
+            // the romaji with the kanji: "猫 (neko)"; after a kanji prompt it opens under the prompt instead
+            ...(result.reading && question.answerInLanguage ? [` (${result.reading})`] : []));
+        if (result.reading && !question.answerInLanguage) {
+            $("quiz-prompt-ipa").textContent = result.reading;
+            $("quiz-prompt-ipa").hidden = false;
+        }
         $("quiz-full-answer").hidden = false;
         // the note only shows once the question is over, so it never gives the answer away
         $("quiz-context").textContent = result.context;
@@ -865,6 +882,7 @@ async function addVocab(event) {
 async function saveNewVocab() {
     const vocab = {
         word: $("add-word").value,
+        reading: $("add-reading").value,
         english: $("add-english").value,
         context: $("add-context").value,
         ...readCategory($("add-category"), $("add-new-category")),
@@ -875,6 +893,7 @@ async function saveNewVocab() {
         $("add-recent-list").prepend(el("li", {textContent: `${saved.word} = ${saved.english} [${saved.category}]`}));
         // keep the category, so a whole verb can be added in a row
         $("add-word").value = "";
+        $("add-reading").value = "";
         $("add-english").value = "";
         $("add-context").value = "";
         $("add-new-category").value = "";
@@ -953,7 +972,8 @@ function addConjugation(verb, row, open) {
 function wordRow(word) {
     const row = el("div", {className: "word" + (word.conjugation ? " conjugation" : "")});
     const line = el("button", {type: "button", className: "word-line"},
-        el("span", {className: "es", textContent: word.word}),
+        el("span", {className: "es"}, word.word,
+            ...(word.reading ? [el("span", {className: "reading", textContent: word.reading})] : [])),
         el("span", {className: "en", textContent: word.english}));
     line.addEventListener("click", () => {
         const open = row.querySelector("form");
@@ -974,8 +994,13 @@ function wordRow(word) {
 function editForm(word) {
     const form = $("edit-template").content.firstElementChild.cloneNode(true);
     const wordInput = form.elements.word;
-    const {english, context, category, newCategory} = form.elements;
+    const {english, context, category, newCategory, reading} = form.elements;
     form.querySelector(".lang-name").textContent = language.name;
+    form.querySelector(".reading-row").hidden = !language.readingName;
+    form.querySelector(".reading-name").textContent = language.readingName ?? "";
+    reading.value = word.reading ?? "";
+    addAccentButtons(form.querySelector(".reading-accents"), reading, language.readingLetters ?? [],
+        Boolean(language.readingName));
     form.querySelector(".translation-name").textContent = language.translation;
     wordInput.value = word.word;
     english.value = word.english;
@@ -998,6 +1023,7 @@ function editForm(word) {
         try {
             await saveVocab("PUT", langUrl("/vocab/" + word.id), commasAsAlternatives({
                 word: wordInput.value,
+                reading: reading.value,
                 english: english.value,
                 context: context.value,
                 ...readCategory(category, newCategory),

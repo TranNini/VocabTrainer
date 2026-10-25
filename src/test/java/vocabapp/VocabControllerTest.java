@@ -396,8 +396,12 @@ class VocabControllerTest {
         send("POST", SPANISH + "/vocab", """
                 {"word": "ser", "english": "to be", "category": "", "context": "permanent things;\\nlike origin"}
                 """)
+                .andExpect(status().isBadRequest()); // ";" separates the columns in the file
+        send("POST", SPANISH + "/vocab", """
+                {"word": "ser", "english": "to be", "category": "", "context": "permanent things,\\nlike origin"}
+                """)
                 .andExpect(status().isCreated())
-                .andExpect(jsonPath("$.context").value("permanent things; like origin"));
+                .andExpect(jsonPath("$.context").value("permanent things, like origin"));
         VocabStore store = library.store("Spanish");
         int id = store.idOf(store.getAll().get(0));
 
@@ -407,7 +411,7 @@ class VocabControllerTest {
         send("POST", SPANISH + "/quiz/check", check.formatted(id, "estar", 1))
                 .andExpect(jsonPath("$.context").value(nullValue()));
         send("POST", SPANISH + "/quiz/check", check.formatted(id, "ser", 1))
-                .andExpect(jsonPath("$.context").value("permanent things; like origin"));
+                .andExpect(jsonPath("$.context").value("permanent things, like origin"));
 
         send("PUT", SPANISH + "/vocab/" + id, """
                 {"word": "ser", "english": "to be", "category": "general", "context": ""}
@@ -660,5 +664,63 @@ class VocabControllerTest {
         mvc.perform(get("/api/learners/Anypair/languages"))
                 .andExpect(jsonPath("$[?(@.name == 'Deutsch')].translationLetters[0]").value("è"));
         mvc.perform(delete("/api/learners/Anypair")).andExpect(status().isNoContent());
+    }
+
+    @Test
+    void japaneseHasARomajiRowAndOnlyTheKanjiIsTheAnswer() throws Exception {
+        send("POST", "/api/learners", """
+                {"name": "Kanjitest"}
+                """).andExpect(status().isCreated());
+        send("POST", "/api/learners/Kanjitest/languages", """
+                {"name": "Japanese (Kanji)", "translation": "Deutsch"}
+                """)
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.name").value("Japanese (Kanji)"))
+                .andExpect(jsonPath("$.englishName").value("Japanese"))
+                .andExpect(jsonPath("$.readingName").value("Romaji"))
+                .andExpect(jsonPath("$.readingLetters[0]").value("ā"))
+                .andExpect(jsonPath("$.dictionaryName").value("JapanDict"))
+                .andExpect(jsonPath("$.specialLetters", hasSize(0)));
+        String url = "/api/learners/Kanjitest/languages/Japanese (Kanji)";
+        send("POST", url + "/vocab", """
+                {"word": "猫", "reading": "neko", "english": "die Katze", "category": "general", "newCategory": true}
+                """)
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.reading").value("neko"))
+                .andExpect(jsonPath("$.section").value("N"))
+                .andExpect(jsonPath("$.dictionaryUrl").value("https://www.japandict.com/?s=%E7%8C%AB&lang=eng"));
+        send("POST", url + "/vocab", """
+                {"word": "犬", "reading": "inu, ken", "english": "der Hund", "category": "general"}
+                """).andExpect(status().isBadRequest()); // a comma in the romaji too
+        send("POST", url + "/vocab", """
+                {"word": "犬", "reading": "inu", "english": "der Hund", "category": "general"}
+                """).andExpect(status().isCreated());
+        // sorted by the romaji, found by it, no letter buttons for the kanji
+        mvc.perform(get(url + "/vocab?category=&q=")).andExpect(jsonPath("$[0].word").value("犬"));
+        mvc.perform(get(url + "/vocab?category=&q=neko")).andExpect(jsonPath("$[0].word").value("猫"));
+        mvc.perform(get("/api/learners/Kanjitest/languages")).andExpect(jsonPath("$[0].specialLetters", hasSize(0)));
+
+        int id = learners.library("Kanjitest").store("Japanese (Kanji)").idOf(
+                learners.library("Kanjitest").store("Japanese (Kanji)").getAll().get(0));
+        // only the kanji counts; afterwards the romaji comes with it
+        send("POST", url + "/quiz/check", """
+                {"id": %d, "answerInLanguage": true, "answer": "neko", "attempt": 3, "shown": []}
+                """.formatted(id))
+                .andExpect(jsonPath("$.correct").value(false))
+                .andExpect(jsonPath("$.answer").value("猫"))
+                .andExpect(jsonPath("$.reading").value("neko"));
+        send("POST", url + "/quiz/check", """
+                {"id": %d, "answerInLanguage": true, "answer": "猫", "attempt": 1, "shown": []}
+                """.formatted(id)).andExpect(jsonPath("$.correct").value(true));
+        // a kanji prompt carries its romaji, for the Romaji button
+        mvc.perform(get(url + "/quiz?refresh=false")).andExpect(jsonPath("$[?(@.answerInLanguage == false)].promptReading")
+                .value(org.hamcrest.Matchers.everyItem(org.hamcrest.Matchers.oneOf("neko", "inu"))));
+
+        // kept in the file as the fifth column; a ";" in a note isn't saved
+        assertTrue(Files.readString(dir.resolve("vocab/Kanjitest/Japanese (Kanji).txt")).contains("猫;die Katze;general;;neko"));
+        send("POST", url + "/vocab", """
+                {"word": "鳥", "reading": "tori", "english": "der Vogel", "category": "general", "context": "a;b"}
+                """).andExpect(status().isBadRequest());
+        mvc.perform(delete("/api/learners/Kanjitest")).andExpect(status().isNoContent());
     }
 }

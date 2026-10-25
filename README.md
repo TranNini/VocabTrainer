@@ -84,6 +84,15 @@ German extras:
     Conjugations (ich, du, er/sie/es, wir, ihr, sie/Sie) are grouped under their infinitive
     Spell check with the German dictionary, also of capitalised nouns
 
+Japanese, Chinese and Korean extras:
+    Three rows: the word (kanji, hanzi, hangul), its reading (Romaji, Pinyin, Romanization) and the translation.
+    A script in brackets makes a list of its own with the same rules: Japanese (Kanji), Japanese (Hiragana),
+    Japanese (Katakana). In the quiz only the word itself counts as the answer (e.g. 猫, not "neko"); when the
+    word is the question, a button shows its reading, and the answer shows both: 猫 (neko). The word list is
+    sorted and grouped A-Z by the reading, and search finds it. Buttons on the reading row: ā ī ū ē ō for romaji,
+    the four tone marks and ü for pinyin. Japanese words link to JapanDict (japandict.com)
+    The reading is the fifth column in the file: word;translation;category;note;reading
+
 How to run:
 
     Run vocabapp.WebApp (in IntelliJ: open WebApp.java and click Run),

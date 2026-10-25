@@ -1,7 +1,7 @@
 package vocabapp;
 
-// One entry: the word or sentence in the language you learn, its English translation, and an optional
-// context note (rules, usage, exceptions)
+// One entry: the word or sentence in the language you learn, its translation, an optional context note (rules,
+// usage, exceptions) and, for languages written in their own script, its reading (Japanese 猫 -> romaji "neko")
 public class Vocab {
     public static final String DEFAULT_CATEGORY = "general";
     public static final String VERBS_CATEGORY = "verbs";
@@ -16,16 +16,22 @@ public class Vocab {
     private final String english;
     private final String category;
     private final String context;
+    private final String reading;
 
     public Vocab(String word, String english, String category) {
         this(word, english, category, "");
     }
 
     public Vocab(String word, String english, String category, String context) {
+        this(word, english, category, context, "");
+    }
+
+    public Vocab(String word, String english, String category, String context, String reading) {
         this.word = word;
         this.english = english;
         this.category = (category == null || category.isBlank()) ? DEFAULT_CATEGORY : category;
         this.context = context == null ? "" : context.trim();
+        this.reading = reading == null ? "" : reading.trim();
     }
 
     public String getWord() {
@@ -43,5 +49,10 @@ public class Vocab {
     // "" when there is no note
     public String getContext() {
         return context;
+    }
+
+    // "" when the language has no reading row (see Language.getReadingName) or none was given
+    public String getReading() {
+        return reading;
     }
 }

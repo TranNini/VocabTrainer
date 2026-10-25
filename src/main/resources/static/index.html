@@ -10,7 +10,7 @@
     <link rel="icon" href="icon.svg" type="image/svg+xml">
     <link rel="apple-touch-icon" href="apple-touch-icon.png">
     <title>Vocab Trainer</title>
-    <link rel="stylesheet" href="style.css?v=12">
+    <link rel="stylesheet" href="style.css?v=13">
 </head>
 <body>
 <header class="top">
@@ -83,6 +83,12 @@
             <label for="add-word" class="lang-name"></label>
             <input id="add-word" type="text" autocapitalize="off" autocorrect="off" spellcheck="false">
             <div class="accents" data-for="add-word"></div>
+            <!-- the reading (romaji, pinyin …), only for languages in their own script -->
+            <div id="add-reading-row" class="reading-row" hidden>
+                <label for="add-reading" class="reading-name"></label>
+                <input id="add-reading" type="text" autocapitalize="off" autocorrect="off" spellcheck="false">
+                <div class="accents reading-accents" data-for="add-reading"></div>
+            </div>
             <label for="add-english"><span class="translation-name">English</span> <span class="muted">(use / for alternatives<span id="bracket-hint">; (s → (singular), (p → (plural)</span>)</span></label>
             <input id="add-english" type="text" autocapitalize="off" autocorrect="off" spellcheck="false">
             <div class="accents translation-accents" data-for="add-english"></div>
@@ -158,6 +164,10 @@
         <div class="extras"></div>
         <label><span class="lang-name"></span> <input name="word" type="text" autocapitalize="off" autocorrect="off" spellcheck="false"></label>
         <div class="accents"></div>
+        <div class="reading-row" hidden>
+            <label><span class="reading-name"></span> <input name="reading" type="text" autocapitalize="off" autocorrect="off" spellcheck="false"></label>
+            <div class="accents reading-accents"></div>
+        </div>
         <label><span class="translation-name">English</span> <input name="english" type="text" autocapitalize="off" autocorrect="off" spellcheck="false"></label>
         <div class="accents translation-accents"></div>
         <label>Context <textarea name="context" rows="2" maxlength="500"></textarea></label>
@@ -172,6 +182,6 @@
 </template>
 
 <!-- ?v=2: one-time nudge for browsers still holding an old cached copy -->
-<script src="app.js?v=29"></script>
+<script src="app.js?v=30"></script>
 </body>
 </html>
