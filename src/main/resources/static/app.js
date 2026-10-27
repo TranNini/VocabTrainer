@@ -640,7 +640,7 @@ function wireCategorySelect(select, newInput) {
 function commasAsAlternatives(vocab) {
     const sentence = (text) => isSentenceCategory(vocab.category) || /[.?!…]\s*$/.test(text.trim());
     const fixed = {...vocab};
-    for (const [field, side] of [["word", language.name], ["past", "simple past"], ["participle", "past participle"],
+    for (const [field, side] of [["word", language.name], ["past", "past tense"], ["participle", "past participle"],
         ["reading", language.readingName], ["english", language.translation]]) {
         const text = vocab[field] ?? "";
         if (!text.includes(",") || sentence(text)) {
@@ -729,8 +729,7 @@ function showView(name) {
 
 // shownHints = the hints shown for the current question, so the hint button never repeats one
 // hints = how often the hint button was pressed for this question, for the statistics
-// parts = the fields of an English verb with all three forms (see showParts), else empty
-const quiz = {questions: [], index: 0, attempt: 1, correct: 0, asked: 0, shownHints: [], hints: 0, parts: []};
+const quiz = {questions: [], index: 0, attempt: 1, correct: 0, asked: 0, shownHints: [], hints: 0};
 
 async function startQuiz() {
     const refresh = $("quiz-category").value === REFRESH;
@@ -774,39 +773,17 @@ function showQuestion() {
     $("quiz-context").hidden = true;
     $("quiz-answer").value = "";
     $("quiz-answer").disabled = false;
-    showParts(question.parts);
     $("quiz-hint").hidden = true;
     $("quiz-check").hidden = false;
     $("quiz-hint-button").hidden = false;
     setHintButton(true);
     $("quiz-next").hidden = true;
-    (quiz.parts[0] ?? $("quiz-answer")).focus();
-}
-
-// An English verb with all three forms gets one field per form instead of the answer field; Enter in one goes
-// to the next, and Check is pressed in the last one
-function showParts(names) {
-    quiz.parts = (names ?? []).map((name, i, all) => {
-        const input = el("input", {type: "text", autocapitalize: "off", spellcheck: false});
-        input.setAttribute("autocorrect", "off"); // no such property, only the attribute (Safari)
-        input.addEventListener("keydown", (event) => {
-            if (event.key === "Enter" && i < all.length - 1) {
-                event.preventDefault();
-                quiz.parts[i + 1].focus();
-            }
-        });
-        return input;
-    });
-    $("quiz-parts").replaceChildren(...quiz.parts.map((input, i) => el("label", {}, names[i], input)));
-    $("quiz-parts").hidden = quiz.parts.length === 0;
-    $("quiz-answer").hidden = quiz.parts.length > 0;
-    $("quiz-accents").hidden ||= quiz.parts.length > 0;
+    $("quiz-answer").focus();
 }
 
 async function checkAnswer() {
     const question = quiz.questions[quiz.index];
-    const answers = quiz.parts.length ? quiz.parts.map((input) => input.value.trim()) : null;
-    const answer = answers ? answers.filter(Boolean).join(" – ") : $("quiz-answer").value.trim();
+    const answer = $("quiz-answer").value.trim();
     if (!answer) {
         return;
     }
@@ -815,12 +792,7 @@ async function checkAnswer() {
     }
     const result = await api("POST", langUrl("/quiz/check"), {
         id: question.id, answerInLanguage: question.answerInLanguage, answer, attempt: quiz.attempt,
-        shown: quiz.shownHints, hints: quiz.hints, answers,
-    });
-    // which forms were right: a green or red frame on each field
-    (result.partsRight ?? []).forEach((right, i) => {
-        quiz.parts[i].classList.toggle("right", right);
-        quiz.parts[i].classList.toggle("wrong", !right);
+        shown: quiz.shownHints, hints: quiz.hints, form: question.form,
     });
     const feedback = $("quiz-feedback");
     feedback.textContent = result.feedback;
@@ -849,7 +821,6 @@ async function checkAnswer() {
             ...ipaButtons(result.ipa, $("quiz-answer-ipa")), dictionaryLink(result.dictionaryUrl));
         $("quiz-extras").hidden = false;
         $("quiz-answer").disabled = true;
-        quiz.parts.forEach((input) => input.disabled = true);
         $("quiz-check").hidden = true;
         $("quiz-hint-button").hidden = true;
         $("quiz-next").hidden = false;
@@ -857,7 +828,7 @@ async function checkAnswer() {
     } else {
         quiz.attempt++;
         setHintButton(true); // a new try, so one more hint
-        (quiz.parts[result.partsRight?.indexOf(false)] ?? $("quiz-answer")).select();
+        $("quiz-answer").select();
     }
 }
 
@@ -874,12 +845,12 @@ async function showHint() {
     const question = quiz.questions[quiz.index];
     const hint = await api("POST", langUrl("/quiz/hint"), {
         id: question.id, answerInLanguage: question.answerInLanguage, answer: $("quiz-answer").value,
-        shown: quiz.shownHints, answers: quiz.parts.length ? quiz.parts.map((input) => input.value) : null,
+        shown: quiz.shownHints, form: question.form,
     });
     quiz.shownHints.push(hint.text);
     $("quiz-hint").textContent = hint.text;
     $("quiz-hint").hidden = false;
-    (quiz.parts.find((input) => input.classList.contains("wrong")) ?? quiz.parts[0] ?? $("quiz-answer")).focus();
+    $("quiz-answer").focus();
 }
 
 function nextQuestion() {

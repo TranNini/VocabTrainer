@@ -704,20 +704,6 @@ ul.plain li {
     margin: 0;
 }
 
-/* the quiz fields for to fly – flew – flown; a form that was wrong gets a red frame */
-.quiz-parts label {
-    display: block;
-    margin: 8px 0 0;
-}
-
-.quiz-parts input.wrong {
-    border-color: var(--bad);
-}
-
-.quiz-parts input.right {
-    border-color: var(--good);
-}
-
 /* the other forms after the infinitive in the word list */
 .word-line .forms {
     font-weight: 400;

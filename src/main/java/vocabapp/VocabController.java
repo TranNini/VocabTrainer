@@ -72,27 +72,25 @@ public class VocabController {
     }
 
     // promptIpa and promptReading (the romaji of a kanji prompt) are only filled in when the prompt is in the
-    // language, so they never give the answer away. parts = the names of the forms to type, one field each, when
-    // the answer is an English verb with all three ("Infinitive", "Simple past", "Past participle"); else null
+    // language, so they never give the answer away. form = which form of an English verb with all three is
+    // asked (see VerbForms: 0 present tense, 1 past tense, 2 past participle); else null
     record QuestionDto(int id, boolean answerInLanguage, String prompt, String promptIpa, String promptReading,
-                       List<String> parts) {
+                       Integer form) {
     }
 
-    // hints = how many hints the hint button gave for this question, for the statistics; answers = one per
-    // form when the question has parts (see QuestionDto), else null
+    // hints = how many hints the hint button gave for this question, for the statistics; form = as in QuestionDto
     record CheckRequest(int id, boolean answerInLanguage, String answer, int attempt, List<String> shown, int hints,
-                        List<String> answers) {
+                        Integer form) {
     }
 
     // finished = no more tries for this question; once finished, answer = the full answer with all
     // alternatives, ipa / dictionaryUrl / reading are for the word in the language, and context is its note
-    // partsRight = for a question with parts, which of the forms are right; else null
     record CheckResult(boolean correct, String feedback, String answer, boolean finished, String ipa,
-                       String dictionaryUrl, String context, String reading, List<Boolean> partsRight) {
+                       String dictionaryUrl, String context, String reading) {
     }
 
     // shown = the hints already shown for this question, so the next one says more
-    record HintRequest(int id, boolean answerInLanguage, String answer, List<String> shown, List<String> answers) {
+    record HintRequest(int id, boolean answerInLanguage, String answer, List<String> shown, Integer form) {
     }
 
     record HintResult(String text) {
@@ -350,12 +348,19 @@ public class VocabController {
         }
         List<QuestionDto> questions = new ArrayList<>();
         for (Vocab v : vocab) {
+            if (v.hasForms()) {
+                // an English verb with all three forms: three questions in a row, only from the translation
+                for (int form = 0; form < VerbForms.NAMES.size(); form++) {
+                    questions.add(new QuestionDto(store(learner, language).idOf(v), true,
+                            VerbForms.prompt(v, form, random), null, null, form));
+                }
+                continue;
+            }
             Question question = Question.from(v, rules, random);
             String promptIpa = question.answerInLanguage() ? null : rules.ipa(question.prompt());
             String promptReading = question.answerInLanguage() || v.getReading().isEmpty() ? null : v.getReading();
-            List<String> parts = question.answerInLanguage() && v.hasForms() ? VerbForms.NAMES : null;
             questions.add(new QuestionDto(store(learner, language).idOf(v), question.answerInLanguage(),
-                    question.prompt(), promptIpa, promptReading, parts));
+                    question.prompt(), promptIpa, promptReading, null));
         }
         return questions;
     }
@@ -375,55 +380,42 @@ public class VocabController {
     public CheckResult check(@PathVariable String learner, @PathVariable String language, @RequestBody CheckRequest request) {
         Language rules = rules(learner, language);
         Vocab vocab = find(learner, language, request.id());
+        String expected = expected(vocab, request.answerInLanguage(), request.form());
+        String answer = request.answer() == null ? "" : request.answer().trim();
         String ipa = rules.ipa(vocab.getWord());
         String dictionaryUrl = rules.dictionaryUrl(vocab.getWord());
         String context = vocab.getContext();
         // only the kanji counts as the Japanese answer; the romaji is shown with it afterwards
         String reading = vocab.getReading().isEmpty() ? null : vocab.getReading();
-        List<String> shown = request.shown() == null ? List.of() : request.shown();
-        String fullAnswer;
-        boolean correct;
-        String feedback;
-        List<Boolean> partsRight = null;
-        if (request.answerInLanguage() && vocab.hasForms()) {
-            // to fly – flew – flown: every form in its own field, and all of them have to be right
-            VerbForms forms = new VerbForms(vocab, rules);
-            partsRight = forms.right(request.answers());
-            correct = !partsRight.contains(false);
-            fullAnswer = forms.fullAnswer();
-            feedback = correct ? null : forms.feedback(request.answers(), shown);
-        } else {
-            String expected = Question.expectedAnswer(vocab, request.answerInLanguage());
-            String answer = request.answer() == null ? "" : request.answer().trim();
-            correct = AnswerChecker.isCorrect(answer, expected, rules);
-            fullAnswer = AnswerChecker.allOptions(expected);
-            feedback = correct ? null : AnswerChecker.feedback(answer, expected, rules, shown);
-        }
-        if (correct) {
+        if (AnswerChecker.isCorrect(answer, expected, rules)) {
             logResult(learner, language, vocab, request, request.attempt());
-            return new CheckResult(true, "Correct!", fullAnswer, true, ipa, dictionaryUrl, context, reading,
-                    partsRight);
+            return new CheckResult(true, "Correct!", AnswerChecker.allOptions(expected), true, ipa, dictionaryUrl,
+                    context, reading);
         }
         if (request.attempt() < AnswerChecker.MAX_ATTEMPTS) {
-            return new CheckResult(false, feedback, null, false, null, null, null, null, partsRight);
+            return new CheckResult(false, AnswerChecker.feedback(answer, expected, rules,
+                    request.shown() == null ? List.of() : request.shown()),
+                    null, false, null, null, null, null);
         }
         logResult(learner, language, vocab, request, 0);
-        return new CheckResult(false, "Not quite.", fullAnswer, true, ipa, dictionaryUrl, context, reading,
-                partsRight);
+        return new CheckResult(false, "Not quite.", AnswerChecker.allOptions(expected), true, ipa, dictionaryUrl,
+                context, reading);
     }
 
     // The hint button; doesn't count as a try and never repeats a hint shown for this question
     @PostMapping("/{learner}/languages/{language}/quiz/hint")
     public HintResult hint(@PathVariable String learner, @PathVariable String language, @RequestBody HintRequest request) {
         Vocab vocab = find(learner, language, request.id());
-        Language rules = rules(learner, language);
-        List<String> shown = request.shown() == null ? List.of() : request.shown();
-        if (request.answerInLanguage() && vocab.hasForms()) {
-            return new HintResult(new VerbForms(vocab, rules).hint(request.answers(), shown));
-        }
-        String expected = Question.expectedAnswer(vocab, request.answerInLanguage());
+        String expected = expected(vocab, request.answerInLanguage(), request.form());
         String answer = request.answer() == null ? "" : request.answer();
-        return new HintResult(AnswerChecker.hint(answer, expected, rules, shown));
+        List<String> shown = request.shown() == null ? List.of() : request.shown();
+        return new HintResult(AnswerChecker.hint(answer, expected, rules(learner, language), shown));
+    }
+
+    // The answer to a question: the side asked for, or one form of an English verb ("flew", see VerbForms)
+    private static String expected(Vocab vocab, boolean answerInLanguage, Integer form) {
+        Integer asked = VerbForms.form(vocab, form);
+        return asked != null ? VerbForms.expected(vocab, asked) : Question.expectedAnswer(vocab, answerInLanguage);
     }
 
     // The Stats tab: what the learner practised in this language and how it went
@@ -488,7 +480,7 @@ public class VocabController {
         String participle = request.participle() == null || !verbForms ? ""
                 : Normalizer.normalize(request.participle(), Normalizer.Form.NFC).trim();
         if (past.isEmpty() != participle.isEmpty()) {
-            throw new ApiException(HttpStatus.BAD_REQUEST, "Fill in both the simple past and the past participle, "
+            throw new ApiException(HttpStatus.BAD_REQUEST, "Fill in both the past tense and the past participle, "
                     + "or neither.");
         }
         if (!past.isEmpty() && !word.toLowerCase().startsWith("to ")) {

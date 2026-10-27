@@ -755,29 +755,30 @@ class VocabControllerTest {
 
         VocabStore store = learners.library("Formtest").store("Englisch");
         int id = store.idOf(store.getAll().get(0));
-        String check = """
-                {"id": %d, "answerInLanguage": true, "answer": "x", "attempt": %d, "shown": [], "answers": [%s]}
-                """;
-        send("POST", url + "/quiz/check", check.formatted(id, 1, "\"to fly\", \"flown\", \"flown\""))
-                .andExpect(jsonPath("$.correct").value(false))
-                .andExpect(jsonPath("$.partsRight[0]").value(true))
-                .andExpect(jsonPath("$.partsRight[1]").value(false))
-                .andExpect(jsonPath("$.feedback").value(org.hamcrest.Matchers.startsWith("Simple past: ")));
-        // without "to" the infinitive isn't right
-        send("POST", url + "/quiz/check", check.formatted(id, 2, "\"fly\", \"flew\", \"flown\""))
-                .andExpect(jsonPath("$.partsRight[0]").value(false))
-                .andExpect(jsonPath("$.feedback").value(org.hamcrest.Matchers.startsWith("Infinitive: ")));
-        send("POST", url + "/quiz/check", check.formatted(id, 2, "\"to fly\", \"flew\", \"flown\""))
-                .andExpect(jsonPath("$.correct").value(true))
-                .andExpect(jsonPath("$.answer").value("to fly – flew – flown"));
-        send("POST", url + "/quiz/hint", """
-                {"id": %d, "answerInLanguage": true, "answer": "", "shown": [], "answers": ["to fly", "fle", ""]}
-                """.formatted(id)).andExpect(jsonPath("$.text").value(org.hamcrest.Matchers.startsWith("Simple past: ")));
-        // the German prompt asks for the three forms; the English one shows them all
+        // three questions in a row, each from the German with its tense; never from the English
         mvc.perform(get(url + "/quiz?refresh=false"))
-                .andExpect(jsonPath("$[0].parts").value(org.hamcrest.Matchers.anyOf(
-                        org.hamcrest.Matchers.nullValue(), org.hamcrest.Matchers.contains(VerbForms.NAMES.toArray()))))
-                .andExpect(jsonPath("$[0].prompt").value(org.hamcrest.Matchers.oneOf("fliegen", "to fly – flew – flown")));
+                .andExpect(jsonPath("$", hasSize(3)))
+                .andExpect(jsonPath("$[0].prompt").value("fliegen (present tense)"))
+                .andExpect(jsonPath("$[0].answerInLanguage").value(true))
+                .andExpect(jsonPath("$[1].prompt").value("fliegen (past tense)"))
+                .andExpect(jsonPath("$[1].form").value(1))
+                .andExpect(jsonPath("$[2].prompt").value("fliegen (past participle)"));
+        String check = """
+                {"id": %d, "answerInLanguage": true, "answer": "%s", "attempt": 1, "shown": [], "form": %d}
+                """;
+        send("POST", url + "/quiz/check", check.formatted(id, "flew", 1))
+                .andExpect(jsonPath("$.correct").value(true))
+                .andExpect(jsonPath("$.answer").value("flew"));
+        send("POST", url + "/quiz/check", check.formatted(id, "flew", 2)).andExpect(jsonPath("$.correct").value(false));
+        send("POST", url + "/quiz/check", check.formatted(id, "flown", 2)).andExpect(jsonPath("$.correct").value(true));
+        // "to" is part of the infinitive
+        send("POST", url + "/quiz/check", check.formatted(id, "fly", 0))
+                .andExpect(jsonPath("$.correct").value(false))
+                .andExpect(jsonPath("$.feedback").value("What comes in front of an infinitive verb?"));
+        send("POST", url + "/quiz/check", check.formatted(id, "to fly", 0)).andExpect(jsonPath("$.correct").value(true));
+        send("POST", url + "/quiz/hint", """
+                {"id": %d, "answerInLanguage": true, "answer": "fl", "shown": [], "form": 2}
+                """.formatted(id)).andExpect(jsonPath("$.text").value(org.hamcrest.Matchers.containsString("fl")));
         // not in other lists: Spanish verbs keep their two sides
         send("POST", SPANISH + "/vocab", """
                 {"word": "volar", "past": "volé", "participle": "volado", "english": "to fly", "category": "verbs",
