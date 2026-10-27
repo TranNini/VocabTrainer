@@ -27,7 +27,10 @@ class LanguageTest {
         assertFalse(italian.hasIpa());
         assertNull(italian.ipa("ciao"));
         assertTrue(italian.getArticles().isEmpty());
-        assertEquals("https://en.wiktionary.org/wiki/ciao#Italian", italian.dictionaryUrl("ciao"));
+        // no dictionary link (only Spanish, Japanese and Vietnamese have one)
+        assertNull(italian.dictionaryUrl("ciao"));
+        assertNull(Language.forName("English").dictionaryUrl("to fly"));
+        assertEquals("https://www.spanishdict.com/translate/hola", Language.forName("Spanish").dictionaryUrl("hola"));
     }
 
     @Test

@@ -10,7 +10,7 @@
     <link rel="icon" href="icon.svg" type="image/svg+xml">
     <link rel="apple-touch-icon" href="apple-touch-icon.png">
     <title>Vocab Trainer</title>
-    <link rel="stylesheet" href="style.css?v=15">
+    <link rel="stylesheet" href="style.css?v=16">
 </head>
 <body>
 <header class="top">
@@ -117,6 +117,8 @@
             <h2>Your vocab</h2>
             <div class="row">
                 <select id="words-category" aria-label="Category"></select>
+                <button id="words-rename" type="button" class="round" title="Rename this category"
+                        aria-label="Rename this category" hidden>✎</button>
                 <input id="words-search" type="search" placeholder="Search" autocapitalize="off"
                        autocorrect="off" spellcheck="false" aria-label="Search">
             </div>
@@ -191,6 +193,6 @@
 </template>
 
 <!-- ?v=2: one-time nudge for browsers still holding an old cached copy -->
-<script src="app.js?v=32"></script>
+<script src="app.js?v=34"></script>
 </body>
 </html>

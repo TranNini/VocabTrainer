@@ -66,6 +66,11 @@ public class Vocab {
         return reading;
     }
 
+    // The same entry in another category
+    public Vocab withCategory(String category) {
+        return new Vocab(word, english, category, context, reading, past, participle);
+    }
+
     // "flew" for "to fly"; "" for every other entry
     public String getPast() {
         return past;

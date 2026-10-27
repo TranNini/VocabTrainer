@@ -11,7 +11,7 @@ import java.util.function.UnaryOperator;
 
 // Everything that differs between languages. A word list is a pair: the language you learn, translated
 // into another one (see translatedInto); both sides use the rules of their language. A language added in the
-// app gets the basics (alphabetical order for its locale, Wiktionary link); the extras (articles, conjugation
+// app gets the basics (alphabetical order for its locale); the extras (articles, conjugation
 // grouping, IPA, fixed special letter buttons, spell check, its own dictionary) come from rules set up here,
 // for English, Spanish, German and Vietnamese.
 public class Language {
@@ -161,7 +161,7 @@ public class Language {
             return korean(name);
         }
         return new Language(name, List.of(), List.of(), false, List.of(), null,
-                "Wiktionary", "https://en.wiktionary.org/wiki/%s#" + name.replace(' ', '_'), List.of());
+                null, null, List.of());
     }
 
     // Kanji, hiragana and katakana each in a list of their own ("Japanese (Kanji)"), all with romaji and
@@ -175,14 +175,14 @@ public class Language {
     // Hanzi with pinyin; the pinyin row has the four tone marks, to type after the vowel, and ü
     private static Language chinese(String name) {
         return new Language(name, List.of(), List.of(), false, List.of(), null,
-                "Wiktionary", "https://en.wiktionary.org/wiki/%s#Chinese", List.of())
+                null, null, List.of())
                 .withReading("Pinyin", List.of("\u0304", "\u0301", "\u030C", "\u0300", "ü"));
     }
 
     // Hangul with its romanization (plain letters)
     private static Language korean(String name) {
         return new Language(name, List.of(), List.of(), false, List.of(), null,
-                "Wiktionary", "https://en.wiktionary.org/wiki/%s#Korean", List.of())
+                null, null, List.of())
                 .withReading("Romanization", List.of());
     }
 
@@ -194,7 +194,7 @@ public class Language {
                 List.of(List.of("I"), List.of("you"), List.of("he", "she", "it"), List.of("we"), List.of("you"),
                         List.of("they")),
                 false, List.of(), null,
-                "Wiktionary", "https://en.wiktionary.org/wiki/%s#English", SpellChecker.ENGLISH);
+                null, null, SpellChecker.ENGLISH);
     }
 
     private static Language spanish(String name) {
@@ -225,7 +225,7 @@ public class Language {
                 // small letters only: the page has a ⇧ button for nouns ("die Übung")
                 List.of("ä", "ö", "ü", "ß"),
                 null,
-                "Wiktionary", "https://en.wiktionary.org/wiki/%s#German", List.of("de"));
+                null, null, List.of("de"));
     }
 
     private static Language vietnamese(String name) {
@@ -309,12 +309,16 @@ public class Language {
         return spellDictionaries;
     }
 
+    // null when the language has no dictionary link (only Spanish, Japanese and Vietnamese have one)
     public String getDictionaryName() {
         return dictionaryName;
     }
 
-    // Link for the first alternative, without ¡!¿? and "..."
+    // Link for the first alternative, without ¡!¿? and "..."; null for a language without a dictionary link
     public String dictionaryUrl(String word) {
+        if (dictionaryUrl == null) {
+            return null;
+        }
         String first = word.split("/")[0].replaceAll("[¡!¿?.…]", "").trim();
         return dictionaryUrl.formatted(URLEncoder.encode(first, StandardCharsets.UTF_8).replace("+", "%20"));
     }

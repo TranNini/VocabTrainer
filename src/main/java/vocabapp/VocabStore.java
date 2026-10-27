@@ -59,6 +59,25 @@ public class VocabStore {
         }
     }
 
+    // Moves every entry of the category into the other one (any case: "irregular verbs" too), keeping ids and
+    // order; returns how many were moved
+    public synchronized int renameCategory(String from, String to) {
+        int moved = 0;
+        for (int i = 0; i < vocabList.size(); i++) {
+            Vocab vocab = vocabList.get(i);
+            if (vocab.getCategory().equalsIgnoreCase(from)) {
+                Vocab renamed = vocab.withCategory(to);
+                vocabList.set(i, renamed);
+                ids.put(renamed, ids.remove(vocab));
+                moved++;
+            }
+        }
+        if (moved > 0) {
+            save();
+        }
+        return moved;
+    }
+
     public synchronized void remove(Vocab vocab) {
         if (vocabList.remove(vocab)) {
             ids.remove(vocab);

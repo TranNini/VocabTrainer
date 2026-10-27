@@ -262,6 +262,30 @@ public class VocabController {
         return categories;
     }
 
+    record CategoryRename(String name) {
+    }
+
+    // Renames a category; a name that already exists merges the two ("Irregular Verbs" into "Verben"), keeping
+    // that one's spelling. Returns the categories afterwards.
+    @PutMapping("/{learner}/languages/{language}/categories/{category}")
+    public List<CategoryDto> renameCategory(@PathVariable String learner, @PathVariable String language,
+                                            @PathVariable String category, @RequestBody CategoryRename request) {
+        VocabIndex index = index(learner, language);
+        String from = index.findCategory(category);
+        if (from == null) {
+            throw new ApiException(HttpStatus.NOT_FOUND, "There is no category '" + category + "'.");
+        }
+        String typed = request.name() == null ? "" : request.name().trim().replaceAll(" +", " ");
+        if (typed.isEmpty() || typed.contains(";") || typed.length() > 40) {
+            throw new ApiException(HttpStatus.BAD_REQUEST, "Please give the category a name (up to 40 letters, no ';').");
+        }
+        String existing = index.resolveCategory(typed);
+        // another category with that name: merge into it; the same one in other capitals: just respell it
+        String to = existing != null && !existing.equalsIgnoreCase(from) ? existing : typed;
+        store(learner, language).renameCategory(from, to);
+        return categories(learner, language);
+    }
+
     // Empty category = all; q: one letter = that section, longer = search both sides
     @GetMapping("/{learner}/languages/{language}/vocab")
     public List<VocabDto> vocab(@PathVariable String learner, @PathVariable String language,

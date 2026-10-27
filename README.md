@@ -58,7 +58,10 @@ Buttons for special letters under every field, for the language of that field (a
     Spanish á é í ó ú ñ ü ¿ ¡, German ä ö ü ß, Vietnamese the five tone marks. Small letters only: a letter
     becomes a capital by itself at a sentence start (after . ? ! and a space, after an opening ¿ or ¡, or at
     the start of an entry in a sentence category), else ⇧ makes the next one a capital (button or keyboard)
-Link to a dictionary for every word (SpanishDict for Spanish, VDict for Vietnamese, Wiktionary for others)
+Link to a dictionary for every word in Spanish (SpanishDict), Japanese (JapanDict) and Vietnamese (VDict);
+    other languages have none
+Rename a category with ✎ next to the category menu in Words; the name of another category merges the two
+After an update, an open page reloads itself when you come back to it (not during a quiz or while typing)
 
 Vietnamese extras:
     Buttons for the five tone marks (huyền, sắc, hỏi, ngã, nặng), which add the mark to the letter

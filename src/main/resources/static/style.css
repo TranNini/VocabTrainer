@@ -709,3 +709,9 @@ ul.plain li {
     font-weight: 400;
     color: var(--muted);
 }
+
+/* ✎ next to the category menu in Words */
+#words-rename {
+    flex: none;
+    margin: 0;
+}

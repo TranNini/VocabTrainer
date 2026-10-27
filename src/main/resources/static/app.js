@@ -205,8 +205,12 @@ function toggleButton(label, title, text, target) {
     return button;
 }
 
-// The word in a dictionary (SpanishDict for Spanish, Wiktionary for others); the server builds the URL
+// The word in a dictionary (SpanishDict, JapanDict, VDict); the server builds the URL. Nothing for a language
+// without one.
 function dictionaryLink(url) {
+    if (!url) {
+        return "";
+    }
     return el("a", {
         href: url,
         target: "_blank",
@@ -935,6 +939,8 @@ let searchTimer;
 
 async function loadWords() {
     const category = $("words-category").value;
+    // ✎ renames the category shown (not "All")
+    $("words-rename").hidden = !category;
     const query = $("words-search").value.trim();
     const words = await api("GET", langUrl(`/vocab?category=${encodeURIComponent(category)}&q=${encodeURIComponent(query)}`));
     const list = $("words-list");
@@ -963,6 +969,31 @@ async function loadWords() {
         button.addEventListener("click", () => $("section-" + letter).scrollIntoView({behavior: "smooth"}));
         return button;
     }));
+}
+
+// A new name for the category shown in Words; the name of another category moves its words there (merges)
+async function renameCategory() {
+    const from = $("words-category").value;
+    const name = prompt(`New name for the category '${from}':`, from)?.trim();
+    if (!name || name === from) {
+        return;
+    }
+    const other = categories.find((c) => c.name.toLowerCase() === name.toLowerCase() && c.name !== from);
+    const count = categories.find((c) => c.name === from)?.count ?? 0;
+    if (other && other.name.toLowerCase() !== from.toLowerCase()
+        && !confirm(`'${other.name}' already exists. Move the ${count} ${count === 1 ? "word" : "words"} from `
+            + `'${from}' into '${other.name}'? '${from}' is gone afterwards.`)) {
+        return;
+    }
+    const after = await api("PUT", langUrl("/categories/" + encodeURIComponent(from)), {name});
+    const renamed = other && other.name.toLowerCase() !== from.toLowerCase() ? other.name
+        : after.find((c) => c.name.toLowerCase() === name.toLowerCase())?.name ?? name;
+    $("words-category").value = "";
+    await loadCategories();
+    $("words-category").value = renamed;
+    fillCategorySelect($("add-category"), $("add-category").value === from ? renamed : $("add-category").value);
+    await loadWords();
+    showMessage(other ? `Moved ${count} ${count === 1 ? "word" : "words"} into '${renamed}'.` : `Renamed to '${renamed}'.`);
 }
 
 // Infinitives whose conjugations are open; kept while the list reloads, e.g. after an edit
@@ -1231,6 +1262,7 @@ $("language").addEventListener("change", () => {
 });
 
 $("words-category").addEventListener("change", loadWords);
+$("words-rename").addEventListener("click", () => renameCategory().catch((error) => showMessage(error.message, true)));
 // kept, so reloading the menu (a new count) keeps "Refresh vocab" picked
 $("quiz-category").addEventListener("change", () => $("quiz-category").dataset.picked = $("quiz-category").value);
 $("words-search").addEventListener("input", () => {
@@ -1239,6 +1271,24 @@ $("words-search").addEventListener("input", () => {
 });
 
 window.addEventListener("hashchange", () => showView(location.hash.slice(1)));
+
+// An open page (a home screen app on the phone) keeps running the version it was loaded with, so after an update
+// new fields or buttons were missing. Coming back to it, it reloads when a newer version is live, but not in the
+// middle of a quiz or while something is typed in Add or an edit form.
+async function reloadIfUpdated() {
+    const busy = !$("quiz-question").hidden || document.querySelector("form.edit")
+        || [...document.querySelectorAll("#add-form input, #add-form textarea")].some((f) => f.value.trim());
+    if (document.hidden || busy) {
+        return;
+    }
+    const live = (await (await fetch("/", {cache: "no-store"})).text()).match(/app\.js\?v=\d+/)?.[0];
+    const mine = document.querySelector("script[src*='app.js']").getAttribute("src");
+    if (live && live !== mine) {
+        location.reload();
+    }
+}
+
+document.addEventListener("visibilitychange", () => reloadIfUpdated().catch(() => {}));
 
 loadLearners()
     .then(() => showView(location.hash.slice(1)))

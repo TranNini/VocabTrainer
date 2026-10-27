@@ -429,7 +429,7 @@ class VocabControllerTest {
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.name").value("Italian"))
                 .andExpect(jsonPath("$.ipa").value(false))
-                .andExpect(jsonPath("$.dictionaryName").value("Wiktionary"));
+                .andExpect(jsonPath("$.dictionaryName").value(nullValue()));
         send("POST", NINI + "/languages", """
                 {"name": "Italian"}
                 """).andExpect(status().isConflict());
@@ -442,7 +442,7 @@ class VocabControllerTest {
                 """)
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.ipa").value(nullValue()))
-                .andExpect(jsonPath("$.dictionaryUrl").value("https://en.wiktionary.org/wiki/il%20caff%C3%A8#Italian"));
+                .andExpect(jsonPath("$.dictionaryUrl").value(nullValue()));
         mvc.perform(get(NINI + "/languages"))
                 .andExpect(jsonPath("$[?(@.name == 'Italian')].specialLetters[0]").value("è"));
         // each language has its own words
@@ -785,5 +785,37 @@ class VocabControllerTest {
                  "newCategory": true}
                 """).andExpect(status().isCreated()).andExpect(jsonPath("$.past").value(""));
         mvc.perform(delete("/api/learners/Formtest")).andExpect(status().isNoContent());
+    }
+
+    @Test
+    void renamesACategoryOrMergesItIntoAnother() throws Exception {
+        add("ir", "to go", "Verben");
+        add("tener", "to have", "Irregular Verbs");
+        add("ser", "to be", "Irregular Verbs");
+        String url = SPANISH + "/categories/";
+        // into an existing one (in any capitals): its words move there and keep that spelling
+        send("PUT", url + "Irregular Verbs", """
+                {"name": "verben"}
+                """)
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$", hasSize(1)))
+                .andExpect(jsonPath("$[0].name").value("Verben"))
+                .andExpect(jsonPath("$[0].count").value(3));
+        // a new name, and the same name in other capitals
+        send("PUT", url + "Verben", """
+                {"name": "Verbs"}
+                """).andExpect(jsonPath("$[0].name").value("Verbs"));
+        send("PUT", url + "Verbs", """
+                {"name": "verbs"}
+                """).andExpect(jsonPath("$[0].name").value("verbs"));
+        // the entries keep their ids
+        VocabStore store = library.store("Spanish");
+        assertEquals("verbs", store.getAll().get(1).getCategory());
+        send("PUT", url + "Nothing", """
+                {"name": "x"}
+                """).andExpect(status().isNotFound());
+        send("PUT", url + "verbs", """
+                {"name": "a;b"}
+                """).andExpect(status().isBadRequest());
     }
 }
