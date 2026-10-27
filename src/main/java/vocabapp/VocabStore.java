@@ -81,14 +81,18 @@ public class VocabStore {
                 if (line.isBlank()) {
                     continue;
                 }
-                // word;english;category;context;reading - older lines have no category, most have no context,
-                // only languages with a reading row (Japanese …) have a reading. Saved notes have no ";".
-                String[] parts = line.split(";", 5);
+                // word;english;category;context;reading;past;participle - older lines have no category, most have
+                // no context, only languages with a reading row (Japanese …) have a reading, only English verbs
+                // with all three forms have past and participle ("to fly;fliegen;verbs;;;flew;flown"). Saved
+                // notes have no ";".
+                String[] parts = line.split(";", 7);
                 if (parts.length >= 2) {
                     String category = parts.length >= 3 ? parts[2].trim() : Vocab.DEFAULT_CATEGORY;
                     String context = parts.length >= 4 ? parts[3] : "";
-                    String reading = parts.length == 5 ? parts[4] : "";
-                    track(new Vocab(parts[0].trim(), parts[1].trim(), category, context, reading));
+                    String reading = parts.length >= 5 ? parts[4] : "";
+                    String past = parts.length >= 6 ? parts[5] : "";
+                    String participle = parts.length == 7 ? parts[6] : "";
+                    track(new Vocab(parts[0].trim(), parts[1].trim(), category, context, reading, past, participle));
                 }
             }
         } catch (IOException e) {
@@ -100,11 +104,15 @@ public class VocabStore {
         try (BufferedWriter writer = Files.newBufferedWriter(path)) {
             for (Vocab v : vocabList) {
                 writer.write(v.getWord() + ";" + v.getEnglish() + ";" + v.getCategory());
-                if (!v.getContext().isEmpty() || !v.getReading().isEmpty()) {
+                // the later columns only when needed, so most lines stay word;english;category
+                if (!v.getContext().isEmpty() || !v.getReading().isEmpty() || v.hasForms()) {
                     writer.write(";" + v.getContext());
                 }
-                if (!v.getReading().isEmpty()) {
+                if (!v.getReading().isEmpty() || v.hasForms()) {
                     writer.write(";" + v.getReading());
+                }
+                if (v.hasForms()) {
+                    writer.write(";" + v.getPast() + ";" + v.getParticiple());
                 }
                 writer.newLine();
             }

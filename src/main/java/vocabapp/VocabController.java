@@ -56,9 +56,11 @@ public class VocabController {
     record CategoryDto(String name, int count) {
     }
 
-    // reading = "neko" for 猫 in a Japanese list, "" in languages without a reading row
+    // reading = "neko" for 猫 in a Japanese list, "" in languages without a reading row; past and participle =
+    // the other forms of an English verb ("to fly": "flew", "flown"), "" for every other entry
     record VocabDto(int id, String word, String english, String category, String context, String section,
-                    boolean conjugation, String ipa, String dictionaryUrl, String reading) {
+                    boolean conjugation, String ipa, String dictionaryUrl, String reading, String past,
+                    String participle) {
     }
 
     // newCategory = true confirms that a category which doesn't exist yet should be created;
@@ -66,26 +68,31 @@ public class VocabController {
     // (see checkSimilar); spellingChecked = true confirms saving although a word isn't in the dictionary.
     // A duplicate is never saved.
     record VocabRequest(String word, String english, String category, String context, boolean newCategory,
-                        Integer replaces, boolean spellingChecked, String reading) {
+                        Integer replaces, boolean spellingChecked, String reading, String past, String participle) {
     }
 
     // promptIpa and promptReading (the romaji of a kanji prompt) are only filled in when the prompt is in the
-    // language, so they never give the answer away
-    record QuestionDto(int id, boolean answerInLanguage, String prompt, String promptIpa, String promptReading) {
+    // language, so they never give the answer away. parts = the names of the forms to type, one field each, when
+    // the answer is an English verb with all three ("Infinitive", "Simple past", "Past participle"); else null
+    record QuestionDto(int id, boolean answerInLanguage, String prompt, String promptIpa, String promptReading,
+                       List<String> parts) {
     }
 
-    // hints = how many hints the hint button gave for this question, for the statistics
-    record CheckRequest(int id, boolean answerInLanguage, String answer, int attempt, List<String> shown, int hints) {
+    // hints = how many hints the hint button gave for this question, for the statistics; answers = one per
+    // form when the question has parts (see QuestionDto), else null
+    record CheckRequest(int id, boolean answerInLanguage, String answer, int attempt, List<String> shown, int hints,
+                        List<String> answers) {
     }
 
     // finished = no more tries for this question; once finished, answer = the full answer with all
     // alternatives, ipa / dictionaryUrl / reading are for the word in the language, and context is its note
+    // partsRight = for a question with parts, which of the forms are right; else null
     record CheckResult(boolean correct, String feedback, String answer, boolean finished, String ipa,
-                       String dictionaryUrl, String context, String reading) {
+                       String dictionaryUrl, String context, String reading, List<Boolean> partsRight) {
     }
 
     // shown = the hints already shown for this question, so the next one says more
-    record HintRequest(int id, boolean answerInLanguage, String answer, List<String> shown) {
+    record HintRequest(int id, boolean answerInLanguage, String answer, List<String> shown, List<String> answers) {
     }
 
     record HintResult(String text) {
@@ -195,7 +202,8 @@ public class VocabController {
             }
             for (Vocab v : from.getAll()) {
                 if (have.add(v.getWord().toLowerCase() + ";" + v.getEnglish().toLowerCase())) {
-                    to.add(new Vocab(v.getWord(), v.getEnglish(), v.getCategory(), v.getContext(), v.getReading()));
+                    to.add(new Vocab(v.getWord(), v.getEnglish(), v.getCategory(), v.getContext(), v.getReading(),
+                            v.getPast(), v.getParticiple()));
                     copied++;
                 } else {
                     skipped++;
@@ -345,8 +353,9 @@ public class VocabController {
             Question question = Question.from(v, rules, random);
             String promptIpa = question.answerInLanguage() ? null : rules.ipa(question.prompt());
             String promptReading = question.answerInLanguage() || v.getReading().isEmpty() ? null : v.getReading();
+            List<String> parts = question.answerInLanguage() && v.hasForms() ? VerbForms.NAMES : null;
             questions.add(new QuestionDto(store(learner, language).idOf(v), question.answerInLanguage(),
-                    question.prompt(), promptIpa, promptReading));
+                    question.prompt(), promptIpa, promptReading, parts));
         }
         return questions;
     }
@@ -366,36 +375,55 @@ public class VocabController {
     public CheckResult check(@PathVariable String learner, @PathVariable String language, @RequestBody CheckRequest request) {
         Language rules = rules(learner, language);
         Vocab vocab = find(learner, language, request.id());
-        String expected = Question.expectedAnswer(vocab, request.answerInLanguage());
-        String answer = request.answer() == null ? "" : request.answer().trim();
         String ipa = rules.ipa(vocab.getWord());
         String dictionaryUrl = rules.dictionaryUrl(vocab.getWord());
         String context = vocab.getContext();
         // only the kanji counts as the Japanese answer; the romaji is shown with it afterwards
         String reading = vocab.getReading().isEmpty() ? null : vocab.getReading();
-        if (AnswerChecker.isCorrect(answer, expected, rules)) {
+        List<String> shown = request.shown() == null ? List.of() : request.shown();
+        String fullAnswer;
+        boolean correct;
+        String feedback;
+        List<Boolean> partsRight = null;
+        if (request.answerInLanguage() && vocab.hasForms()) {
+            // to fly – flew – flown: every form in its own field, and all of them have to be right
+            VerbForms forms = new VerbForms(vocab, rules);
+            partsRight = forms.right(request.answers());
+            correct = !partsRight.contains(false);
+            fullAnswer = forms.fullAnswer();
+            feedback = correct ? null : forms.feedback(request.answers(), shown);
+        } else {
+            String expected = Question.expectedAnswer(vocab, request.answerInLanguage());
+            String answer = request.answer() == null ? "" : request.answer().trim();
+            correct = AnswerChecker.isCorrect(answer, expected, rules);
+            fullAnswer = AnswerChecker.allOptions(expected);
+            feedback = correct ? null : AnswerChecker.feedback(answer, expected, rules, shown);
+        }
+        if (correct) {
             logResult(learner, language, vocab, request, request.attempt());
-            return new CheckResult(true, "Correct!", AnswerChecker.allOptions(expected), true, ipa, dictionaryUrl,
-                    context, reading);
+            return new CheckResult(true, "Correct!", fullAnswer, true, ipa, dictionaryUrl, context, reading,
+                    partsRight);
         }
         if (request.attempt() < AnswerChecker.MAX_ATTEMPTS) {
-            return new CheckResult(false, AnswerChecker.feedback(answer, expected, rules,
-                    request.shown() == null ? List.of() : request.shown()),
-                    null, false, null, null, null, null);
+            return new CheckResult(false, feedback, null, false, null, null, null, null, partsRight);
         }
         logResult(learner, language, vocab, request, 0);
-        return new CheckResult(false, "Not quite.", AnswerChecker.allOptions(expected), true, ipa, dictionaryUrl,
-                context, reading);
+        return new CheckResult(false, "Not quite.", fullAnswer, true, ipa, dictionaryUrl, context, reading,
+                partsRight);
     }
 
     // The hint button; doesn't count as a try and never repeats a hint shown for this question
     @PostMapping("/{learner}/languages/{language}/quiz/hint")
     public HintResult hint(@PathVariable String learner, @PathVariable String language, @RequestBody HintRequest request) {
         Vocab vocab = find(learner, language, request.id());
+        Language rules = rules(learner, language);
+        List<String> shown = request.shown() == null ? List.of() : request.shown();
+        if (request.answerInLanguage() && vocab.hasForms()) {
+            return new HintResult(new VerbForms(vocab, rules).hint(request.answers(), shown));
+        }
         String expected = Question.expectedAnswer(vocab, request.answerInLanguage());
         String answer = request.answer() == null ? "" : request.answer();
-        List<String> shown = request.shown() == null ? List.of() : request.shown();
-        return new HintResult(AnswerChecker.hint(answer, expected, rules(learner, language), shown));
+        return new HintResult(AnswerChecker.hint(answer, expected, rules, shown));
     }
 
     // The Stats tab: what the learner practised in this language and how it went
@@ -453,9 +481,24 @@ public class VocabController {
         // the reading only for a language with a reading row (Japanese romaji, Chinese pinyin …)
         String reading = request.reading() == null || rules(learner, language).getReadingName() == null ? ""
                 : Normalizer.normalize(request.reading(), Normalizer.Form.NFC).trim();
+        // the other two forms only for an English verb ("to fly": "flew", "flown"), both or neither
+        boolean verbForms = rules(learner, language).hasVerbForms();
+        String past = request.past() == null || !verbForms ? ""
+                : Normalizer.normalize(request.past(), Normalizer.Form.NFC).trim();
+        String participle = request.participle() == null || !verbForms ? ""
+                : Normalizer.normalize(request.participle(), Normalizer.Form.NFC).trim();
+        if (past.isEmpty() != participle.isEmpty()) {
+            throw new ApiException(HttpStatus.BAD_REQUEST, "Fill in both the simple past and the past participle, "
+                    + "or neither.");
+        }
+        if (!past.isEmpty() && !word.toLowerCase().startsWith("to ")) {
+            throw new ApiException(HttpStatus.BAD_REQUEST, "The infinitive starts with 'to': 'to "
+                    + word.replaceFirst("(?i)^to\\s*", "") + "'.");
+        }
         // one line in the file: line breaks in the note become spaces
         String context = request.context() == null ? "" : request.context().replaceAll("\\s*[\\r\\n]+\\s*", " ").trim();
-        if (word.contains(";") || english.contains(";") || reading.contains(";") || context.contains(";")) {
+        if (word.contains(";") || english.contains(";") || reading.contains(";") || context.contains(";")
+                || past.contains(";") || participle.contains(";")) {
             throw new ApiException(HttpStatus.BAD_REQUEST, "Don't use ';' — it separates the columns in the vocab file.");
         }
         if (context.length() > 500) {
@@ -475,13 +518,13 @@ public class VocabController {
             category = typed;
         }
         // alternatives are separated with "/", a comma is only for sentences ("Oye, ¿qué haces?")
-        for (String side : List.of(word, english, reading)) {
+        for (String side : List.of(word, english, reading, past, participle)) {
             if (side.contains(",") && !SpellChecker.isSentenceCategory(category) && !side.matches(".*[.?!…]$")) {
                 throw new ApiException(HttpStatus.BAD_REQUEST, "Use / instead of a comma for alternatives: '"
                         + side.replaceAll("\\s*,\\s*", " / ") + "'. A comma is only for sentences.");
             }
         }
-        return new Vocab(word, english, category, context, reading);
+        return new Vocab(word, english, category, context, reading, past, participle);
     }
 
     // kind: SpellChecker.SPELLING, CAPITAL or SENTENCE
@@ -496,7 +539,8 @@ public class VocabController {
         Language rules = rules(learner, language);
         List<MisspellingDto> misspellings = new ArrayList<>();
         boolean sentences = SpellChecker.isSentenceCategory(vocab.getCategory());
-        for (SpellChecker.Misspelling m : spellChecker.check(vocab.getWord(), rules.getSpellDictionaries(), sentences)) {
+        for (SpellChecker.Misspelling m : spellChecker.check(vocab.getWordWithForms().replace(" – ", " / "),
+                rules.getSpellDictionaries(), sentences)) {
             misspellings.add(new MisspellingDto(m.word(), rules.getName(), m.suggestions(), m.kind()));
         }
         Language translation = rules.getTranslation();
@@ -583,7 +627,7 @@ public class VocabController {
         Language rules = library(learner).language(language);
         return new VocabDto(store(learner, language).idOf(v), v.getWord(), v.getEnglish(), v.getCategory(), v.getContext(),
                 index.sectionLetter(v), index.isConjugation(v), rules.ipa(v.getWord()), rules.dictionaryUrl(v.getWord()),
-                v.getReading());
+                v.getReading(), v.getPast(), v.getParticiple());
     }
 
     private static String blankToNull(String text) {

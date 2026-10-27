@@ -143,7 +143,9 @@ public class VocabIndex {
             } else {
                 match = v.getWord().toLowerCase().contains(query.toLowerCase())
                         || v.getEnglish().toLowerCase().contains(query.toLowerCase())
-                        || v.getReading().toLowerCase().contains(query.toLowerCase());
+                        || v.getReading().toLowerCase().contains(query.toLowerCase())
+                        || v.getPast().toLowerCase().contains(query.toLowerCase())
+                        || v.getParticiple().toLowerCase().contains(query.toLowerCase());
             }
             if (match) {
                 matches.add(v);

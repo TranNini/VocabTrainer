@@ -420,6 +420,21 @@ function addBracketShortcuts(input, sideOf) {
 // by the language's English name from the server, so "Englisch", "Inglés" or "Tiếng Anh" count too
 const isEnglish = (englishName) => englishName === "English";
 
+// The row for the other two forms of an English verb (to fly: flew, flown): shows in an English list once the
+// word starts with "to ", or when forms are filled in. Returns the function that shows or hides it.
+function wireFormsRow(row, wordInput, inputs) {
+    const update = () => {
+        row.hidden = !isEnglish(language?.englishName)
+            || !(/^to\s/i.test(wordInput.value.trimStart()) || inputs.some((input) => input.value.trim()));
+    };
+    wordInput.addEventListener("input", update);
+    update();
+    return update;
+}
+
+// "to fly – flew – flown", or just the word when it has no other forms
+const withForms = (word) => word.past ? `${word.word} – ${word.past} – ${word.participle}` : word.word;
+
 // ---------- languages ----------
 
 async function loadLanguages(selectName) {
@@ -488,6 +503,7 @@ function showTranslationLanguage() {
         label.textContent = language.translation;
     }
     $("bracket-hint").hidden = !isEnglish(language.translationEnglishName);
+    updateAddFormsRow();
     // the row between word and translation for Japanese, Chinese, Korean (romaji, pinyin …)
     $("add-reading-row").hidden = !language.readingName;
     for (const label of document.querySelectorAll(".reading-name")) {
@@ -624,8 +640,8 @@ function wireCategorySelect(select, newInput) {
 function commasAsAlternatives(vocab) {
     const sentence = (text) => isSentenceCategory(vocab.category) || /[.?!…]\s*$/.test(text.trim());
     const fixed = {...vocab};
-    for (const [field, side] of [["word", language.name], ["reading", language.readingName],
-        ["english", language.translation]]) {
+    for (const [field, side] of [["word", language.name], ["past", "simple past"], ["participle", "past participle"],
+        ["reading", language.readingName], ["english", language.translation]]) {
         const text = vocab[field] ?? "";
         if (!text.includes(",") || sentence(text)) {
             continue;
@@ -713,7 +729,8 @@ function showView(name) {
 
 // shownHints = the hints shown for the current question, so the hint button never repeats one
 // hints = how often the hint button was pressed for this question, for the statistics
-const quiz = {questions: [], index: 0, attempt: 1, correct: 0, asked: 0, shownHints: [], hints: 0};
+// parts = the fields of an English verb with all three forms (see showParts), else empty
+const quiz = {questions: [], index: 0, attempt: 1, correct: 0, asked: 0, shownHints: [], hints: 0, parts: []};
 
 async function startQuiz() {
     const refresh = $("quiz-category").value === REFRESH;
@@ -757,17 +774,39 @@ function showQuestion() {
     $("quiz-context").hidden = true;
     $("quiz-answer").value = "";
     $("quiz-answer").disabled = false;
+    showParts(question.parts);
     $("quiz-hint").hidden = true;
     $("quiz-check").hidden = false;
     $("quiz-hint-button").hidden = false;
     setHintButton(true);
     $("quiz-next").hidden = true;
-    $("quiz-answer").focus();
+    (quiz.parts[0] ?? $("quiz-answer")).focus();
+}
+
+// An English verb with all three forms gets one field per form instead of the answer field; Enter in one goes
+// to the next, and Check is pressed in the last one
+function showParts(names) {
+    quiz.parts = (names ?? []).map((name, i, all) => {
+        const input = el("input", {type: "text", autocapitalize: "off", spellcheck: false});
+        input.setAttribute("autocorrect", "off"); // no such property, only the attribute (Safari)
+        input.addEventListener("keydown", (event) => {
+            if (event.key === "Enter" && i < all.length - 1) {
+                event.preventDefault();
+                quiz.parts[i + 1].focus();
+            }
+        });
+        return input;
+    });
+    $("quiz-parts").replaceChildren(...quiz.parts.map((input, i) => el("label", {}, names[i], input)));
+    $("quiz-parts").hidden = quiz.parts.length === 0;
+    $("quiz-answer").hidden = quiz.parts.length > 0;
+    $("quiz-accents").hidden ||= quiz.parts.length > 0;
 }
 
 async function checkAnswer() {
     const question = quiz.questions[quiz.index];
-    const answer = $("quiz-answer").value.trim();
+    const answers = quiz.parts.length ? quiz.parts.map((input) => input.value.trim()) : null;
+    const answer = answers ? answers.filter(Boolean).join(" – ") : $("quiz-answer").value.trim();
     if (!answer) {
         return;
     }
@@ -776,7 +815,12 @@ async function checkAnswer() {
     }
     const result = await api("POST", langUrl("/quiz/check"), {
         id: question.id, answerInLanguage: question.answerInLanguage, answer, attempt: quiz.attempt,
-        shown: quiz.shownHints, hints: quiz.hints,
+        shown: quiz.shownHints, hints: quiz.hints, answers,
+    });
+    // which forms were right: a green or red frame on each field
+    (result.partsRight ?? []).forEach((right, i) => {
+        quiz.parts[i].classList.toggle("right", right);
+        quiz.parts[i].classList.toggle("wrong", !right);
     });
     const feedback = $("quiz-feedback");
     feedback.textContent = result.feedback;
@@ -805,6 +849,7 @@ async function checkAnswer() {
             ...ipaButtons(result.ipa, $("quiz-answer-ipa")), dictionaryLink(result.dictionaryUrl));
         $("quiz-extras").hidden = false;
         $("quiz-answer").disabled = true;
+        quiz.parts.forEach((input) => input.disabled = true);
         $("quiz-check").hidden = true;
         $("quiz-hint-button").hidden = true;
         $("quiz-next").hidden = false;
@@ -812,7 +857,7 @@ async function checkAnswer() {
     } else {
         quiz.attempt++;
         setHintButton(true); // a new try, so one more hint
-        $("quiz-answer").select();
+        (quiz.parts[result.partsRight?.indexOf(false)] ?? $("quiz-answer")).select();
     }
 }
 
@@ -829,12 +874,12 @@ async function showHint() {
     const question = quiz.questions[quiz.index];
     const hint = await api("POST", langUrl("/quiz/hint"), {
         id: question.id, answerInLanguage: question.answerInLanguage, answer: $("quiz-answer").value,
-        shown: quiz.shownHints,
+        shown: quiz.shownHints, answers: quiz.parts.length ? quiz.parts.map((input) => input.value) : null,
     });
     quiz.shownHints.push(hint.text);
     $("quiz-hint").textContent = hint.text;
     $("quiz-hint").hidden = false;
-    $("quiz-answer").focus();
+    (quiz.parts.find((input) => input.classList.contains("wrong")) ?? quiz.parts[0] ?? $("quiz-answer")).focus();
 }
 
 function nextQuestion() {
@@ -882,6 +927,9 @@ async function addVocab(event) {
 async function saveNewVocab() {
     const vocab = {
         word: $("add-word").value,
+        // only when the row shows (an English verb)
+        past: $("add-forms-row").hidden ? "" : $("add-past").value,
+        participle: $("add-forms-row").hidden ? "" : $("add-participle").value,
         reading: $("add-reading").value,
         english: $("add-english").value,
         context: $("add-context").value,
@@ -890,9 +938,12 @@ async function saveNewVocab() {
     try {
         const saved = await saveVocab("POST", langUrl("/vocab"), commasAsAlternatives(vocab));
         $("add-recent").hidden = false;
-        $("add-recent-list").prepend(el("li", {textContent: `${saved.word} = ${saved.english} [${saved.category}]`}));
+        $("add-recent-list").prepend(el("li", {textContent: `${withForms(saved)} = ${saved.english} [${saved.category}]`}));
         // keep the category, so a whole verb can be added in a row
         $("add-word").value = "";
+        $("add-past").value = "";
+        $("add-participle").value = "";
+        updateAddFormsRow();
         $("add-reading").value = "";
         $("add-english").value = "";
         $("add-context").value = "";
@@ -973,6 +1024,7 @@ function wordRow(word) {
     const row = el("div", {className: "word" + (word.conjugation ? " conjugation" : "")});
     const line = el("button", {type: "button", className: "word-line"},
         el("span", {className: "es"}, word.word,
+            ...(word.past ? [el("span", {className: "forms", textContent: ` – ${word.past} – ${word.participle}`})] : []),
             ...(word.reading ? [el("span", {className: "reading", textContent: word.reading})] : [])),
         el("span", {className: "en", textContent: word.english}));
     line.addEventListener("click", () => {
@@ -994,8 +1046,10 @@ function wordRow(word) {
 function editForm(word) {
     const form = $("edit-template").content.firstElementChild.cloneNode(true);
     const wordInput = form.elements.word;
-    const {english, context, category, newCategory, reading} = form.elements;
+    const {english, context, category, newCategory, reading, past, participle} = form.elements;
     form.querySelector(".lang-name").textContent = language.name;
+    past.value = word.past ?? "";
+    participle.value = word.participle ?? "";
     form.querySelector(".reading-row").hidden = !language.readingName;
     form.querySelector(".reading-name").textContent = language.readingName ?? "";
     reading.value = word.reading ?? "";
@@ -1003,6 +1057,8 @@ function editForm(word) {
         Boolean(language.readingName));
     form.querySelector(".translation-name").textContent = language.translation;
     wordInput.value = word.word;
+    const formsRow = form.querySelector(".forms-row");
+    wireFormsRow(formsRow, wordInput, [past, participle]);
     english.value = word.english;
     context.value = word.context;
     fillCategorySelect(category, word.category);
@@ -1023,6 +1079,8 @@ function editForm(word) {
         try {
             await saveVocab("PUT", langUrl("/vocab/" + word.id), commasAsAlternatives({
                 word: wordInput.value,
+                past: formsRow.hidden ? "" : past.value,
+                participle: formsRow.hidden ? "" : participle.value,
                 reading: reading.value,
                 english: english.value,
                 context: context.value,
@@ -1185,6 +1243,7 @@ $("add-form").addEventListener("submit", addVocab);
 wireCategorySelect($("add-category"), $("add-new-category"));
 addBracketShortcuts($("add-word"), () => language?.englishName);
 addBracketShortcuts($("add-english"), () => language?.translationEnglishName);
+const updateAddFormsRow = wireFormsRow($("add-forms-row"), $("add-word"), [$("add-past"), $("add-participle")]);
 
 $("learner").addEventListener("change", () => {
     const actions = {[ADD_LEARNER]: addLearner, [COPY_VOCAB]: copyVocab, [RENAME_LEARNER]: renameLearner,

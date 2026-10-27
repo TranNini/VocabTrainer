@@ -10,7 +10,7 @@
     <link rel="icon" href="icon.svg" type="image/svg+xml">
     <link rel="apple-touch-icon" href="apple-touch-icon.png">
     <title>Vocab Trainer</title>
-    <link rel="stylesheet" href="style.css?v=13">
+    <link rel="stylesheet" href="style.css?v=14">
 </head>
 <body>
 <header class="top">
@@ -48,6 +48,8 @@
                 <input id="quiz-answer" type="text" autocapitalize="off" autocorrect="off" spellcheck="false"
                        aria-label="Your answer">
                 <div id="quiz-accents" class="accents" data-for="quiz-answer"></div>
+                <!-- an English verb with all three forms: one field each (see VerbForms) -->
+                <div id="quiz-parts" class="quiz-parts" hidden></div>
                 <p id="quiz-feedback" class="feedback" aria-live="polite"></p>
                 <p id="quiz-hint" class="hint" aria-live="polite" hidden></p>
                 <p id="quiz-full-answer" class="full-answer" hidden></p>
@@ -83,6 +85,11 @@
             <label for="add-word" class="lang-name"></label>
             <input id="add-word" type="text" autocapitalize="off" autocorrect="off" spellcheck="false">
             <div class="accents" data-for="add-word"></div>
+            <!-- the other two forms of an English verb ("to fly": flew, flown); shows once the word starts with "to " -->
+            <div id="add-forms-row" class="forms-row" hidden>
+                <label>Simple past <input id="add-past" type="text" autocapitalize="off" autocorrect="off" spellcheck="false"></label>
+                <label>Past participle <input id="add-participle" type="text" autocapitalize="off" autocorrect="off" spellcheck="false"></label>
+            </div>
             <!-- the reading (romaji, pinyin …), only for languages in their own script -->
             <div id="add-reading-row" class="reading-row" hidden>
                 <label for="add-reading" class="reading-name"></label>
@@ -164,6 +171,10 @@
         <div class="extras"></div>
         <label><span class="lang-name"></span> <input name="word" type="text" autocapitalize="off" autocorrect="off" spellcheck="false"></label>
         <div class="accents"></div>
+        <div class="forms-row" hidden>
+            <label>Simple past <input name="past" type="text" autocapitalize="off" autocorrect="off" spellcheck="false"></label>
+            <label>Past participle <input name="participle" type="text" autocapitalize="off" autocorrect="off" spellcheck="false"></label>
+        </div>
         <div class="reading-row" hidden>
             <label><span class="reading-name"></span> <input name="reading" type="text" autocapitalize="off" autocorrect="off" spellcheck="false"></label>
             <div class="accents reading-accents"></div>
@@ -182,6 +193,6 @@
 </template>
 
 <!-- ?v=2: one-time nudge for browsers still holding an old cached copy -->
-<script src="app.js?v=30"></script>
+<script src="app.js?v=31"></script>
 </body>
 </html>

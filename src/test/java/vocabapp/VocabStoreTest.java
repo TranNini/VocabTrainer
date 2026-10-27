@@ -81,4 +81,20 @@ class VocabStoreTest {
     void missingFileMeansEmpty() {
         assertTrue(new VocabStore(dir.resolve("nothing.txt")).getAll().isEmpty());
     }
+
+    @Test
+    void keepsTheOtherFormsOfAnEnglishVerb() throws IOException {
+        Path file = dir.resolve("English.txt");
+        VocabStore store = new VocabStore(file);
+        store.add(new Vocab("to fly", "fliegen", "verbs", "", "", "flew", "flown"));
+        store.add(new Vocab("to get", "bekommen", "verbs", "irregular", "", "got", "got / gotten"));
+        store.add(new Vocab("to walk", "gehen", "verbs"));
+
+        assertEquals(List.of("to fly;fliegen;verbs;;;flew;flown", "to get;bekommen;verbs;irregular;;got;got / gotten",
+                "to walk;gehen;verbs"), Files.readAllLines(file));
+        Vocab get = new VocabStore(file).getAll().get(1);
+        assertEquals("got / gotten", get.getParticiple());
+        assertEquals("to get – got – got / gotten", get.getWordWithForms());
+        assertTrue(new VocabStore(file).getAll().get(0).hasForms());
+    }
 }

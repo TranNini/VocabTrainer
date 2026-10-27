@@ -691,3 +691,35 @@ ul.plain li {
     font-size: 0.85rem;
     color: var(--muted);
 }
+
+/* the other two forms of an English verb, side by side under the word */
+.forms-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+    margin-top: 8px;
+}
+
+.forms-row label {
+    margin: 0;
+}
+
+/* the quiz fields for to fly – flew – flown; a form that was wrong gets a red frame */
+.quiz-parts label {
+    display: block;
+    margin: 8px 0 0;
+}
+
+.quiz-parts input.wrong {
+    border-color: var(--bad);
+}
+
+.quiz-parts input.right {
+    border-color: var(--good);
+}
+
+/* the other forms after the infinitive in the word list */
+.word-line .forms {
+    font-weight: 400;
+    color: var(--muted);
+}

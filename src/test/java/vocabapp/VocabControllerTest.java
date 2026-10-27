@@ -724,4 +724,65 @@ class VocabControllerTest {
                 """).andExpect(status().isBadRequest());
         mvc.perform(delete("/api/learners/Kanjitest")).andExpect(status().isNoContent());
     }
+
+    @Test
+    void anEnglishVerbHasAllThreeFormsAndTheQuizAsksForEach() throws Exception {
+        send("POST", "/api/learners", """
+                {"name": "Formtest"}
+                """).andExpect(status().isCreated());
+        send("POST", "/api/learners/Formtest/languages", """
+                {"name": "Englisch", "translation": "Deutsch"}
+                """).andExpect(status().isCreated());
+        String url = "/api/learners/Formtest/languages/Englisch";
+        String verb = """
+                {"word": "%s", "past": "%s", "participle": "%s", "english": "fliegen", "category": "verbs",
+                 "newCategory": true}
+                """;
+        // "to" is part of the infinitive, both forms or neither, and the forms are spell checked too
+        send("POST", url + "/vocab", verb.formatted("fly", "flew", "flown")).andExpect(status().isBadRequest());
+        send("POST", url + "/vocab", verb.formatted("to fly", "flew", "")).andExpect(status().isBadRequest());
+        send("POST", url + "/vocab", verb.formatted("to fly", "flyed", "flown"))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.spelling[0].word").value("flyed"));
+        send("POST", url + "/vocab", verb.formatted("to fly", "flew", "flown"))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.past").value("flew"))
+                .andExpect(jsonPath("$.participle").value("flown"));
+        assertTrue(Files.readString(dir.resolve("vocab/Formtest/Englisch.txt"))
+                .contains("to fly;fliegen;verbs;;;flew;flown"));
+        // found by any of its forms
+        mvc.perform(get(url + "/vocab?category=&q=flown")).andExpect(jsonPath("$[0].word").value("to fly"));
+
+        VocabStore store = learners.library("Formtest").store("Englisch");
+        int id = store.idOf(store.getAll().get(0));
+        String check = """
+                {"id": %d, "answerInLanguage": true, "answer": "x", "attempt": %d, "shown": [], "answers": [%s]}
+                """;
+        send("POST", url + "/quiz/check", check.formatted(id, 1, "\"to fly\", \"flown\", \"flown\""))
+                .andExpect(jsonPath("$.correct").value(false))
+                .andExpect(jsonPath("$.partsRight[0]").value(true))
+                .andExpect(jsonPath("$.partsRight[1]").value(false))
+                .andExpect(jsonPath("$.feedback").value(org.hamcrest.Matchers.startsWith("Simple past: ")));
+        // without "to" the infinitive isn't right
+        send("POST", url + "/quiz/check", check.formatted(id, 2, "\"fly\", \"flew\", \"flown\""))
+                .andExpect(jsonPath("$.partsRight[0]").value(false))
+                .andExpect(jsonPath("$.feedback").value(org.hamcrest.Matchers.startsWith("Infinitive: ")));
+        send("POST", url + "/quiz/check", check.formatted(id, 2, "\"to fly\", \"flew\", \"flown\""))
+                .andExpect(jsonPath("$.correct").value(true))
+                .andExpect(jsonPath("$.answer").value("to fly – flew – flown"));
+        send("POST", url + "/quiz/hint", """
+                {"id": %d, "answerInLanguage": true, "answer": "", "shown": [], "answers": ["to fly", "fle", ""]}
+                """.formatted(id)).andExpect(jsonPath("$.text").value(org.hamcrest.Matchers.startsWith("Simple past: ")));
+        // the German prompt asks for the three forms; the English one shows them all
+        mvc.perform(get(url + "/quiz?refresh=false"))
+                .andExpect(jsonPath("$[0].parts").value(org.hamcrest.Matchers.anyOf(
+                        org.hamcrest.Matchers.nullValue(), org.hamcrest.Matchers.contains(VerbForms.NAMES.toArray()))))
+                .andExpect(jsonPath("$[0].prompt").value(org.hamcrest.Matchers.oneOf("fliegen", "to fly – flew – flown")));
+        // not in other lists: Spanish verbs keep their two sides
+        send("POST", SPANISH + "/vocab", """
+                {"word": "volar", "past": "volé", "participle": "volado", "english": "to fly", "category": "verbs",
+                 "newCategory": true}
+                """).andExpect(status().isCreated()).andExpect(jsonPath("$.past").value(""));
+        mvc.perform(delete("/api/learners/Formtest")).andExpect(status().isNoContent());
+    }
 }

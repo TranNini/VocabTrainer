@@ -11,6 +11,11 @@ public record Question(String prompt, String expected, boolean answerInLanguage)
         boolean answerInLanguage = random.nextBoolean();
         String side = answerInLanguage ? vocab.getEnglish() : vocab.getWord();
         String prompt = AnswerChecker.pickOne(AnswerChecker.expandPronounShortForm(side, language), random);
+        if (!answerInLanguage && vocab.hasForms()) {
+            // an English verb is shown with all three forms: "to fly – flew – flown"
+            prompt = String.join(" – ", java.util.stream.Stream.of(vocab.getWord(), vocab.getPast(),
+                    vocab.getParticiple()).map(AnswerChecker::allOptions).toList());
+        }
         return new Question(prompt, expectedAnswer(vocab, answerInLanguage), answerInLanguage);
     }
 

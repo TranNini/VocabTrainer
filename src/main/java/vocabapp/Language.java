@@ -253,6 +253,11 @@ public class Language {
         return other.substring(0, 1).toUpperCase() + other.substring(1);
     }
 
+    // English verbs can be saved with all three forms: to fly – flew – flown
+    public boolean hasVerbForms() {
+        return getEnglishName().equals("English");
+    }
+
     // "Romaji", "Pinyin", "Romanization": the row between the word and its translation; null = none
     public String getReadingName() {
         return readingName;

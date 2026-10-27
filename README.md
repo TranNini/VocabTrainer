@@ -138,6 +138,12 @@ Adding verb conjugations (Spanish, German, English):
     -> tener, the irregular ser, ir, haber, sein, haben, …) and by its translation (I am -> to be, du hast ->
     haben), in whatever order they were saved. Only if nothing fits, under the infinitive saved before it.
 
+English irregular verbs (in an English list, e.g. Englisch -> Deutsch):
+    Type the infinitive with "to" (to fly): two more fields appear for the simple past (flew) and the past
+    participle (flown). Fill in both, or neither for a regular verb; alternatives with / (got / gotten). The
+    translation is just the infinitive (fliegen). The quiz asks "fliegen" with one field per form, and only
+    all three right count; "to" is part of the infinitive. Saved as word;translation;category;note;;past;participle.
+
 Giving a new language its extras:
     A language named in German, Spanish, Vietnamese or in itself, with or without accents (Spanisch, Español,
     Deutsch, Alemán, Tiếng Đức, Tieng Viet, Inglés, …), gets the same extras as its English name. Everything
@@ -162,6 +168,7 @@ SpellChecker.java - the spell check for new vocab
 QuizLog.java, QuizStats.java - the quiz results and the stats worked out from them
 Question.java - one quiz question (which side is asked)
 VocabIndex.java - sorting, sections, search, verb grouping and categories
+VerbForms.java - the quiz for an English verb with all three forms (to fly – flew – flown)
 SpanishIpa.java - works out the IPA pronunciation from the Spanish spelling
 WebApp.java - starts the app
 AccessCode.java, AccessFilter.java, LoginController.java - the access code for other devices
